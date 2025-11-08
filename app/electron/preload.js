@@ -87,5 +87,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     login: (username, password) => ipcRenderer.invoke('users:login', username, password),
     logout: () => ipcRenderer.invoke('users:logout'),
     getCurrentUser: () => ipcRenderer.invoke('users:getCurrentUser')
+  },
+
+  // Settings
+  settings: {
+    getAll: () => ipcRenderer.invoke('settings:getAll'),
+    save: (data) => ipcRenderer.invoke('settings:save', data),
+    getCompanyDetails: () => ipcRenderer.invoke('settings:getCompanyDetails'),
+    get: (key) => ipcRenderer.invoke('settings:get', key),
+    set: (key, value) => ipcRenderer.invoke('settings:set', key, value),
+    reset: () => ipcRenderer.invoke('settings:reset')
+  },
+
+  // System
+  system: {
+    getInfo: () => ipcRenderer.invoke('system:getInfo')
   }
 });

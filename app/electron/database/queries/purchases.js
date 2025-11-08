@@ -11,12 +11,17 @@ const db = require('../connection');
 async function create(purchaseData) {
   try {
     return await db.transaction(async (connection) => {
-      // Generate receipt number
-      const [receiptResult] = await connection.execute(
-        'CALL sp_generate_receipt_number(?)',
+      // Generate receipt number using OUT parameter
+      await connection.execute(
+        'CALL sp_generate_receipt_number(?, @receipt_number)',
         [purchaseData.season_id]
       );
-      const receiptNumber = receiptResult[0][0].receipt_number;
+      
+      // Get the OUT parameter value
+      const [receiptResult] = await connection.execute(
+        'SELECT @receipt_number as receipt_number'
+      );
+      const receiptNumber = receiptResult[0].receipt_number;
       
       // Calculate penalties and totals
       const [calcResult] = await connection.execute(`

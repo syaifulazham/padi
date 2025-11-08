@@ -8,6 +8,7 @@ const farmerService = require('./database/queries/farmers');
 const manufacturerService = require('./database/queries/manufacturers');
 const purchaseService = require('./database/queries/purchases');
 const weighbridgeService = require('./hardware/weighbridge');
+const settingsService = require('./services/settings');
 
 let mainWindow;
 
@@ -27,14 +28,40 @@ function createWindow() {
   });
 
   // Load React app (development or production)
-  const isDev = process.env.NODE_ENV === 'development';
+  const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+  
+  console.log('🚀 Starting Electron...');
+  console.log('   Environment:', process.env.NODE_ENV);
+  console.log('   Is Development:', isDev);
+  console.log('   Is Packaged:', app.isPackaged);
   
   if (isDev) {
+    console.log('   Loading from: http://localhost:5173');
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
+    
+    // Add more detailed logging
+    mainWindow.webContents.on('did-finish-load', () => {
+      console.log('✅ Page loaded successfully');
+    });
+    
+    mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+      console.error('❌ Page failed to load:', errorCode, errorDescription);
+    });
+    
+    mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+      console.log(`Console [${level}]:`, message);
+    });
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../build/index.html'));
+    const indexPath = path.join(__dirname, '../build/index.html');
+    console.log('   Loading from:', indexPath);
+    mainWindow.loadFile(indexPath);
   }
+
+  // Log any loading errors
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error('❌ Failed to load:', errorDescription);
+  });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -165,6 +192,36 @@ ipcMain.handle('weighbridge:connect', async () => {
 
 ipcMain.handle('weighbridge:disconnect', async () => {
   return await weighbridgeService.disconnect();
+});
+
+// Settings
+ipcMain.handle('settings:getAll', async () => {
+  return await settingsService.getAll();
+});
+
+ipcMain.handle('settings:save', async (event, data) => {
+  return await settingsService.save(data);
+});
+
+ipcMain.handle('settings:getCompanyDetails', async () => {
+  return await settingsService.getCompanyDetails();
+});
+
+ipcMain.handle('settings:get', async (event, key) => {
+  return await settingsService.get(key);
+});
+
+ipcMain.handle('settings:set', async (event, key, value) => {
+  return await settingsService.set(key, value);
+});
+
+ipcMain.handle('settings:reset', async () => {
+  return await settingsService.reset();
+});
+
+// System Info
+ipcMain.handle('system:getInfo', async () => {
+  return await settingsService.getSystemInfo();
 });
 
 // ===========================================

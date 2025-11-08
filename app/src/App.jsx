@@ -5,6 +5,7 @@ import Dashboard from './components/Dashboard/Dashboard';
 import Farmers from './components/Farmers/Farmers';
 import Manufacturers from './components/Manufacturers/Manufacturers';
 import Purchases from './components/Purchases/Purchases';
+import PurchaseHistory from './components/Purchases/PurchaseHistory';
 import Sales from './components/Sales/Sales';
 import Inventory from './components/Inventory/Inventory';
 import Reports from './components/Reports/Reports';
@@ -96,6 +97,7 @@ function App() {
           <Route path="/farmers" element={<Farmers />} />
           <Route path="/manufacturers" element={<Manufacturers />} />
           <Route path="/purchases" element={<Purchases />} />
+          <Route path="/purchases/history" element={<PurchaseHistory />} />
           <Route path="/sales" element={<Sales />} />
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/reports" element={<Reports />} />
