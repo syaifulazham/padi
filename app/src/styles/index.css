@@ -49,3 +49,9 @@ code {
 ::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
+
+/* Force all messages to appear at bottom */
+.ant-message {
+  top: auto !important;
+  bottom: 50px !important;
+}

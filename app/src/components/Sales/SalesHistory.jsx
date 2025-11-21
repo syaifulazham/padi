@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Statistic, Row, Col, Button, Space, Tag, DatePicker, message, Tooltip } from 'antd';
+import { Card, Table, Statistic, Row, Col, Button, Space, Tag, DatePicker } from 'antd';
 import { ReloadOutlined, PrinterOutlined, FileExcelOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
 const { RangePicker } = DatePicker;
 
-const PurchaseHistory = () => {
+const SalesHistory = () => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [dateRange, setDateRange] = useState([dayjs().startOf('day'), dayjs().endOf('day')]);
@@ -26,7 +26,7 @@ const PurchaseHistory = () => {
       const result = await window.electronAPI.seasons?.getActive();
       if (result?.success && result.data) {
         setActiveSeason(result.data);
-        console.log('✅ Active season loaded for purchase history:', result.data);
+        console.log('✅ Active season loaded for sales history:', result.data);
       }
     } catch (error) {
       console.error('Failed to load active season:', error);
@@ -42,75 +42,45 @@ const PurchaseHistory = () => {
     setLoading(true);
     try {
       const [startDate, endDate] = dateRange;
-      const result = await window.electronAPI.purchases?.getAll({
-        date_from: startDate.format('YYYY-MM-DD'),
-        date_to: endDate.format('YYYY-MM-DD'),
+      const result = await window.electronAPI.sales?.getAll({
+        startDate: startDate.format('YYYY-MM-DD'),
+        endDate: endDate.format('YYYY-MM-DD'),
         season_id: activeSeason.season_id  // ✅ Filter by active season
       });
       
-      console.log('📊 Purchase history loaded for season:', activeSeason.season_id);
+      console.log('📊 Sales history loaded for season:', activeSeason.season_id);
       console.log('📊 Transactions found:', result?.data?.length || 0);
       
       if (result?.success) {
         setTransactions(result.data || []);
       }
     } catch (error) {
-      console.error('Failed to load transactions:', error);
+      console.error('Failed to load sales transactions:', error);
       setTransactions([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleReprint = async (record) => {
-    try {
-      message.loading({ content: 'Generating receipt...', key: 'reprint' });
-      
-      const result = await window.electronAPI.printer?.purchaseReceipt(record.transaction_id);
-      
-      if (result?.success) {
-        if (result.mode === 'pdf') {
-          message.success({
-            content: (
-              <div>
-                <div>📄 Receipt saved as PDF: {result.filename}</div>
-                <div style={{ fontSize: '12px', marginTop: 4 }}>Location: {result.path}</div>
-              </div>
-            ),
-            key: 'reprint',
-            duration: 5
-          });
-        } else {
-          message.success({ content: '✅ Receipt sent to printer', key: 'reprint' });
-        }
-      } else {
-        message.error({ content: `Failed to print: ${result?.error}`, key: 'reprint' });
-      }
-    } catch (error) {
-      console.error('Failed to reprint:', error);
-      message.error({ content: 'Failed to reprint receipt', key: 'reprint' });
-    }
-  };
-
   // Calculate statistics
   const stats = {
     total: transactions.length,
-    totalWeight: transactions.reduce((sum, p) => sum + (parseFloat(p.net_weight_kg) || 0), 0),
-    totalAmount: transactions.reduce((sum, p) => sum + (parseFloat(p.total_amount) || 0), 0)
+    totalWeight: transactions.reduce((sum, s) => sum + (parseFloat(s.net_weight_kg) || 0), 0),
+    totalAmount: transactions.reduce((sum, s) => sum + (parseFloat(s.total_amount) || 0), 0)
   };
 
   const columns = [
     {
-      title: 'Receipt',
-      dataIndex: 'receipt_number',
-      key: 'receipt_number',
+      title: 'Sales Number',
+      dataIndex: 'sales_number',
+      key: 'sales_number',
       width: 150,
-      render: (text) => <Tag color="blue">{text}</Tag>
+      render: (text) => <Tag color="green">{text}</Tag>
     },
     {
       title: 'Date & Time',
-      dataIndex: 'transaction_date',
-      key: 'transaction_date',
+      dataIndex: 'sale_date',
+      key: 'sale_date',
       width: 160,
       render: (text) => text ? dayjs(text).format('DD/MM/YYYY HH:mm') : '-'
     },
@@ -121,14 +91,14 @@ const PurchaseHistory = () => {
       width: 120
     },
     {
-      title: 'Farmer',
-      dataIndex: 'farmer_name',
-      key: 'farmer_name',
+      title: 'Manufacturer',
+      dataIndex: 'manufacturer_name',
+      key: 'manufacturer_name',
       width: 200,
       render: (text, record) => (
         <div>
           <div style={{ fontWeight: 500 }}>{text}</div>
-          <div style={{ fontSize: '12px', color: '#999' }}>{record.farmer_code}</div>
+          <div style={{ fontSize: '12px', color: '#999' }}>{record.manufacturer_code}</div>
         </div>
       )
     },
@@ -155,15 +125,15 @@ const PurchaseHistory = () => {
       width: 120,
       align: 'right',
       render: (weight) => (
-        <strong style={{ color: '#1890ff' }}>
+        <strong style={{ color: '#52c41a' }}>
           {weight ? parseFloat(weight).toFixed(2) : '-'}
         </strong>
       )
     },
     {
       title: 'Price/kg',
-      dataIndex: 'final_price_per_kg',
-      key: 'final_price_per_kg',
+      dataIndex: 'sale_price_per_kg',
+      key: 'sale_price_per_kg',
       width: 100,
       align: 'right',
       render: (price) => price ? `RM ${parseFloat(price).toFixed(2)}` : '-'
@@ -175,7 +145,7 @@ const PurchaseHistory = () => {
       width: 120,
       align: 'right',
       render: (amount) => (
-        <strong style={{ color: '#52c41a' }}>
+        <strong style={{ color: '#fa8c16' }}>
           {amount ? `RM ${parseFloat(amount).toFixed(2)}` : '-'}
         </strong>
       )
@@ -190,24 +160,6 @@ const PurchaseHistory = () => {
           {status?.toUpperCase()}
         </Tag>
       )
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      width: 100,
-      fixed: 'right',
-      render: (_, record) => (
-        <Tooltip title="Reprint Receipt">
-          <Button
-            type="primary"
-            icon={<PrinterOutlined />}
-            size="small"
-            onClick={() => handleReprint(record)}
-          >
-            Reprint
-          </Button>
-        </Tooltip>
-      )
     }
   ];
 
@@ -218,7 +170,7 @@ const PurchaseHistory = () => {
         <Row justify="space-between" align="middle">
           <Col>
             <h2 style={{ margin: 0 }}>
-              Purchase Transaction History
+              Sales Transaction History
               {activeSeason && (
                 <Tag color="blue" style={{ marginLeft: 12, fontSize: 14 }}>
                   🌾 {activeSeason.season_name || `Season ${activeSeason.season_number}/${activeSeason.year}`}
@@ -270,7 +222,7 @@ const PurchaseHistory = () => {
           <Col span={8}>
             <Card>
               <Statistic
-                title="Total Weight"
+                title="Total Weight Sold"
                 value={stats.totalWeight.toFixed(2)}
                 suffix="KG"
                 precision={2}
@@ -280,7 +232,7 @@ const PurchaseHistory = () => {
           <Col span={8}>
             <Card>
               <Statistic
-                title="Total Amount"
+                title="Total Revenue"
                 value={stats.totalAmount}
                 prefix="RM"
                 precision={2}
@@ -293,7 +245,7 @@ const PurchaseHistory = () => {
         <Table
           columns={columns}
           dataSource={transactions}
-          rowKey="transaction_id"
+          rowKey="sales_id"
           loading={loading}
           pagination={{
             pageSize: 20,
@@ -301,11 +253,11 @@ const PurchaseHistory = () => {
             showSizeChanger: true,
             pageSizeOptions: ['10', '20', '50', '100']
           }}
-          scroll={{ x: 1500 }}
+          scroll={{ x: 1400 }}
         />
       </Space>
     </Card>
   );
 };
 
-export default PurchaseHistory;
+export default SalesHistory;

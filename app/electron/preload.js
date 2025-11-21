@@ -21,14 +21,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     create: (data) => ipcRenderer.invoke('purchases:create', data),
     getAll: (filters) => ipcRenderer.invoke('purchases:getAll', filters),
     getById: (id) => ipcRenderer.invoke('purchases:getById', id),
-    getByReceipt: (receiptNumber) => ipcRenderer.invoke('purchases:getByReceipt', receiptNumber)
+    getByReceipt: (receiptNumber) => ipcRenderer.invoke('purchases:getByReceipt', receiptNumber),
+    getUnsold: (seasonId) => ipcRenderer.invoke('purchases:getUnsold', seasonId),
+    getTotalStats: (seasonId) => ipcRenderer.invoke('purchases:getTotalStats', seasonId)
   },
 
   // Sales
   sales: {
     create: (data) => ipcRenderer.invoke('sales:create', data),
     getAll: (filters) => ipcRenderer.invoke('sales:getAll', filters),
-    getById: (id) => ipcRenderer.invoke('sales:getById', id)
+    getById: (id) => ipcRenderer.invoke('sales:getById', id),
+    getTotalStats: (seasonId) => ipcRenderer.invoke('sales:getTotalStats', seasonId)
   },
 
   // Inventory
@@ -40,11 +43,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Seasons
   seasons: {
-    getAll: () => ipcRenderer.invoke('seasons:getAll'),
+    getAll: (filters) => ipcRenderer.invoke('seasons:getAll', filters),
     getActive: () => ipcRenderer.invoke('seasons:getActive'),
     getById: (id) => ipcRenderer.invoke('seasons:getById', id),
     create: (data) => ipcRenderer.invoke('seasons:create', data),
+    update: (id, data) => ipcRenderer.invoke('seasons:update', id, data),
+    getSeasonTypes: () => ipcRenderer.invoke('seasons:getSeasonTypes'),
     close: (id) => ipcRenderer.invoke('seasons:close', id)
+  },
+
+  // Season Price History
+  seasonPrice: {
+    getCurrent: (seasonId) => ipcRenderer.invoke('seasonPrice:getCurrent', seasonId),
+    update: (seasonId, pricePerTon, notes, createdBy) => ipcRenderer.invoke('seasonPrice:update', seasonId, pricePerTon, notes, createdBy),
+    getHistory: (seasonId) => ipcRenderer.invoke('seasonPrice:getHistory', seasonId),
+    initialize: (seasonId, pricePerTon, notes, createdBy) => ipcRenderer.invoke('seasonPrice:initialize', seasonId, pricePerTon, notes, createdBy)
   },
 
   // Manufacturers
@@ -53,6 +66,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getById: (id) => ipcRenderer.invoke('manufacturers:getById', id),
     create: (data) => ipcRenderer.invoke('manufacturers:create', data),
     update: (id, data) => ipcRenderer.invoke('manufacturers:update', id, data)
+  },
+
+  // Paddy Products
+  products: {
+    getAll: () => ipcRenderer.invoke('products:getAll'),
+    getActive: () => ipcRenderer.invoke('products:getActive'),
+    getById: (id) => ipcRenderer.invoke('products:getById', id),
+    create: (data) => ipcRenderer.invoke('products:create', data),
+    update: (id, data) => ipcRenderer.invoke('products:update', id, data),
+    delete: (id) => ipcRenderer.invoke('products:delete', id),
+    getInventorySummary: (seasonId) => ipcRenderer.invoke('products:getInventorySummary', seasonId)
+  },
+
+  // Season Product Prices
+  seasonProductPrices: {
+    getSeasonProductPrices: (seasonId) => ipcRenderer.invoke('seasonProductPrices:getSeasonProductPrices', seasonId),
+    getProductPrice: (seasonId, productId) => ipcRenderer.invoke('seasonProductPrices:getProductPrice', seasonId, productId),
+    initializeSeasonPrices: (seasonId, productPrices) => ipcRenderer.invoke('seasonProductPrices:initializeSeasonPrices', seasonId, productPrices),
+    updateProductPrice: (seasonId, productId, pricePerTon, notes, createdBy) => ipcRenderer.invoke('seasonProductPrices:updateProductPrice', seasonId, productId, pricePerTon, notes, createdBy),
+    getPriceHistory: (seasonId, productId) => ipcRenderer.invoke('seasonProductPrices:getPriceHistory', seasonId, productId),
+    copyPricesFromSeason: (targetSeasonId, sourceSeasonId, createdBy) => ipcRenderer.invoke('seasonProductPrices:copyPricesFromSeason', targetSeasonId, sourceSeasonId, createdBy)
   },
 
   // Grades
@@ -71,7 +105,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Printer
   printer: {
     print: (type, data) => ipcRenderer.invoke('printer:print', type, data),
-    getPrinters: () => ipcRenderer.invoke('printer:getPrinters')
+    getPrinters: () => ipcRenderer.invoke('printer:getPrinters'),
+    purchaseReceipt: (transactionId) => ipcRenderer.invoke('print:purchaseReceipt', transactionId)
   },
 
   // Reports
@@ -96,7 +131,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getCompanyDetails: () => ipcRenderer.invoke('settings:getCompanyDetails'),
     get: (key) => ipcRenderer.invoke('settings:get', key),
     set: (key, value) => ipcRenderer.invoke('settings:set', key, value),
-    reset: () => ipcRenderer.invoke('settings:reset')
+    reset: () => ipcRenderer.invoke('settings:reset'),
+    selectFolder: () => ipcRenderer.invoke('settings:selectFolder')
   },
 
   // System

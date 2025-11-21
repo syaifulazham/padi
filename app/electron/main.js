@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
@@ -6,9 +6,15 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const db = require('./database/connection');
 const farmerService = require('./database/queries/farmers');
 const manufacturerService = require('./database/queries/manufacturers');
+const productService = require('./database/queries/products');
+const seasonProductPriceService = require('./database/queries/seasonProductPrices');
 const purchaseService = require('./database/queries/purchases');
+const salesService = require('./database/queries/sales');
+const seasonService = require('./database/queries/seasons');
+const seasonPriceService = require('./database/queries/seasonPriceHistory');
 const weighbridgeService = require('./hardware/weighbridge');
 const settingsService = require('./services/settings');
+const { generatePurchaseReceipt } = require('./utils/receiptTemplate');
 
 let mainWindow;
 
@@ -159,6 +165,60 @@ ipcMain.handle('manufacturers:search', async (event, query) => {
   return await manufacturerService.search(query);
 });
 
+// Paddy Products
+ipcMain.handle('products:getAll', async () => {
+  return await productService.getAll();
+});
+
+ipcMain.handle('products:getActive', async () => {
+  return await productService.getActive();
+});
+
+ipcMain.handle('products:getById', async (event, id) => {
+  return await productService.getById(id);
+});
+
+ipcMain.handle('products:create', async (event, data) => {
+  return await productService.create(data);
+});
+
+ipcMain.handle('products:update', async (event, id, data) => {
+  return await productService.update(id, data);
+});
+
+ipcMain.handle('products:delete', async (event, id) => {
+  return await productService.delete(id);
+});
+
+ipcMain.handle('products:getInventorySummary', async (event, seasonId) => {
+  return await productService.getInventorySummary(seasonId);
+});
+
+// Season Product Prices
+ipcMain.handle('seasonProductPrices:getSeasonProductPrices', async (event, seasonId) => {
+  return await seasonProductPriceService.getSeasonProductPrices(seasonId);
+});
+
+ipcMain.handle('seasonProductPrices:getProductPrice', async (event, seasonId, productId) => {
+  return await seasonProductPriceService.getProductPrice(seasonId, productId);
+});
+
+ipcMain.handle('seasonProductPrices:initializeSeasonPrices', async (event, seasonId, productPrices) => {
+  return await seasonProductPriceService.initializeSeasonPrices(seasonId, productPrices);
+});
+
+ipcMain.handle('seasonProductPrices:updateProductPrice', async (event, seasonId, productId, pricePerTon, notes, createdBy) => {
+  return await seasonProductPriceService.updateProductPrice(seasonId, productId, pricePerTon, notes, createdBy);
+});
+
+ipcMain.handle('seasonProductPrices:getPriceHistory', async (event, seasonId, productId) => {
+  return await seasonProductPriceService.getPriceHistory(seasonId, productId);
+});
+
+ipcMain.handle('seasonProductPrices:copyPricesFromSeason', async (event, targetSeasonId, sourceSeasonId, createdBy) => {
+  return await seasonProductPriceService.copyPricesFromSeason(targetSeasonId, sourceSeasonId, createdBy);
+});
+
 // Purchases
 ipcMain.handle('purchases:create', async (event, data) => {
   return await purchaseService.create(data);
@@ -174,6 +234,77 @@ ipcMain.handle('purchases:getById', async (event, id) => {
 
 ipcMain.handle('purchases:getByReceipt', async (event, receiptNumber) => {
   return await purchaseService.getByReceipt(receiptNumber);
+});
+
+ipcMain.handle('purchases:getUnsold', async (event, seasonId) => {
+  return await purchaseService.getUnsold(seasonId);
+});
+
+ipcMain.handle('purchases:getTotalStats', async (event, seasonId) => {
+  return await purchaseService.getTotalStats(seasonId);
+});
+
+// Sales
+ipcMain.handle('sales:create', async (event, data) => {
+  return await salesService.create(data);
+});
+
+ipcMain.handle('sales:getAll', async (event, filters) => {
+  return await salesService.getAll(filters);
+});
+
+ipcMain.handle('sales:getById', async (event, id) => {
+  return await salesService.getById(id);
+});
+
+ipcMain.handle('sales:getBySalesNumber', async (event, salesNumber) => {
+  return await salesService.getBySalesNumber(salesNumber);
+});
+
+ipcMain.handle('sales:getTotalStats', async (event, seasonId) => {
+  return await salesService.getTotalStats(seasonId);
+});
+
+// Seasons
+ipcMain.handle('seasons:getAll', async (event, filters) => {
+  return await seasonService.getAll(filters);
+});
+
+ipcMain.handle('seasons:getById', async (event, id) => {
+  return await seasonService.getById(id);
+});
+
+ipcMain.handle('seasons:create', async (event, data) => {
+  return await seasonService.create(data);
+});
+
+ipcMain.handle('seasons:update', async (event, id, data) => {
+  return await seasonService.update(id, data);
+});
+
+ipcMain.handle('seasons:getActive', async (event) => {
+  return await seasonService.getActive();
+});
+
+ipcMain.handle('seasons:getSeasonTypes', async (event) => {
+  return await seasonService.getSeasonTypes();
+});
+
+// Season Price History
+ipcMain.handle('seasonPrice:getCurrent', async (event, seasonId) => {
+  return await seasonPriceService.getCurrentPrice(seasonId);
+});
+
+ipcMain.handle('seasonPrice:update', async (event, seasonId, pricePerTon, notes, createdBy) => {
+  return await seasonPriceService.updatePrice(seasonId, pricePerTon, notes, createdBy);
+});
+
+ipcMain.handle('seasonPrice:getHistory', async (event, seasonId) => {
+  return await seasonPriceService.getHistory(seasonId);
+});
+
+ipcMain.handle('seasonPrice:initialize', async (event, seasonId, pricePerTon, notes, createdBy) => {
+  return await seasonPriceService.initializePrice(seasonId, pricePerTon, notes, createdBy);
 });
 
 // Weighbridge
@@ -222,6 +353,217 @@ ipcMain.handle('settings:reset', async () => {
 // System Info
 ipcMain.handle('system:getInfo', async () => {
   return await settingsService.getSystemInfo();
+});
+
+// Folder selection dialog
+ipcMain.handle('settings:selectFolder', async () => {
+  try {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openDirectory', 'createDirectory'],
+      title: 'Select PDF Save Location',
+      buttonLabel: 'Select Folder'
+    });
+    
+    if (result.canceled) {
+      return { success: false, canceled: true };
+    }
+    
+    return { 
+      success: true, 
+      path: result.filePaths[0] 
+    };
+  } catch (error) {
+    console.error('Error selecting folder:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// ===========================================
+// Receipt Printing
+// ===========================================
+
+ipcMain.handle('print:purchaseReceipt', async (event, transactionId) => {
+  try {
+    console.log('🖨️  Printing receipt for transaction:', transactionId);
+    
+    // Check print settings
+    const printToPdfResult = await settingsService.get('print_to_pdf');
+    const printToPdf = printToPdfResult?.data || false;
+    const pdfSavePathResult = await settingsService.get('pdf_save_path');
+    const pdfSavePath = pdfSavePathResult?.data || null;
+    const pdfAutoOpenResult = await settingsService.get('pdf_auto_open');
+    const pdfAutoOpen = pdfAutoOpenResult?.data || false;
+    const paperSizeResult = await settingsService.get('paper_size');
+    const paperSize = paperSizeResult?.data || '80mm';
+    
+    // Fetch transaction details
+    const transactionResult = await purchaseService.getById(transactionId);
+    if (!transactionResult.success || !transactionResult.data) {
+      return { success: false, error: 'Transaction not found' };
+    }
+    
+    const transaction = transactionResult.data;
+    
+    // Fetch farmer details
+    const farmerResult = await farmerService.getById(transaction.farmer_id);
+    if (!farmerResult.success || !farmerResult.data) {
+      return { success: false, error: 'Farmer not found' };
+    }
+    
+    const farmer = farmerResult.data;
+    
+    // Fetch season details
+    const seasonResult = await seasonService.getById(transaction.season_id);
+    const season = seasonResult?.data || {};
+    
+    // Fetch company details
+    const companyResult = await settingsService.getCompanyDetails();
+    const companyDetails = companyResult?.data || {};
+    
+    // Generate receipt HTML with paper size
+    const receiptHTML = generatePurchaseReceipt(transaction, farmer, season, companyDetails, paperSize);
+    
+    // Create hidden window for printing/PDF
+    const printWindow = new BrowserWindow({
+      width: 800,
+      height: 600,
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true
+      }
+    });
+    
+    // Load the receipt HTML
+    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(receiptHTML)}`);
+    
+    // Small delay to ensure rendering is complete
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    if (printToPdf && pdfSavePath) {
+      // Save as PDF
+      const fs = require('fs');
+      const pathModule = require('path');
+      
+      // Ensure directory exists
+      if (!fs.existsSync(pdfSavePath)) {
+        fs.mkdirSync(pdfSavePath, { recursive: true });
+      }
+      
+      // Generate filename
+      const filename = `Receipt_${transaction.receipt_number}_${Date.now()}.pdf`;
+      const pdfPath = pathModule.join(pdfSavePath, filename);
+      
+      // Get page size based on paper size setting
+      // Use standard page sizes to avoid Adobe Acrobat warnings
+      let pdfOptions;
+      
+      if (paperSize === 'a4_portrait') {
+        pdfOptions = {
+          pageSize: 'A4',
+          landscape: false,
+          printBackground: true,
+          margin: {
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0
+          }
+        };
+      } else if (paperSize === 'a5_landscape') {
+        pdfOptions = {
+          pageSize: 'A5',
+          landscape: true,
+          printBackground: true,
+          margin: {
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0
+          }
+        };
+      } else {
+        // For 80mm thermal, use custom size with proper dimensions
+        // 80mm = 226.77 points, 297mm = 841.89 points (1 inch = 72 points, 1mm = 2.834645 points)
+        pdfOptions = {
+          pageSize: {
+            width: 226.77,  // 80mm in points
+            height: 841.89  // 297mm (A4 height) in points
+          },
+          printBackground: true,
+          margin: {
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0
+          }
+        };
+      }
+      
+      // Generate PDF
+      const pdfData = await printWindow.webContents.printToPDF(pdfOptions);
+      
+      // Save to file
+      fs.writeFileSync(pdfPath, pdfData);
+      
+      printWindow.close();
+      
+      console.log('✅ Receipt saved as PDF:', pdfPath);
+      
+      // Auto-open if enabled
+      if (pdfAutoOpen) {
+        const { shell } = require('electron');
+        shell.openPath(pdfPath);
+      }
+      
+      return { 
+        success: true, 
+        mode: 'pdf',
+        path: pdfPath,
+        filename: filename
+      };
+      
+    } else {
+      // Print to physical printer
+      // Use microns for print API (1mm = 1000 microns)
+      const pageSizes = {
+        '80mm': { width: 80000, height: 297000, landscape: false },    // 80mm x 297mm
+        'a4_portrait': { width: 210000, height: 297000, landscape: false },  // A4 portrait
+        'a5_landscape': { width: 210000, height: 148000, landscape: true }   // A5 landscape
+      };
+      const pageSize = pageSizes[paperSize] || pageSizes['80mm'];
+      
+      const printOptions = {
+        silent: false, // Set to true for auto-print without dialog
+        printBackground: true,
+        color: false,
+        margins: {
+          marginType: 'none'
+        },
+        pageSize: {
+          width: pageSize.width,
+          height: pageSize.height
+        },
+        landscape: pageSize.landscape
+      };
+      
+      // Print using promise wrapper
+      return new Promise((resolve) => {
+        printWindow.webContents.print(printOptions, (success, errorType) => {
+          if (!success) {
+            console.error('Print failed:', errorType);
+          }
+          printWindow.close();
+          console.log('✅ Receipt printed successfully');
+          resolve({ success: true, mode: 'print' });
+        });
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error printing receipt:', error);
+    return { success: false, error: error.message };
+  }
 });
 
 // ===========================================

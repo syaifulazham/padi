@@ -41,6 +41,10 @@ const store = new Store({
       default_printer: 'Epson LQ-310',
       auto_print: true,
       print_copies: 1,
+      paper_size: '80mm',
+      print_to_pdf: false,
+      pdf_save_path: '',
+      pdf_auto_open: false,
       receipt_header: '',
       receipt_footer: ''
     },
@@ -93,6 +97,10 @@ const getAll = async () => {
         default_printer: settings.printer.default_printer,
         auto_print: settings.printer.auto_print,
         print_copies: settings.printer.print_copies,
+        paper_size: settings.printer.paper_size,
+        print_to_pdf: settings.printer.print_to_pdf,
+        pdf_save_path: settings.printer.pdf_save_path,
+        pdf_auto_open: settings.printer.pdf_auto_open,
         receipt_header: settings.printer.receipt_header,
         receipt_footer: settings.printer.receipt_footer,
         
@@ -178,6 +186,18 @@ const save = async (data) => {
     }
     if (data.print_copies !== undefined) {
       store.set('printer.print_copies', data.print_copies);
+    }
+    if (data.paper_size !== undefined) {
+      store.set('printer.paper_size', data.paper_size);
+    }
+    if (data.print_to_pdf !== undefined) {
+      store.set('printer.print_to_pdf', data.print_to_pdf);
+    }
+    if (data.pdf_save_path !== undefined) {
+      store.set('printer.pdf_save_path', data.pdf_save_path);
+    }
+    if (data.pdf_auto_open !== undefined) {
+      store.set('printer.pdf_auto_open', data.pdf_auto_open);
     }
     if (data.receipt_header !== undefined) {
       store.set('printer.receipt_header', data.receipt_header);
@@ -285,7 +305,17 @@ const reset = async () => {
  */
 const get = async (key) => {
   try {
-    const value = store.get(key);
+    // Map flat keys to nested structure
+    const keyMap = {
+      'paper_size': 'printer.paper_size',
+      'print_to_pdf': 'printer.print_to_pdf',
+      'pdf_save_path': 'printer.pdf_save_path',
+      'pdf_auto_open': 'printer.pdf_auto_open'
+    };
+    
+    const storeKey = keyMap[key] || key;
+    const value = store.get(storeKey);
+    
     return {
       success: true,
       data: value

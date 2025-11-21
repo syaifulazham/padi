@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { ConfigProvider, Layout, theme } from 'antd';
+import { ConfigProvider, Layout, theme, App as AntApp } from 'antd';
 import Dashboard from './components/Dashboard/Dashboard';
 import Farmers from './components/Farmers/Farmers';
 import Manufacturers from './components/Manufacturers/Manufacturers';
 import Purchases from './components/Purchases/Purchases';
 import PurchaseHistory from './components/Purchases/PurchaseHistory';
 import Sales from './components/Sales/Sales';
+import SalesHistory from './components/Sales/SalesHistory';
 import Inventory from './components/Inventory/Inventory';
 import Reports from './components/Reports/Reports';
 import Settings from './components/Settings/Settings';
+import SeasonConfig from './components/Settings/SeasonConfig';
+import ProductConfig from './components/Settings/ProductConfig';
 import AppLayout from './components/Layout/AppLayout';
 
 const { Content } = Layout;
@@ -91,20 +94,25 @@ function App() {
         },
       }}
     >
-      <AppLayout>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/farmers" element={<Farmers />} />
-          <Route path="/manufacturers" element={<Manufacturers />} />
-          <Route path="/purchases" element={<Purchases />} />
-          <Route path="/purchases/history" element={<PurchaseHistory />} />
-          <Route path="/sales" element={<Sales />} />
-          <Route path="/inventory" element={<Inventory />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </AppLayout>
+      <AntApp message={{ bottom: 50, top: undefined, duration: 3, maxCount: 3 }}>
+        <AppLayout>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/farmers" element={<Farmers />} />
+            <Route path="/manufacturers" element={<Manufacturers />} />
+            <Route path="/purchases" element={<Purchases />} />
+            <Route path="/purchases/history" element={<PurchaseHistory />} />
+            <Route path="/sales" element={<Sales />} />
+            <Route path="/sales/history" element={<SalesHistory />} />
+            <Route path="/inventory" element={<Inventory />} />
+            <Route path="/reports" element={<Reports />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/settings/seasons" element={<SeasonConfig />} />
+            <Route path="/settings/products" element={<ProductConfig />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </AppLayout>
+      </AntApp>
     </ConfigProvider>
   );
 }

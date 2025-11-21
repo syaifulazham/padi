@@ -1,10 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Form, Input, InputNumber, Button, Space, Row, Col, message, Modal, Statistic, Alert, Tag, Table } from 'antd';
+import React, { useState, useEffect, useRef } from 'react';
+import { Card, Form, Input, InputNumber, Button, Space, Row, Col, message, Modal, Statistic, Alert, Tag, Table, Select, Divider } from 'antd';
 import { PlusOutlined, ClockCircleOutlined, TruckOutlined, SearchOutlined, SaveOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import DeductionConfirmModal from './DeductionConfirmModal';
+import SetCurrentPriceModal from './SetCurrentPriceModal';
+import WeighOutWizard from './WeighOutWizard';
+
+const STORAGE_KEY = 'paddy_weight_in_sessions';
 
 const Purchases = () => {
-  const [pendingSessions, setPendingSessions] = useState([]); // Lorries waiting for weigh-out
+  // Load pending sessions from localStorage on mount
+  const [pendingSessions, setPendingSessions] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        console.log('✅ Loaded', parsed.length, 'pending sessions from storage');
+        return parsed;
+      }
+    } catch (error) {
+      console.error('Failed to load pending sessions:', error);
+    }
+    return [];
+  }); // Lorries waiting for weigh-out
   const [loading, setLoading] = useState(false);
   const [lorryModalOpen, setLorryModalOpen] = useState(false);
   const [recallModalOpen, setRecallModalOpen] = useState(false);
@@ -16,26 +34,87 @@ const Purchases = () => {
   const [farmerOptions, setFarmerOptions] = useState([]);
   const [farmerSearchText, setFarmerSearchText] = useState('');
   const [selectedFarmer, setSelectedFarmer] = useState(null);
+  const [activeSeason, setActiveSeason] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [deductionModalOpen, setDeductionModalOpen] = useState(false);
+  const [pendingPurchaseData, setPendingPurchaseData] = useState(null);
+  const [setPriceModalOpen, setSetPriceModalOpen] = useState(false);
   const [lorryForm] = Form.useForm();
   const [weightForm] = Form.useForm();
   const [finalForm] = Form.useForm();
+  const lorryInputRef = useRef(null);
+
+  // Filter pending sessions by active season
+  const seasonPendingSessions = pendingSessions.filter(
+    session => !session.season_id || session.season_id === activeSeason?.season_id
+  );
 
   useEffect(() => {
+    loadActiveSeason();
     loadFarmers();
+    loadProducts();
+
+    // Listen for farmer search request from wizard
+    const handleWizardFarmerSearch = (event) => {
+      setFarmerSearchText('');
+      setFarmerOptions([]);
+      setFarmerSearchModal(true);
+      
+      // Store the callback for when farmer is selected
+      window._wizardFarmerCallback = event.detail.onSelect;
+    };
+
+    window.addEventListener('open-farmer-search', handleWizardFarmerSearch);
+    
+    return () => {
+      window.removeEventListener('open-farmer-search', handleWizardFarmerSearch);
+      delete window._wizardFarmerCallback;
+    };
   }, []);
 
-  // Add keyboard shortcut for Recall Lorry (F2)
+  // Auto-save pending sessions to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(pendingSessions));
+      console.log('💾 Saved', pendingSessions.length, 'pending sessions to storage');
+    } catch (error) {
+      console.error('Failed to save pending sessions:', error);
+      message.error('Failed to save weight-in records to storage');
+    }
+  }, [pendingSessions]);
+
+  // Add keyboard shortcuts (F2: Recall, F3: New Purchase)
   useEffect(() => {
     const handleKeyPress = (e) => {
       if (e.key === 'F2') {
         e.preventDefault();
         showRecallModal();
+      } else if (e.key === 'F3') {
+        e.preventDefault();
+        if (!weightInMode && !activeSession) {
+          startNewPurchase();
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [pendingSessions]);
+  }, [pendingSessions, weightInMode, activeSession]);
+
+  const loadActiveSeason = async () => {
+    try {
+      const result = await window.electronAPI.seasons?.getActive();
+      if (result?.success && result.data) {
+        setActiveSeason(result.data);
+        console.log('✅ Active season loaded:', result.data);
+      } else {
+        message.warning('No active season found. Please activate a season in Settings.');
+      }
+    } catch (error) {
+      console.error('Failed to load active season:', error);
+    }
+  };
 
   const loadFarmers = async () => {
     try {
@@ -45,6 +124,46 @@ const Purchases = () => {
       }
     } catch (error) {
       console.error('Failed to load farmers:', error);
+    }
+  };
+
+  const loadProducts = async () => {
+    try {
+      const result = await window.electronAPI.products.getActive();
+      if (result?.success) {
+        setProducts(result.data || []);
+      }
+    } catch (error) {
+      console.error('Failed to load products:', error);
+    }
+  };
+
+  const handleProductSelect = async (productId) => {
+    if (!activeSeason || !productId) return;
+    
+    try {
+      setSelectedProduct(productId);
+      
+      // Fetch product price for current season
+      const priceResult = await window.electronAPI.seasonProductPrices.getProductPrice(
+        activeSeason.season_id,
+        productId
+      );
+      
+      if (priceResult?.success && priceResult.data?.current_price_per_ton) {
+        const pricePerKg = priceResult.data.current_price_per_ton / 1000;
+        finalForm.setFieldsValue({
+          price_per_kg: pricePerKg
+        });
+      } else {
+        message.warning('No price set for this product in current season');
+        finalForm.setFieldsValue({
+          price_per_kg: 0
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch product price:', error);
+      message.error('Failed to load product price');
     }
   };
 
@@ -78,28 +197,68 @@ const Purchases = () => {
     console.log('Selecting farmer:', farmer);
     console.log('Farmer ID:', farmer.farmer_id);
     
-    setSelectedFarmer(farmer);
-    finalForm.setFieldsValue({ 
-      farmer_id: farmer.farmer_id,
-      farmer_display: `${farmer.full_name} (${farmer.farmer_code})`
-    });
-    
-    console.log('Form values after setting:', finalForm.getFieldsValue());
+    // Check if wizard callback exists
+    if (window._wizardFarmerCallback) {
+      window._wizardFarmerCallback({
+        farmer_id: farmer.farmer_id,
+        name: farmer.full_name
+      });
+      delete window._wizardFarmerCallback;
+    } else {
+      // Old form flow
+      setSelectedFarmer(farmer);
+      finalForm.setFieldsValue({ 
+        farmer_id: farmer.farmer_id,
+        farmer_display: `${farmer.full_name} (${farmer.farmer_code})`
+      });
+      console.log('Form values after setting:', finalForm.getFieldsValue());
+    }
     
     setFarmerSearchModal(false);
     message.success(`Selected: ${farmer.full_name}`);
   };
 
 
+  // Handle current price set confirmation
+  const handlePriceSet = async (pricePerTon) => {
+    setSetPriceModalOpen(false);
+    
+    // Reload active season to get updated price
+    await loadActiveSeason();
+    
+    message.success('Current price set! You can now proceed with purchases.');
+    
+    // Continue to lorry registration
+    lorryForm.resetFields();
+    setLorryModalOpen(true);
+  };
+
+  const handlePriceSetCancel = () => {
+    setSetPriceModalOpen(false);
+  };
+
   // Step 1: Open modal to enter lorry registration
   const startNewPurchase = () => {
+    // Check if active season exists
+    if (!activeSeason) {
+      message.error('No active season found. Please activate a season in Settings.');
+      return;
+    }
+
+    // Check if current price is set for the season
+    if (!activeSeason.current_price_per_ton) {
+      message.warning('Current price not set for this season');
+      setSetPriceModalOpen(true);
+      return;
+    }
+
     lorryForm.resetFields();
     setLorryModalOpen(true);
   };
 
   // Step 2: After lorry entered, show weight-in panel on main page
   const handleLorrySubmit = (values) => {
-    setCurrentLorry(values.lorry_reg_no.toUpperCase());
+    setCurrentLorry(values.lorry_reg_no);
     setLorryModalOpen(false);
     weightForm.resetFields();
     setWeightInMode(true);
@@ -107,14 +266,27 @@ const Purchases = () => {
 
   // Step 3: Save weight-in, add to pending sessions
   const handleWeightIn = (values) => {
+    if (!activeSeason) {
+      message.error('No active season! Please activate a season in Settings.');
+      return;
+    }
+    
     const session = {
       lorry_reg_no: currentLorry,
       weight_with_load: values.weight_with_load,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      season_id: activeSeason.season_id  // ✅ Tie to active season
     };
     
     setPendingSessions([...pendingSessions, session]);
-    message.success(`Weigh-in recorded for ${currentLorry}: ${values.weight_with_load} kg`);
+    message.success(
+      <span>
+        ✅ Weigh-in recorded for <strong>{currentLorry}</strong>: {values.weight_with_load} kg
+        <br />
+        <small>💾 Data saved - safe from page refresh</small>
+      </span>, 
+      5
+    );
     setWeightInMode(false);
     setCurrentLorry(null);
   };
@@ -127,22 +299,175 @@ const Purchases = () => {
 
   // Step 4: Recall lorry for weigh-out (right-click or shortcut)
   const showRecallModal = () => {
-    if (pendingSessions.length === 0) {
-      message.warning('No pending lorries to recall');
+    if (seasonPendingSessions.length === 0) {
+      message.warning('No pending lorries to recall for this season');
       return;
     }
     setRecallModalOpen(true);
   };
 
   // Step 5: Select lorry from pending sessions
-  const recallLorry = (session) => {
+  const recallLorry = async (session) => {
     setActiveSession(session);
     setRecallModalOpen(false);
     setSelectedFarmer(null);
     finalForm.resetFields();
-    finalForm.setFieldsValue({
-      price_per_kg: 2.50
-    });
+    
+    // Fetch current price from active season (convert per ton to per kg)
+    if (activeSeason?.season_id) {
+      try {
+        const priceResult = await window.electronAPI.seasonPrice?.getCurrent(activeSeason.season_id);
+        if (priceResult?.success && priceResult.data?.price_per_ton) {
+          const pricePerKg = priceResult.data.price_per_ton / 1000; // Convert per ton to per kg
+          finalForm.setFieldsValue({
+            price_per_kg: pricePerKg
+          });
+        } else {
+          // Fallback to default price
+          finalForm.setFieldsValue({
+            price_per_kg: 2.50
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch current price:', error);
+        finalForm.setFieldsValue({
+          price_per_kg: 2.50
+        });
+      }
+    } else {
+      finalForm.setFieldsValue({
+        price_per_kg: 2.50
+      });
+    }
+  };
+
+  // Handler for wizard completion
+  const handleWizardComplete = async (wizardData) => {
+    if (!activeSession || !activeSeason) {
+      message.error('Invalid session or season');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Calculate net weight and effective weight with deductions
+      const netWeight = parseFloat(activeSession.weight_with_load) - parseFloat(wizardData.weight_without_load);
+      
+      // Calculate deductions
+      const deductions = wizardData.deductions || [];
+      const totalDeductionRate = deductions.reduce((sum, d) => sum + parseFloat(d.value || 0), 0);
+      const effectiveWeight = netWeight * (1 - totalDeductionRate / 100);
+      
+      console.log('🔢 Frontend Calculation:');
+      console.log('  - Gross Weight:', activeSession.weight_with_load);
+      console.log('  - Tare Weight:', wizardData.weight_without_load);
+      console.log('  - Net Weight:', netWeight);
+      console.log('  - Deductions:', deductions);
+      console.log('  - Total Deduction Rate:', totalDeductionRate, '%');
+      console.log('  - Effective Weight:', effectiveWeight);
+      console.log('  - Price per kg:', wizardData.price_per_kg);
+      console.log('  - Expected Total:', effectiveWeight * wizardData.price_per_kg);
+      
+      // Prepare purchase data
+      const purchaseData = {
+        season_id: activeSeason.season_id,
+        farmer_id: wizardData.farmer_id,
+        product_id: wizardData.product_id,
+        grade_id: 1,
+        gross_weight_kg: parseFloat(activeSession.weight_with_load),
+        tare_weight_kg: parseFloat(wizardData.weight_without_load),
+        net_weight_kg: parseFloat(netWeight), // Actual net weight (gross - tare)
+        moisture_content: 14.0,
+        foreign_matter: 0.0,
+        base_price_per_kg: parseFloat(wizardData.price_per_kg),
+        vehicle_number: activeSession.lorry_reg_no,
+        driver_name: null,
+        weighbridge_id: null,
+        weighing_log_id: null,
+        created_by: 1,
+        deduction_config: deductions,  // Changed from 'deductions' to 'deduction_config'
+        total_deduction_rate: totalDeductionRate,
+        effective_weight_kg: parseFloat(effectiveWeight)
+      };
+
+      console.log('📤 Sending to Backend:');
+      console.log('  - purchaseData.net_weight_kg:', purchaseData.net_weight_kg);
+      console.log('  - purchaseData.effective_weight_kg:', purchaseData.effective_weight_kg);
+      console.log('  - purchaseData.deduction_config:', purchaseData.deduction_config);
+
+      // Save purchase
+      const result = await window.electronAPI.purchases.create(purchaseData);
+      
+      console.log('💾 Backend Response:', result);
+      if (result.data) {
+        console.log('  - Transaction ID:', result.data.transaction_id);
+        console.log('  - Receipt Number:', result.data.receipt_number);
+        console.log('  - Calculated Total:', result.data.calculated?.total_amount);
+      }
+      
+      if (result.success) {
+        message.success(
+          <span>
+            ✅ Purchase completed! Receipt: <strong>{result.data.receipt_number}</strong>
+          </span>,
+          5
+        );
+        
+        // Print receipt
+        console.log('🖨️  Printing receipt for transaction:', result.data.transaction_id);
+        try {
+          const printResult = await window.electronAPI.printer?.purchaseReceipt(result.data.transaction_id);
+          if (printResult?.success) {
+            if (printResult.mode === 'pdf') {
+              message.success(
+                <span>
+                  📄 Receipt saved as PDF: <strong>{printResult.filename}</strong>
+                  <br />
+                  <small>Location: {printResult.path}</small>
+                </span>,
+                6
+              );
+              console.log('✅ Receipt saved as PDF:', printResult.path);
+            } else {
+              console.log('✅ Receipt printed successfully');
+            }
+          } else {
+            console.error('Print failed:', printResult?.error);
+            message.warning('Receipt created but printing failed. You can reprint from history.');
+          }
+        } catch (printError) {
+          console.error('Print error:', printError);
+          message.warning('Receipt created but printing failed. You can reprint from history.');
+        }
+        
+        // Remove only the completed lorry from pending sessions
+        // (match on lorry_reg_no and season_id, since pending sessions
+        // are created without a session_id field)
+        setPendingSessions(prev =>
+          prev.filter(s => {
+            const sameLorry = s.lorry_reg_no === activeSession.lorry_reg_no;
+            const sameSeason = (!s.season_id && !activeSession.season_id) ||
+              s.season_id === activeSession.season_id;
+            return !(sameLorry && sameSeason);
+          })
+        );
+
+        // Clear active session
+        setActiveSession(null);
+        finalForm.resetFields();
+        
+        // Reload purchase history
+        // (could trigger a refresh event here)
+      } else {
+        message.error(result.error || 'Failed to complete purchase');
+      }
+    } catch (error) {
+      console.error('Error completing purchase:', error);
+      message.error('Failed to complete purchase');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Step 6: Complete purchase - save with farmer and weigh-out
@@ -162,49 +487,116 @@ const Purchases = () => {
       return;
     }
     
+    if (!values.product_id) {
+      message.error('Please select a product');
+      return;
+    }
+    
     if (!values.price_per_kg || values.price_per_kg <= 0) {
       message.error('Please enter valid price per kg');
       return;
     }
+
+    if (!activeSession) {
+      message.error('No active weighing session');
+      return;
+    }
+
+    if (!activeSeason) {
+      message.error('No active season found');
+      return;
+    }
+
+    // Calculate net weight
+    const netWeight = parseFloat(activeSession.weight_with_load) - parseFloat(values.weight_without_load);
     
+    // Prepare purchase data
+    const purchaseData = {
+      season_id: activeSeason.season_id,
+      farmer_id: values.farmer_id,
+      product_id: values.product_id,
+      grade_id: 1, // Default grade
+      gross_weight_kg: parseFloat(activeSession.weight_with_load),
+      tare_weight_kg: parseFloat(values.weight_without_load),
+      net_weight_kg: parseFloat(netWeight),
+      moisture_content: 14.0, // Default moisture - can be made configurable
+      foreign_matter: 0.0, // Default foreign matter
+      base_price_per_kg: parseFloat(values.price_per_kg),
+      vehicle_number: activeSession.lorry_reg_no,
+      driver_name: null,
+      weighbridge_id: null,
+      weighing_log_id: null,
+      created_by: 1 // Default user - you can get from auth later
+    };
+
+    // Store pending purchase data and open deduction confirmation modal
+    setPendingPurchaseData(purchaseData);
+    setDeductionModalOpen(true);
+  };
+
+  // Handle deduction confirmation and complete purchase
+  const handleDeductionConfirm = async (confirmedDeductions) => {
+    if (!pendingPurchaseData) return;
+
+    setDeductionModalOpen(false);
     setLoading(true);
+    
     try {
-      const netWeight = activeSession.weight_with_load - values.weight_without_load;
-      
-      if (netWeight <= 0) {
-        message.error('Net weight must be greater than zero. Check your weights.');
-        setLoading(false);
-        return;
-      }
-      
+      // Add confirmed deductions to purchase data
       const purchaseData = {
-        season_id: 1, // Default season - you can make this dynamic later
-        farmer_id: values.farmer_id,
-        grade_id: 1, // Default grade
-        gross_weight_kg: parseFloat(activeSession.weight_with_load),
-        tare_weight_kg: parseFloat(values.weight_without_load),
-        net_weight_kg: parseFloat(netWeight),
-        moisture_content: 14.0, // Default moisture - can be made configurable
-        foreign_matter: 0.0, // Default foreign matter
-        base_price_per_kg: parseFloat(values.price_per_kg),
-        vehicle_number: activeSession.lorry_reg_no,
-        driver_name: null,
-        weighbridge_id: null,
-        weighing_log_id: null,
-        created_by: 1 // Default user - you can get from auth later
+        ...pendingPurchaseData,
+        deduction_config: confirmedDeductions
       };
 
-      console.log('Submitting purchase data:', purchaseData);
+      console.log('Submitting purchase data with deductions:', purchaseData);
       const result = await window.electronAPI.purchases?.create(purchaseData);
       
       if (result?.success) {
-        message.success(`Purchase completed! Receipt: ${result.data.receipt_number}`);
+        message.success(
+          <span>
+            ✅ Purchase completed! Receipt: <strong>{result.data.receipt_number}</strong>
+            <br />
+            <small>🗑️ Weight-in record removed from storage</small>
+          </span>,
+          5
+        );
         
-        // Remove from pending sessions
+        // Print receipt
+        console.log('🖨️  Printing receipt for transaction:', result.data.transaction_id);
+        try {
+          const printResult = await window.electronAPI.printer?.purchaseReceipt(result.data.transaction_id);
+          if (printResult?.success) {
+            if (printResult.mode === 'pdf') {
+              message.success(
+                <span>
+                  📄 Receipt saved as PDF: <strong>{printResult.filename}</strong>
+                  <br />
+                  <small>Location: {printResult.path}</small>
+                </span>,
+                6
+              );
+              console.log('✅ Receipt saved as PDF:', printResult.path);
+            } else {
+              console.log('✅ Receipt printed successfully');
+            }
+          } else {
+            console.error('Print failed:', printResult?.error);
+            message.warning('Receipt created but printing failed. You can reprint from history.');
+          }
+        } catch (printError) {
+          console.error('Print error:', printError);
+          message.warning('Receipt created but printing failed. You can reprint from history.');
+        }
+        
+        // Remove from pending sessions (will auto-save to localStorage)
         setPendingSessions(pendingSessions.filter(s => s.lorry_reg_no !== activeSession.lorry_reg_no));
         setActiveSession(null);
         setSelectedFarmer(null);
         finalForm.resetFields();
+        
+        // Trigger navbar stats refresh
+        console.log('✅ Purchase completed, dispatching transaction-completed event');
+        window.dispatchEvent(new Event('transaction-completed'));
       } else {
         message.error('Failed to save purchase: ' + (result?.error || 'Unknown error'));
       }
@@ -216,6 +608,11 @@ const Purchases = () => {
     }
   };
 
+  const handleDeductionCancel = () => {
+    setDeductionModalOpen(false);
+    setPendingPurchaseData(null);
+  };
+
   const cancelWeighOut = () => {
     setActiveSession(null);
     setSelectedFarmer(null);
@@ -224,28 +621,45 @@ const Purchases = () => {
 
   return (
     <div onContextMenu={(e) => { e.preventDefault(); showRecallModal(); }}>
-      {/* Quick Stats */}
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={12}>
-          <Card>
-            <Statistic
-              title="Pending Lorries (Waiting for Weigh-Out)"
-              value={pendingSessions.length}
-              prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: '#faad14' }}
-            />
-          </Card>
-        </Col>
-        <Col span={12}>
-          <Card>
-            <Statistic
-              title="Active Session"
-              value={activeSession ? `${activeSession.lorry_reg_no}` : 'None'}
-              valueStyle={{ color: activeSession ? '#1890ff' : '#d9d9d9' }}
-            />
-          </Card>
-        </Col>
-      </Row>
+      {/* Quick Stats - Compact */}
+      <Card 
+        size="small" 
+        style={{ 
+          marginBottom: 16,
+          background: '#fafafa',
+          border: '1px solid #e8e8e8'
+        }}
+        bodyStyle={{ padding: '12px 16px' }}
+      >
+        <Row gutter={24} align="middle">
+          <Col flex="auto">
+            <Space size="large">
+              <div>
+                <ClockCircleOutlined style={{ color: '#faad14', marginRight: 6, fontSize: 16 }} />
+                <span style={{ fontSize: 13, color: '#8c8c8c', marginRight: 8 }}>Pending:</span>
+                <span style={{ fontSize: 18, fontWeight: 600, color: '#faad14' }}>
+                  {seasonPendingSessions.length}
+                </span>
+                <Tag color="green" style={{ marginLeft: 8, fontSize: 10 }}>💾 Auto-Save</Tag>
+              </div>
+              
+              <Divider type="vertical" style={{ height: 24, margin: '0 8px' }} />
+              
+              <div>
+                <TruckOutlined style={{ color: activeSession ? '#1890ff' : '#d9d9d9', marginRight: 6, fontSize: 16 }} />
+                <span style={{ fontSize: 13, color: '#8c8c8c', marginRight: 8 }}>Active:</span>
+                <span style={{ 
+                  fontSize: 16, 
+                  fontWeight: 600, 
+                  color: activeSession ? '#1890ff' : '#d9d9d9' 
+                }}>
+                  {activeSession ? activeSession.lorry_reg_no : 'None'}
+                </span>
+              </div>
+            </Space>
+          </Col>
+        </Row>
+      </Card>
 
       {/* Weight-In Panel */}
       {weightInMode && (
@@ -303,142 +717,18 @@ const Purchases = () => {
 
       {/* Active Weigh-Out Panel */}
       {activeSession && (
-        <Card style={{ marginBottom: 16, background: '#e6f7ff', borderColor: '#1890ff' }}>
-          <Alert
-            message={`Weighing Out: ${activeSession.lorry_reg_no}`}
-            description="Complete the weigh-out process below"
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-          
-          <Form
-            form={finalForm}
-            layout="vertical"
-            onFinish={completePurchase}
-            onValuesChange={(changedValues) => {
-              // Force re-render when weight_without_load changes
-              if ('weight_without_load' in changedValues) {
-                finalForm.setFieldsValue(finalForm.getFieldsValue());
-              }
-            }}
-          >
-            <Row gutter={16}>
-              <Col span={8}>
-                <div style={{ padding: '16px', background: '#fff', borderRadius: '4px' }}>
-                  <div style={{ fontSize: '12px', color: '#999' }}>Weight In (with load)</div>
-                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#52c41a' }}>
-                    {activeSession.weight_with_load} KG
-                  </div>
-                </div>
-              </Col>
-              <Col span={8}>
-                <Form.Item
-                  name="weight_without_load"
-                  label="Weight Out (without load)"
-                  rules={[{ required: true, message: 'Please enter weight' }]}
-                >
-                  <InputNumber
-                    min={0}
-                    step={0.01}
-                    style={{ width: '100%', fontSize: '18px' }}
-                    placeholder="Enter weight"
-                    size="large"
-                    suffix="KG"
-                  />
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <div style={{ padding: '16px', background: '#fff', borderRadius: '4px' }}>
-                  <div style={{ fontSize: '12px', color: '#999' }}>Net Weight</div>
-                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1890ff' }}>
-                    <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => 
-                      prevValues.weight_without_load !== currentValues.weight_without_load
-                    }>
-                      {({ getFieldValue }) => {
-                        const weightOut = getFieldValue('weight_without_load');
-                        return weightOut 
-                          ? (activeSession.weight_with_load - weightOut).toFixed(2)
-                          : '---';
-                      }}
-                    </Form.Item> KG
-                  </div>
-                </div>
-              </Col>
-            </Row>
-
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item name="farmer_id" hidden>
-                  <Input />
-                </Form.Item>
-                <Form.Item
-                  name="farmer_display"
-                  label="Owner (Farmer)"
-                  rules={[{ required: true, message: 'Please select farmer' }]}
-                >
-                  <Input
-                    size="large"
-                    readOnly
-                    placeholder="Click Search to select farmer"
-                    suffix={
-                      <Button 
-                        type="primary" 
-                        icon={<SearchOutlined />}
-                        onClick={openFarmerSearch}
-                      >
-                        Search
-                      </Button>
-                    }
-                    style={{ cursor: 'pointer' }}
-                    onClick={openFarmerSearch}
-                  />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item
-                  name="price_per_kg"
-                  label="Price per KG (RM)"
-                  rules={[{ required: true }]}
-                >
-                  <InputNumber
-                    min={0}
-                    step={0.01}
-                    style={{ width: '100%' }}
-                    prefix="RM"
-                    size="large"
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
-
-            <Form.Item name="notes" label="Notes (Optional)">
-              <Input.TextArea rows={2} placeholder="Additional notes..." />
-            </Form.Item>
-
-            <Form.Item>
-              <Space>
-                <Button size="large" onClick={cancelWeighOut}>
-                  Cancel
-                </Button>
-                <Button
-                  type="primary"
-                  size="large"
-                  htmlType="submit"
-                  icon={<SaveOutlined />}
-                  loading={loading}
-                >
-                  Complete Purchase & Print Receipt
-                </Button>
-              </Space>
-            </Form.Item>
-          </Form>
-        </Card>
+        <WeighOutWizard
+          session={activeSession}
+          products={products}
+          activeSeason={activeSeason}
+          onComplete={handleWizardComplete}
+          onCancel={cancelWeighOut}
+        />
       )}
 
       {/* Main Content */}
       <Card>
-        <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
+        <Row justify="space-between" align="middle" style={{ marginBottom: 0 }}>
           <Col>
             <Space>
               <Button
@@ -447,29 +737,22 @@ const Purchases = () => {
                 icon={<PlusOutlined />}
                 onClick={startNewPurchase}
                 disabled={weightInMode || activeSession}
+                title="Press F3 to start"
               >
-                New Purchase (Weigh-In)
+                New Purchase (Weigh-In) <kbd style={{ marginLeft: '8px', fontSize: '11px', padding: '2px 6px', background: '#f0f0f0', border: '1px solid #d9d9d9', borderRadius: '3px' }}>F3</kbd>
               </Button>
               <Button
                 size="large"
                 icon={<ClockCircleOutlined />}
                 onClick={showRecallModal}
-                disabled={pendingSessions.length === 0 || weightInMode || activeSession}
+                disabled={seasonPendingSessions.length === 0 || weightInMode || activeSession}
                 title="Press F2 to open"
               >
-                Recall Lorry ({pendingSessions.length}) <kbd style={{ marginLeft: '8px', fontSize: '11px', padding: '2px 6px', background: '#f0f0f0', border: '1px solid #d9d9d9', borderRadius: '3px' }}>F2</kbd>
+                Recall Lorry ({seasonPendingSessions.length}) <kbd style={{ marginLeft: '8px', fontSize: '11px', padding: '2px 6px', background: '#f0f0f0', border: '1px solid #d9d9d9', borderRadius: '3px' }}>F2</kbd>
               </Button>
             </Space>
           </Col>
         </Row>
-
-        <Alert
-          type="info"
-          message="Rapid Weighing Workflow"
-          description="1. Click 'New Purchase' to start weigh-in → 2. Enter lorry registration → 3. Enter gross weight → 4. After unloading, press F2 or click 'Recall Lorry' → 5. Select lorry → 6. Enter tare weight and farmer → 7. Complete! View completed transactions in Purchase History."
-          showIcon
-          style={{ marginTop: 16 }}
-        />
       </Card>
 
       {/* Step 1: Lorry Registration Modal */}
@@ -479,6 +762,11 @@ const Purchases = () => {
         onCancel={() => setLorryModalOpen(false)}
         footer={null}
         width={500}
+        afterOpenChange={(open) => {
+          if (open && lorryInputRef.current) {
+            setTimeout(() => lorryInputRef.current?.focus(), 100);
+          }
+        }}
       >
         <Form
           form={lorryForm}
@@ -489,12 +777,14 @@ const Purchases = () => {
             name="lorry_reg_no"
             label="Lorry Registration Number"
             rules={[{ required: true, message: 'Please enter lorry registration' }]}
+            normalize={(value) => value?.toUpperCase()}
           >
             <Input 
+              ref={lorryInputRef}
               placeholder="e.g., ABC 1234" 
               size="large"
               autoFocus
-              style={{ fontSize: '20px' }}
+              style={{ fontSize: '20px', textTransform: 'uppercase' }}
             />
           </Form.Item>
 
@@ -537,7 +827,7 @@ const Purchases = () => {
         />
         
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
-          {pendingSessions.map((session, index) => (
+          {seasonPendingSessions.map((session, index) => (
             <Button
               key={index}
               size="large"
@@ -672,6 +962,23 @@ const Purchases = () => {
           )}
         </Space>
       </Modal>
+
+      {/* Deduction Confirmation Modal */}
+      <DeductionConfirmModal
+        visible={deductionModalOpen}
+        onConfirm={handleDeductionConfirm}
+        onCancel={handleDeductionCancel}
+        seasonDeductions={activeSeason?.deduction_config || []}
+        netWeight={pendingPurchaseData?.net_weight_kg || 0}
+      />
+
+      {/* Set Current Price Modal */}
+      <SetCurrentPriceModal
+        visible={setPriceModalOpen}
+        onConfirm={handlePriceSet}
+        onCancel={handlePriceSetCancel}
+        season={activeSeason}
+      />
     </div>
   );
 };

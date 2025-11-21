@@ -31,9 +31,14 @@ const Dashboard = () => {
         
         // Calculate today's purchases
         const today = new Date().toISOString().split('T')[0];
-        const todayData = result.data.filter(p => 
-          p.transaction_date.startsWith(today)
-        );
+        const todayData = result.data.filter(p => {
+          if (!p.transaction_date) return false;
+          // Convert to string if it's a Date object
+          const dateStr = p.transaction_date instanceof Date 
+            ? p.transaction_date.toISOString() 
+            : String(p.transaction_date);
+          return dateStr.startsWith(today);
+        });
         
         setStats({
           totalFarmers: 5, // You can fetch this from farmers API
@@ -81,7 +86,15 @@ const Dashboard = () => {
       title: 'Date',
       dataIndex: 'transaction_date',
       key: 'transaction_date',
-      render: (val) => new Date(val).toLocaleString()
+      render: (val) => {
+        if (!val) return '-';
+        try {
+          const date = val instanceof Date ? val : new Date(val);
+          return date.toLocaleString();
+        } catch (e) {
+          return String(val);
+        }
+      }
     },
   ];
 

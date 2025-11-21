@@ -50,6 +50,10 @@ const Settings = () => {
         default_printer: 'Epson LQ-310',
         auto_print: true,
         print_copies: 1,
+        paper_size: '80mm',
+        print_to_pdf: false,
+        pdf_save_path: '',
+        pdf_auto_open: false,
         
         // Application
         app_name: 'Paddy Collection Center',
@@ -412,9 +416,78 @@ const Settings = () => {
               </Form.Item>
 
               <Form.Item
+                name="paper_size"
+                label="Paper Size"
+                extra="Select paper size for receipts"
+              >
+                <Select>
+                  <Option value="80mm">80mm Thermal (Default)</Option>
+                  <Option value="a4_portrait">A4 Portrait</Option>
+                  <Option value="a5_landscape">A5 Landscape</Option>
+                </Select>
+              </Form.Item>
+
+              <Form.Item
                 name="auto_print"
                 label="Auto Print After Transaction"
                 valuePropName="checked"
+              >
+                <Switch />
+              </Form.Item>
+
+              <Divider orientation="left">PDF Options</Divider>
+              
+              <Form.Item
+                name="print_to_pdf"
+                label="Save Receipts as PDF"
+                valuePropName="checked"
+                extra="Automatically save receipts as PDF files instead of printing"
+              >
+                <Switch />
+              </Form.Item>
+
+              <Form.Item
+                noStyle
+                shouldUpdate={(prevValues, currentValues) => prevValues.print_to_pdf !== currentValues.print_to_pdf}
+              >
+                {({ getFieldValue }) =>
+                  getFieldValue('print_to_pdf') ? (
+                    <Form.Item
+                      name="pdf_save_path"
+                      label="PDF Save Location"
+                      extra="Folder where PDF receipts will be saved"
+                      rules={[{ required: getFieldValue('print_to_pdf'), message: 'Please specify PDF save location' }]}
+                    >
+                      <Input 
+                        placeholder="e.g., C:\Documents\Receipts or ~/Documents/Receipts" 
+                        addonAfter={
+                          <Button 
+                            size="small" 
+                            onClick={async () => {
+                              try {
+                                const result = await window.electronAPI.settings?.selectFolder();
+                                if (result?.success && result.path) {
+                                  form.setFieldsValue({ pdf_save_path: result.path });
+                                }
+                              } catch (error) {
+                                message.error('Failed to select folder');
+                              }
+                            }}
+                          >
+                            Browse
+                          </Button>
+                        }
+                      />
+                    </Form.Item>
+                  ) : null
+                }
+              </Form.Item>
+
+              <Form.Item
+                name="pdf_auto_open"
+                label="Auto Open PDF After Save"
+                valuePropName="checked"
+                extra="Automatically open PDF file after saving"
               >
                 <Switch />
               </Form.Item>

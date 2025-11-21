@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Layout, Menu } from 'antd';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Layout, Menu, Space, Statistic, Spin, Tag, Popover, Divider } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   DashboardOutlined,
@@ -19,8 +19,134 @@ const { Header, Sider, Content } = Layout;
 const AppLayout = ({ children }) => {
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
+  const [stats, setStats] = useState({
+    totalPurchases: 0,
+    totalSales: 0,
+    inventory: 0,
+    loading: true
+  });
+  const [activeSeason, setActiveSeason] = useState(null);
+  const [productPrices, setProductPrices] = useState([]);
+  const [loadingPrices, setLoadingPrices] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Fetch product prices for active season
+  const fetchProductPrices = useCallback(async (seasonId) => {
+    if (!seasonId) {
+      setProductPrices([]);
+      return;
+    }
+    
+    try {
+      setLoadingPrices(true);
+      const result = await window.electronAPI.seasonProductPrices?.getSeasonProductPrices(seasonId);
+      if (result?.success) {
+        setProductPrices(result.data || []);
+      } else {
+        setProductPrices([]);
+      }
+    } catch (error) {
+      console.error('Error fetching product prices:', error);
+      setProductPrices([]);
+    } finally {
+      setLoadingPrices(false);
+    }
+  }, []);
+
+  // Fetch active season
+  useEffect(() => {
+    const fetchActiveSeason = async () => {
+      try {
+        const result = await window.electronAPI.seasons?.getActive();
+        if (result?.success) {
+          setActiveSeason(result.data);
+          // Fetch product prices for this season
+          fetchProductPrices(result.data.season_id);
+        } else {
+          setActiveSeason(null);
+          setProductPrices([]);
+        }
+      } catch (error) {
+        console.error('Error fetching active season:', error);
+      }
+    };
+    
+    fetchActiveSeason();
+    
+    // Listen for season changes
+    const handleSeasonChange = () => {
+      fetchActiveSeason();
+    };
+    
+    window.addEventListener('season-changed', handleSeasonChange);
+    
+    return () => {
+      window.removeEventListener('season-changed', handleSeasonChange);
+    };
+  }, [fetchProductPrices]);
+
+  // Create a stable fetchStats function using useCallback
+  const fetchStats = useCallback(async () => {
+    try {
+      console.log('Fetching stats for season:', activeSeason?.season_id || 'all');
+      
+      // Get season ID if active season exists
+      const seasonId = activeSeason?.season_id || null;
+      
+      const [purchaseResult, salesResult] = await Promise.all([
+        window.electronAPI.purchases?.getTotalStats(seasonId),
+        window.electronAPI.sales?.getTotalStats(seasonId)
+      ]);
+
+      console.log('Purchase result:', purchaseResult);
+      console.log('Sales result:', salesResult);
+
+      const purchaseWeight = purchaseResult?.success ? parseFloat(purchaseResult.data.total_net_weight_kg) : 0;
+      const salesWeight = salesResult?.success ? parseFloat(salesResult.data.total_net_weight_kg) : 0;
+      const inventoryWeight = purchaseWeight - salesWeight;
+
+      console.log('Setting stats:', { purchaseWeight, salesWeight, inventoryWeight });
+
+      setStats({
+        totalPurchases: purchaseWeight,
+        totalSales: salesWeight,
+        inventory: inventoryWeight,
+        loading: false
+      });
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+      setStats(prev => ({ ...prev, loading: false }));
+    }
+  }, [activeSeason]);
+
+  // Fetch statistics on mount and when active season changes
+  useEffect(() => {
+    console.log('Active season changed, fetching stats:', activeSeason);
+    fetchStats();
+  }, [activeSeason, fetchStats]);
+
+  // Set up periodic refresh and event listeners
+  useEffect(() => {
+    // Refresh stats every 30 seconds
+    const interval = setInterval(() => {
+      console.log('Periodic refresh triggered');
+      fetchStats();
+    }, 30000);
+    
+    // Listen for transaction completion events
+    const handleTransactionCompleted = () => {
+      console.log('Transaction completed event received, refreshing stats');
+      fetchStats();
+    };
+    
+    window.addEventListener('transaction-completed', handleTransactionCompleted);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('transaction-completed', handleTransactionCompleted);
+    };
+  }, [fetchStats]);
 
   // Left sidebar - Management & Configuration
   const leftMenuItems = [
@@ -50,9 +176,26 @@ const AppLayout = ({ children }) => {
       label: 'Reports',
     },
     {
-      key: '/settings',
+      key: 'settings-group',
       icon: <SettingOutlined />,
       label: 'Settings',
+      children: [
+        {
+          key: '/settings',
+          icon: <SettingOutlined />,
+          label: 'General',
+        },
+        {
+          key: '/settings/seasons',
+          icon: <DashboardOutlined />,
+          label: 'Season Config',
+        },
+        {
+          key: '/settings/products',
+          icon: <InboxOutlined />,
+          label: 'Product Config',
+        },
+      ],
     },
   ];
 
@@ -76,9 +219,21 @@ const AppLayout = ({ children }) => {
       ],
     },
     {
-      key: '/sales',
+      key: 'sales-group',
       icon: <ShopOutlined />,
       label: 'Sales',
+      children: [
+        {
+          key: '/sales',
+          icon: <PlusCircleOutlined />,
+          label: 'Weigh-In',
+        },
+        {
+          key: '/sales/history',
+          icon: <UnorderedListOutlined />,
+          label: 'History',
+        },
+      ],
     },
   ];
 
@@ -142,23 +297,236 @@ const AppLayout = ({ children }) => {
         marginRight: rightCollapsed ? 80 : 200,
         transition: 'margin 0.2s'
       }}>
+        {/* First Navigation Bar */}
         <Header style={{
           padding: '0 20px',
           background: '#fff',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          height: '80px',
+          position: 'fixed',
+          top: 0,
+          left: leftCollapsed ? 80 : 200,
+          right: rightCollapsed ? 80 : 200,
+          zIndex: 998,
+          transition: 'left 0.2s, right 0.2s'
         }}>
-          <h2 style={{ margin: 0 }}>
-            {allMenuItems.find(item => item.key === location.pathname)?.label || 'Dashboard'}
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+            <h2 style={{ margin: 0 }}>
+              {allMenuItems.find(item => item.key === location.pathname)?.label || 'Dashboard'}
+            </h2>
+            {activeSeason && (
+              <>
+                <div style={{ 
+                  height: 40, 
+                  width: 1, 
+                  background: '#d9d9d9'
+                }} />
+                <div style={{ padding: '0 20px' }}>
+                  <Statistic
+                    title={<span style={{ fontSize: 11, color: '#666', fontWeight: 500 }}>🌾 Season</span>}
+                    value={`${activeSeason.season_number}/${activeSeason.year}`}
+                    valueStyle={{ fontSize: 18, color: '#262626', fontWeight: 600 }}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+          
+          {/* Statistics Bar */}
+          <div style={{ 
+            marginRight: 'auto', 
+            marginLeft: 40,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0
+          }}>
+            {stats.loading ? (
+              <Spin size="small" />
+            ) : (
+              <>
+                <div style={{ 
+                  height: 40, 
+                  width: 1, 
+                  background: '#d9d9d9',
+                  margin: '0 4px'
+                }} />
+                
+                <div style={{ padding: '0 20px' }}>
+                  <Statistic
+                    title={<span style={{ fontSize: 11, color: '#666', fontWeight: 500 }}>📦 Total Purchases</span>}
+                    value={stats.totalPurchases}
+                    suffix="kg"
+                    precision={2}
+                    valueStyle={{ fontSize: 18, color: '#262626', fontWeight: 600 }}
+                  />
+                </div>
+                
+                <div style={{ 
+                  height: 40, 
+                  width: 1, 
+                  background: '#d9d9d9',
+                  margin: '0 4px'
+                }} />
+                
+                <div style={{ padding: '0 20px' }}>
+                  <Statistic
+                    title={<span style={{ fontSize: 11, color: '#666', fontWeight: 500 }}>📊 In Inventory</span>}
+                    value={stats.inventory}
+                    suffix="kg"
+                    precision={2}
+                    valueStyle={{ fontSize: 18, color: '#262626', fontWeight: 600 }}
+                  />
+                </div>
+                
+                <div style={{ 
+                  height: 40, 
+                  width: 1, 
+                  background: '#d9d9d9',
+                  margin: '0 4px'
+                }} />
+                
+                <div style={{ padding: '0 20px' }}>
+                  <Statistic
+                    title={<span style={{ fontSize: 11, color: '#666', fontWeight: 500 }}>🚚 Sold to Manufacturers</span>}
+                    value={stats.totalSales}
+                    suffix="kg"
+                    precision={2}
+                    valueStyle={{ fontSize: 18, color: '#262626', fontWeight: 600 }}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+          
           <div>
             <span>Welcome, Admin</span>
           </div>
         </Header>
+
+        {/* Second Navigation Bar - Product Prices */}
+        <Header style={{
+          padding: '0 20px',
+          background: '#f5f5f5',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: '1px solid #e8e8e8',
+          height: '50px',
+          position: 'fixed',
+          top: '80px',
+          left: leftCollapsed ? 80 : 200,
+          right: rightCollapsed ? 80 : 200,
+          zIndex: 997,
+          transition: 'left 0.2s, right 0.2s',
+          overflow: 'hidden'
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 15,
+            flex: 1,
+            overflow: 'hidden'
+          }}>
+            {activeSeason && (
+              <>
+                <span style={{ 
+                  fontSize: 13, 
+                  color: '#666', 
+                  fontWeight: 500,
+                  whiteSpace: 'nowrap'
+                }}>
+                  💰 Current Prices:
+                </span>
+                
+                {loadingPrices ? (
+                  <Spin size="small" />
+                ) : productPrices.length > 0 ? (
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 12,
+                    overflow: 'auto',
+                    flex: 1,
+                    scrollbarWidth: 'thin'
+                  }}>
+                    {productPrices.map((pp, index) => {
+                      const pricePerTon = parseFloat(pp.current_price_per_ton);
+                      const pricePerKg = pricePerTon / 1000;
+                      
+                      const priceContent = (
+                        <div style={{ minWidth: 200 }}>
+                          <div style={{ fontWeight: 600, marginBottom: 8 }}>
+                            {pp.product_name}
+                          </div>
+                          <Divider style={{ margin: '8px 0' }} />
+                          <div style={{ fontSize: 12 }}>
+                            <div style={{ marginBottom: 4 }}>
+                              <span style={{ color: '#999' }}>Per Ton:</span>{' '}
+                              <span style={{ fontWeight: 600, color: '#52c41a' }}>
+                                RM {pricePerTon.toFixed(2)}
+                              </span>
+                            </div>
+                            <div>
+                              <span style={{ color: '#999' }}>Per KG:</span>{' '}
+                              <span style={{ fontWeight: 600, color: '#1890ff' }}>
+                                RM {pricePerKg.toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+
+                      return (
+                        <Popover
+                          key={pp.product_id}
+                          content={priceContent}
+                          title={null}
+                          placement="bottom"
+                        >
+                          <Tag
+                            color={pp.product_type === 'BERAS' ? 'green' : 'orange'}
+                            style={{
+                              fontSize: 13,
+                              padding: '4px 10px',
+                              margin: 0,
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            {pp.product_type === 'BERAS' ? '🌾' : '🌱'} {pp.variety === 'WANGI' ? '✨' : ''} 
+                            {' '}RM {pricePerKg.toFixed(2)}/kg
+                          </Tag>
+                        </Popover>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <Tag color="orange" style={{ margin: 0 }}>
+                    No prices set
+                  </Tag>
+                )}
+              </>
+            )}
+            {!activeSeason && (
+              <span style={{ fontSize: 13, color: '#999' }}>No active season</span>
+            )}
+          </div>
+          
+          <div style={{ fontSize: 12, color: '#999', whiteSpace: 'nowrap', marginLeft: 16 }}>
+            {activeSeason && (
+              <span>
+                Mode: <Tag color={activeSeason.mode === 'LIVE' ? 'green' : 'orange'}>{activeSeason.mode}</Tag>
+              </span>
+            )}
+          </div>
+        </Header>
+
         <Content style={{
-          margin: '24px 16px',
+          marginTop: '130px',
+          margin: '154px 16px 24px 16px',
           padding: 24,
           minHeight: 280,
           background: '#fff',
