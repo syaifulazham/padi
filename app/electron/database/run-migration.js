@@ -13,7 +13,8 @@ async function runMigration() {
       'add_deduction_config_to_purchases.sql',
       'add_season_price_history.sql',
       'update_price_to_per_ton.sql',
-      'create_paddy_products_system.sql'
+      'create_paddy_products_system.sql',
+      'add_product_to_sales.sql'
     ];
 
     for (const migrationFile of migrations) {

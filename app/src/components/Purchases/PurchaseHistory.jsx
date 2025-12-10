@@ -133,6 +133,13 @@ const PurchaseHistory = () => {
       )
     },
     {
+      title: 'Product',
+      dataIndex: 'product_name',
+      key: 'product_name',
+      width: 180,
+      render: (text) => text ? <Tag color="green">{text}</Tag> : <Tag>-</Tag>
+    },
+    {
       title: 'Gross (kg)',
       dataIndex: 'gross_weight_kg',
       key: 'gross_weight_kg',

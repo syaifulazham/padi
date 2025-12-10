@@ -35,6 +35,7 @@ const Purchases = () => {
   const [farmerSearchText, setFarmerSearchText] = useState('');
   const [selectedFarmer, setSelectedFarmer] = useState(null);
   const [activeSeason, setActiveSeason] = useState(null);
+  const [seasonLoading, setSeasonLoading] = useState(true);
   const [products, setProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [deductionModalOpen, setDeductionModalOpen] = useState(false);
@@ -92,7 +93,7 @@ const Purchases = () => {
         showRecallModal();
       } else if (e.key === 'F3') {
         e.preventDefault();
-        if (!weightInMode && !activeSession) {
+        if (!weightInMode && !activeSession && !seasonLoading) {
           startNewPurchase();
         }
       }
@@ -100,19 +101,24 @@ const Purchases = () => {
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [pendingSessions, weightInMode, activeSession]);
+  }, [pendingSessions, weightInMode, activeSession, seasonLoading]);
 
   const loadActiveSeason = async () => {
     try {
+      setSeasonLoading(true);
       const result = await window.electronAPI.seasons?.getActive();
       if (result?.success && result.data) {
         setActiveSeason(result.data);
         console.log('✅ Active season loaded:', result.data);
       } else {
-        message.warning('No active season found. Please activate a season in Settings.');
+        setActiveSeason(null);
+        console.warn('⚠️ No active season found');
       }
     } catch (error) {
       console.error('Failed to load active season:', error);
+      setActiveSeason(null);
+    } finally {
+      setSeasonLoading(false);
     }
   };
 
@@ -239,9 +245,18 @@ const Purchases = () => {
 
   // Step 1: Open modal to enter lorry registration
   const startNewPurchase = () => {
+    // Check if season is still loading
+    if (seasonLoading) {
+      message.loading({ content: 'Loading active season...', key: 'season', duration: 1 });
+      return;
+    }
+    
     // Check if active season exists
     if (!activeSeason) {
-      message.error('No active season found. Please activate a season in Settings.');
+      message.error({
+        content: 'No active season found. Please activate a season in Settings.',
+        duration: 5
+      });
       return;
     }
 
@@ -732,12 +747,13 @@ const Purchases = () => {
           <Col>
             <Space>
               <Button
-                type="primary"
                 size="large"
+                type="primary"
                 icon={<PlusOutlined />}
                 onClick={startNewPurchase}
-                disabled={weightInMode || activeSession}
-                title="Press F3 to start"
+                disabled={weightInMode || activeSession || seasonLoading}
+                loading={seasonLoading}
+                title={seasonLoading ? "Loading season..." : "Press F3 to start"}
               >
                 New Purchase (Weigh-In) <kbd style={{ marginLeft: '8px', fontSize: '11px', padding: '2px 6px', background: '#f0f0f0', border: '1px solid #d9d9d9', borderRadius: '3px' }}>F3</kbd>
               </Button>
@@ -751,6 +767,21 @@ const Purchases = () => {
                 Recall Lorry ({seasonPendingSessions.length}) <kbd style={{ marginLeft: '8px', fontSize: '11px', padding: '2px 6px', background: '#f0f0f0', border: '1px solid #d9d9d9', borderRadius: '3px' }}>F2</kbd>
               </Button>
             </Space>
+          </Col>
+          <Col>
+            {seasonLoading ? (
+              <Tag icon={<ClockCircleOutlined spin />} color="processing">
+                Loading season...
+              </Tag>
+            ) : activeSeason ? (
+              <Tag color="green">
+                🌾 {activeSeason.season_name || `Season ${activeSeason.season_number}/${activeSeason.year}`}
+              </Tag>
+            ) : (
+              <Tag color="error">
+                ⚠️ No active season
+              </Tag>
+            )}
           </Col>
         </Row>
       </Card>

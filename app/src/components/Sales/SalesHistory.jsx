@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Statistic, Row, Col, Button, Space, Tag, DatePicker } from 'antd';
+import { Card, Table, Statistic, Row, Col, Button, Space, Tag, DatePicker, message } from 'antd';
 import { ReloadOutlined, PrinterOutlined, FileExcelOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
@@ -62,6 +62,31 @@ const SalesHistory = () => {
     }
   };
 
+  const handlePrintReceipt = async (record) => {
+    try {
+      console.log('🖨️  Reprinting sales receipt for:', record.sales_number);
+      const result = await window.electronAPI.printer?.salesReceipt(record.sales_id);
+      
+      if (result?.success) {
+        if (result.mode === 'pdf') {
+          message.success(
+            <span>
+              📄 Sales receipt saved as PDF: <strong>{result.filename}</strong>
+            </span>,
+            3
+          );
+        } else {
+          message.success('Receipt sent to printer');
+        }
+      } else {
+        message.error('Failed to print receipt: ' + (result?.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error printing receipt:', error);
+      message.error('Failed to print receipt');
+    }
+  };
+
   // Calculate statistics
   const stats = {
     total: transactions.length,
@@ -101,6 +126,13 @@ const SalesHistory = () => {
           <div style={{ fontSize: '12px', color: '#999' }}>{record.manufacturer_code}</div>
         </div>
       )
+    },
+    {
+      title: 'Product',
+      dataIndex: 'product_name',
+      key: 'product_name',
+      width: 180,
+      render: (text) => text ? <Tag color="green">{text}</Tag> : <Tag>-</Tag>
     },
     {
       title: 'Gross (kg)',
@@ -159,6 +191,23 @@ const SalesHistory = () => {
         <Tag color={status === 'paid' ? 'green' : 'orange'}>
           {status?.toUpperCase()}
         </Tag>
+      )
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 100,
+      fixed: 'right',
+      render: (_, record) => (
+        <Button
+          type="default"
+          size="small"
+          icon={<PrinterOutlined />}
+          onClick={() => handlePrintReceipt(record)}
+          title="Reprint Receipt"
+        >
+          Print
+        </Button>
       )
     }
   ];
@@ -253,7 +302,7 @@ const SalesHistory = () => {
             showSizeChanger: true,
             pageSizeOptions: ['10', '20', '50', '100']
           }}
-          scroll={{ x: 1400 }}
+          scroll={{ x: 1700 }}
         />
       </Space>
     </Card>

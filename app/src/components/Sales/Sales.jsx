@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card, Form, Input, InputNumber, Button, Space, Row, Col, message, Modal, Statistic, Alert, Tag, Table, Divider } from 'antd';
 import { PlusOutlined, ClockCircleOutlined, TruckOutlined, SearchOutlined, SaveOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import SalesWeighOutWizard from './SalesWeighOutWizard';
 
 const STORAGE_KEY = 'paddy_sales_weight_in_sessions';
 
@@ -204,17 +205,24 @@ const Sales = () => {
     setRecallModalOpen(true);
   };
 
-  const recallContainer = (session) => {
-    setActiveSession(session);
+  const recallContainer = async (session) => {
     setRecallModalOpen(false);
     setSelectedManufacturer(null);
     setSelectedReceipts([]);
     finalForm.resetFields();
     finalForm.setFieldsValue({ price_per_kg: 3.00 });
+    
+    // Load available receipts before showing wizard
+    message.loading('Loading available receipts...', 0);
+    await loadAvailableReceipts();
+    message.destroy();
+    
+    setActiveSession(session);
   };
 
   const loadAvailableReceipts = async () => {
     if (!activeSeason) {
+      console.error('❌ No active season found');
       message.warning('No active season found');
       return;
     }
@@ -222,15 +230,19 @@ const Sales = () => {
     try {
       setLoading(true);
       console.log('🔍 Loading receipts for season:', activeSeason.season_id);
+      console.log('🔍 Active Season:', activeSeason);
       const result = await window.electronAPI.purchases?.getUnsold(activeSeason.season_id);
+      console.log('📦 Backend Response:', result);
       if (result?.success) {
         setAvailableReceipts(result.data || []);
         console.log('✅ Loaded receipts:', result.data?.length || 0);
+        console.log('📋 Receipt details:', result.data);
       } else {
-        message.error('Failed to load available receipts');
+        console.error('❌ Failed to load receipts:', result?.error);
+        message.error('Failed to load available receipts: ' + (result?.error || 'Unknown error'));
       }
     } catch (error) {
-      console.error('Failed to load receipts:', error);
+      console.error('❌ Exception loading receipts:', error);
       message.error('Failed to load available receipts');
     } finally {
       setLoading(false);
@@ -254,7 +266,78 @@ const Sales = () => {
   };
 
   const handleReceiptSelection = (selectedRowKeys, selectedRows) => {
-    setSelectedReceipts(selectedRows);
+    // Auto-split logic when selecting receipts
+    const grossWeight = finalForm.getFieldValue('gross_weight');
+    const tareWeight = activeSession?.tare_weight || 0;
+    const containerNetWeight = grossWeight && tareWeight ? grossWeight - tareWeight : 0;
+    
+    if (!containerNetWeight || containerNetWeight <= 0) {
+      setSelectedReceipts(selectedRows);
+      return;
+    }
+    
+    // Calculate current total of already selected receipts (before adding new ones)
+    const currentSelectedIds = selectedReceipts.map(r => r.transaction_id);
+    const newlySelectedRows = selectedRows.filter(r => !currentSelectedIds.includes(r.transaction_id));
+    const deselectedRows = selectedReceipts.filter(r => !selectedRowKeys.includes(r.transaction_id));
+    
+    // If nothing new was selected, just update the selection
+    if (newlySelectedRows.length === 0) {
+      setSelectedReceipts(selectedRows.filter(r => !deselectedRows.some(d => d.transaction_id === r.transaction_id)));
+      return;
+    }
+    
+    // Calculate running total as we add receipts
+    let runningTotal = selectedReceipts.reduce((sum, r) => sum + parseFloat(r.net_weight_kg || 0), 0);
+    const processedReceipts = [...selectedReceipts];
+    
+    for (const newReceipt of newlySelectedRows) {
+      const receiptWeight = parseFloat(newReceipt.net_weight_kg || 0);
+      const remainingCapacity = containerNetWeight - runningTotal;
+      
+      if (remainingCapacity <= 0) {
+        // Container is already full, don't add more
+        message.warning(`Container is full (${containerNetWeight.toFixed(2)} kg). Cannot add more receipts.`);
+        break;
+      }
+      
+      if (receiptWeight <= remainingCapacity) {
+        // Receipt fits completely
+        processedReceipts.push(newReceipt);
+        runningTotal += receiptWeight;
+      } else {
+        // Receipt exceeds remaining capacity - AUTO SPLIT
+        const splitWeight = Math.round(remainingCapacity * 100) / 100;
+        const remainingWeight = Math.round((receiptWeight - remainingCapacity) * 100) / 100;
+        
+        // Create split portion (goes to buyer)
+        const splitReceipt = {
+          ...newReceipt,
+          receipt_number: `${newReceipt.receipt_number}-SPLIT`,
+          net_weight_kg: splitWeight,
+          is_split: true,
+          original_receipt: newReceipt.receipt_number,
+          split_remaining_weight: remainingWeight
+        };
+        
+        processedReceipts.push(splitReceipt);
+        runningTotal += splitWeight;
+        
+        message.info(
+          <span>
+            🔪 Auto-split: <strong>{newReceipt.receipt_number}</strong><br/>
+            → To buyer: <strong>{splitWeight} kg</strong><br/>
+            → Remaining: <strong>{remainingWeight} kg</strong> (stays available)
+          </span>,
+          5
+        );
+        
+        // Container is now full, stop processing more receipts
+        break;
+      }
+    }
+    
+    setSelectedReceipts(processedReceipts);
   };
 
   const confirmReceiptSelection = () => {
@@ -262,8 +345,19 @@ const Sales = () => {
       message.warning('Please select at least one receipt');
       return;
     }
+    
+    const totalWeight = selectedReceipts.reduce((sum, r) => sum + parseFloat(r.net_weight_kg || 0), 0);
+    const grossWeight = finalForm.getFieldValue('gross_weight');
+    const tareWeight = activeSession?.tare_weight || 0;
+    const containerNetWeight = grossWeight && tareWeight ? grossWeight - tareWeight : 0;
+    
     setReceiptSelectionModal(false);
-    message.success(`Selected ${selectedReceipts.length} receipt(s)`);
+    
+    if (Math.abs(totalWeight - containerNetWeight) < 0.01) {
+      message.success(`✅ Perfect match! Selected ${selectedReceipts.length} receipt(s) totaling ${totalWeight.toFixed(2)} kg`);
+    } else {
+      message.success(`Selected ${selectedReceipts.length} receipt(s) totaling ${totalWeight.toFixed(2)} kg`);
+    }
   };
 
   const removeSelectedReceipt = (receipt) => {
@@ -389,59 +483,50 @@ const Sales = () => {
 
   const selectedTotalWeight = selectedReceipts.reduce((sum, r) => sum + parseFloat(r.net_weight_kg || 0), 0);
 
-  const completeSale = async (values) => {
-    if (!values.manufacturer_id) {
-      message.error('Please select a manufacturer');
+  // Handler for wizard completion
+  const handleWizardComplete = async (wizardData) => {
+    if (!activeSession || !activeSeason) {
+      message.error('Invalid session or season');
       return;
     }
-    if (!values.gross_weight || values.gross_weight <= 0) {
-      message.error('Please enter valid gross weight');
-      return;
-    }
-    const netWeight = values.gross_weight - activeSession.tare_weight;
-    if (netWeight <= 0) {
-      message.error('Net weight must be greater than zero');
-      return;
-    }
-    if (selectedReceipts.length === 0) {
-      message.error('Please select purchase receipts for this sale');
-      return;
-    }
-    const weightDifference = Math.abs(netWeight - selectedTotalWeight);
-    if (weightDifference > 0.5) {
-      message.error(`Weight mismatch: Container net (${netWeight.toFixed(2)} kg) vs Selected receipts (${selectedTotalWeight.toFixed(2)} kg). Difference: ${weightDifference.toFixed(2)} kg. Please adjust selection or split a receipt.`);
-      return;
-    }
-    if (!values.price_per_kg || values.price_per_kg <= 0) {
-      message.error('Please enter valid price per kg');
-      return;
-    }
-    
-    setLoading(true);
+
     try {
-      if (!activeSeason) {
-        message.error('No active season! Please activate a season in Settings.');
-        setLoading(false);
-        return;
-      }
+      setLoading(true);
+
+      // Calculate net weight
+      const netWeight = parseFloat(wizardData.gross_weight) - parseFloat(activeSession.tare_weight);
       
+      console.log('🔢 Sales Wizard Data:');
+      console.log('  - Gross Weight:', wizardData.gross_weight);
+      console.log('  - Tare Weight:', activeSession.tare_weight);
+      console.log('  - Net Weight:', netWeight);
+      console.log('  - Product ID:', wizardData.product_id);
+      console.log('  - Product Name:', wizardData.product_name);
+      console.log('  - Price per kg:', wizardData.price_per_kg);
+      console.log('  - Selected Receipts:', wizardData.selected_receipts.length);
+      
+      // Prepare sale data
       const saleData = {
         season_id: activeSeason.season_id,
-        manufacturer_id: values.manufacturer_id,
-        gross_weight_kg: parseFloat(values.gross_weight),
+        product_id: wizardData.product_id,
+        manufacturer_id: wizardData.manufacturer_id,
+        gross_weight_kg: parseFloat(wizardData.gross_weight),
         tare_weight_kg: parseFloat(activeSession.tare_weight),
         net_weight_kg: parseFloat(netWeight),
-        base_price_per_kg: parseFloat(values.price_per_kg),
+        base_price_per_kg: parseFloat(wizardData.price_per_kg),
         vehicle_number: activeSession.vehicle_number,
-        driver_name: values.driver_name || null,
-        purchase_receipts: selectedReceipts.map(r => ({
+        driver_name: wizardData.driver_name || null,
+        purchase_receipts: wizardData.selected_receipts.map(r => ({
           transaction_id: r.transaction_id,
           receipt_number: r.receipt_number,
           net_weight_kg: r.net_weight_kg
         })),
         created_by: 1
       };
-      console.log('Submitting sale data:', saleData);
+
+      console.log('📤 Sending to Backend:', saleData);
+
+      // Save sale
       const result = await window.electronAPI.sales?.create(saleData);
       
       if (result?.success) {
@@ -452,6 +537,34 @@ const Sales = () => {
             <small>🗑️ Weight-in record removed from storage</small>
           </span>, 5
         );
+        
+        // Print sales receipt
+        console.log('🖨️  Printing sales receipt for sales ID:', result.data.sales_id);
+        try {
+          const printResult = await window.electronAPI.printer?.salesReceipt(result.data.sales_id);
+          if (printResult?.success) {
+            if (printResult.mode === 'pdf') {
+              message.success(
+                <span>
+                  📄 Sales receipt saved as PDF: <strong>{printResult.filename}</strong>
+                  <br />
+                  <small>Location: {printResult.path}</small>
+                </span>,
+                6
+              );
+              console.log('✅ Sales receipt saved as PDF:', printResult.path);
+            } else {
+              console.log('✅ Sales receipt printed successfully');
+            }
+          } else {
+            console.error('Print failed:', printResult?.error);
+            message.warning('Sale completed but printing failed. You can reprint from history.');
+          }
+        } catch (printError) {
+          console.error('Print error:', printError);
+          message.warning('Sale completed but printing failed. You can reprint from history.');
+        }
+        
         setPendingSessions(pendingSessions.filter(s => s.vehicle_number !== activeSession.vehicle_number));
         setActiveSession(null);
         setSelectedManufacturer(null);
@@ -566,123 +679,15 @@ const Sales = () => {
       )}
 
       {activeSession && (
-        <Card style={{ marginBottom: 16, background: '#f6ffed', borderColor: '#52c41a' }}>
-          <Alert
-            message={`Weighing Out (After Loading): ${activeSession.vehicle_number}`}
-            description="Enter gross weight and select manufacturer"
-            type="success"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-          <Form form={finalForm} layout="vertical" onFinish={completeSale} onValuesChange={(changedValues) => { if ('gross_weight' in changedValues) finalForm.setFieldsValue(finalForm.getFieldsValue()); }}>
-            <Row gutter={16}>
-              <Col span={8}>
-                <div style={{ padding: '16px', background: '#fff9e6', borderRadius: '4px', border: '1px solid #faad14' }}>
-                  <div style={{ fontSize: '12px', color: '#999' }}>Tare (empty)</div>
-                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#faad14' }}>{activeSession.tare_weight} KG</div>
-                </div>
-              </Col>
-              <Col span={8}>
-                <Form.Item name="gross_weight" label="Gross Weight (loaded)" rules={[{ required: true, message: 'Please enter weight' }]}>
-                  <InputNumber min={0} step={0.01} style={{ width: '100%', fontSize: '18px' }} placeholder="Enter weight" size="large" suffix="KG" />
-                </Form.Item>
-              </Col>
-              <Col span={8}>
-                <div style={{ padding: '16px', background: '#f6ffed', borderRadius: '4px', border: '1px solid #52c41a' }}>
-                  <div style={{ fontSize: '12px', color: '#999' }}>Container Net</div>
-                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#52c41a' }}>
-                    <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.gross_weight !== currentValues.gross_weight}>
-                      {({ getFieldValue }) => {
-                        const gross = getFieldValue('gross_weight');
-                        return gross ? (gross - activeSession.tare_weight).toFixed(2) : '---';
-                      }}
-                    </Form.Item> KG
-                  </div>
-                </div>
-              </Col>
-            </Row>
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item name="manufacturer_id" hidden><Input /></Form.Item>
-                <Form.Item name="manufacturer_display" label="Manufacturer (Buyer)" rules={[{ required: true, message: 'Please select manufacturer' }]}>
-                  <Input size="large" readOnly placeholder="Click Search to select manufacturer" suffix={<Button type="primary" icon={<SearchOutlined />} onClick={openManufacturerSearch}>Search</Button>} style={{ cursor: 'pointer' }} onClick={openManufacturerSearch} />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item name="price_per_kg" label="Price per KG (RM)" rules={[{ required: true }]}>
-                  <InputNumber min={0} step={0.01} style={{ width: '100%' }} prefix="RM" size="large" />
-                </Form.Item>
-              </Col>
-            </Row>
-            <Divider>Purchase Receipts</Divider>
-            <Card style={{ marginBottom: 16, background: '#fafafa' }}>
-              <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
-                <Col>
-                  <Space>
-                    <h3 style={{ margin: 0 }}>Selected Receipts: {selectedReceipts.length}</h3>
-                    <Tag color="blue">Total: {selectedTotalWeight.toFixed(2)} kg</Tag>
-                    <Form.Item noStyle shouldUpdate={(prevValues, currentValues) => prevValues.gross_weight !== currentValues.gross_weight}>
-                      {({ getFieldValue }) => {
-                        const gross = getFieldValue('gross_weight');
-                        const netWeight = gross ? gross - activeSession.tare_weight : 0;
-                        const diff = netWeight - selectedTotalWeight;
-                        return (
-                          <Tag color={Math.abs(diff) > 0.5 ? 'red' : 'green'}>
-                            Diff: {diff.toFixed(2)} kg {Math.abs(diff) > 0.5 ? '⚠️' : '✓'}
-                          </Tag>
-                        );
-                      }}
-                    </Form.Item>
-                  </Space>
-                </Col>
-                <Col>
-                  <Button type="dashed" icon={<PlusOutlined />} onClick={openReceiptSelectionModal} loading={loading}>
-                    Select Receipts
-                  </Button>
-                </Col>
-              </Row>
-              {selectedReceipts.length > 0 ? (
-                <Table
-                  dataSource={selectedReceipts}
-                  columns={[
-                    ...receiptColumns,
-                    {
-                      title: 'Action',
-                      key: 'action',
-                      render: (_, record) => (
-                        <Space>
-                          <Button size="small" onClick={() => openSplitModal(record)} disabled={record.is_split}>
-                            Split
-                          </Button>
-                          <Button size="small" danger onClick={() => removeSelectedReceipt(record)}>
-                            Remove
-                          </Button>
-                        </Space>
-                      )
-                    }
-                  ]}
-                  rowKey={(record, index) => record.transaction_id + '-' + index}
-                  pagination={false}
-                  size="small"
-                />
-              ) : (
-                <Alert message="No receipts selected" description="Click 'Select Receipts' to add purchase receipts to this sale" type="info" showIcon />
-              )}
-            </Card>
-            <Form.Item name="driver_name" label="Driver Name (Optional)">
-              <Input placeholder="Driver name..." size="large" />
-            </Form.Item>
-            <Form.Item name="notes" label="Notes (Optional)">
-              <Input.TextArea rows={2} placeholder="Additional notes..." />
-            </Form.Item>
-            <Form.Item>
-              <Space>
-                <Button size="large" onClick={cancelWeighOut}>Cancel</Button>
-                <Button type="primary" size="large" htmlType="submit" icon={<CheckCircleOutlined />} loading={loading}>Complete Sale & Print Receipt</Button>
-              </Space>
-            </Form.Item>
-          </Form>
-        </Card>
+        <SalesWeighOutWizard
+          session={activeSession}
+          manufacturers={manufacturers}
+          availableReceipts={availableReceipts}
+          activeSeason={activeSeason}
+          onComplete={handleWizardComplete}
+          onCancel={cancelWeighOut}
+          onReloadReceipts={loadAvailableReceipts}
+        />
       )}
 
       <Card>
@@ -744,247 +749,6 @@ const Sales = () => {
         </div>
       </Modal>
 
-      <Modal title="Search Manufacturer" open={manufacturerSearchModal} onCancel={() => setManufacturerSearchModal(false)} footer={null} width={900}>
-        <Space direction="vertical" style={{ width: '100%' }} size="large">
-          <Input size="large" placeholder="Search by company name, code, or registration number..." prefix={<SearchOutlined />} value={manufacturerSearchText} onChange={(e) => { setManufacturerSearchText(e.target.value); searchManufacturers(e.target.value); }} autoFocus allowClear />
-          {manufacturerSearchText.length > 0 && manufacturerSearchText.length < 2 && <Alert message="Type at least 2 characters to search" type="info" showIcon />}
-          {manufacturerSearchText.length >= 2 && manufacturerOptions.length === 0 && <Alert message="No manufacturers found" description="Try different search terms" type="warning" showIcon />}
-          {manufacturerOptions.length > 0 && (
-            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-              {manufacturerOptions.map(m => (
-                <Card key={m.manufacturer_id} hoverable onClick={() => selectManufacturer(m)} style={{ marginBottom: 8 }}>
-                  <Row justify="space-between" align="middle">
-                    <Col span={18}>
-                      <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{m.company_name}</div>
-                      <div style={{ fontSize: '12px', color: '#666' }}>Code: {m.manufacturer_code} | Reg: {m.registration_number}</div>
-                    </Col>
-                    <Col span={6} style={{ textAlign: 'right' }}>
-                      <Button type="primary">Select</Button>
-                    </Col>
-                  </Row>
-                </Card>
-              ))}
-            </div>
-          )}
-        </Space>
-      </Modal>
-
-      <Modal
-        title="Select Purchase Receipts"
-        open={receiptSelectionModal}
-        onCancel={() => setReceiptSelectionModal(false)}
-        onOk={confirmReceiptSelection}
-        width={1000}
-        okText="Confirm Selection"
-      >
-        {activeSession && (
-          <>
-            <Alert
-              message="Select Purchase Receipts to Load"
-              description={
-                <div>
-                  <p style={{ marginBottom: 4 }}>Select purchase receipts that will be loaded into this container.</p>
-                  <p style={{ marginBottom: 0 }}>
-                    <strong>Container Net Weight: {finalForm.getFieldValue('gross_weight') ? (finalForm.getFieldValue('gross_weight') - activeSession.tare_weight).toFixed(2) : '---'} kg</strong>
-                    {' '}- Once the selected total meets or exceeds this weight, other receipts will be disabled.
-                  </p>
-                </div>
-              }
-              type="info"
-              showIcon
-              style={{ marginBottom: 16 }}
-            />
-            <Table
-              dataSource={availableReceipts}
-              columns={receiptColumns}
-              rowSelection={{
-                type: 'checkbox',
-                selectedRowKeys: selectedReceipts.map(r => r.transaction_id),
-                onChange: handleReceiptSelection,
-                getCheckboxProps: (record) => {
-                  const containerNetWeight = finalForm.getFieldValue('gross_weight') 
-                    ? finalForm.getFieldValue('gross_weight') - activeSession.tare_weight 
-                    : 0;
-                  const currentSelectedTotal = selectedReceipts.reduce((sum, r) => sum + parseFloat(r.net_weight_kg || 0), 0);
-                  const isAlreadySelected = selectedReceipts.some(r => r.transaction_id === record.transaction_id);
-                  
-                  // Disable if:
-                  // 1. Not already selected AND
-                  // 2. Current selected total >= container net weight
-                  const shouldDisable = !isAlreadySelected && currentSelectedTotal >= containerNetWeight;
-                  
-                  return {
-                    disabled: shouldDisable,
-                  };
-                },
-              }}
-              rowKey="transaction_id"
-              pagination={{
-                pageSize: 10,
-                showTotal: (total) => `Total ${total} receipts`,
-              }}
-              scroll={{ y: 400 }}
-              summary={(pageData) => {
-                const totalWeight = selectedReceipts.reduce((sum, r) => sum + parseFloat(r.net_weight_kg || 0), 0);
-                const containerNetWeight = finalForm.getFieldValue('gross_weight') 
-                  ? finalForm.getFieldValue('gross_weight') - activeSession.tare_weight 
-                  : 0;
-                const diff = containerNetWeight - totalWeight;
-                
-                return (
-                  <Table.Summary fixed>
-                    <Table.Summary.Row>
-                      <Table.Summary.Cell index={0} colSpan={3}>
-                        <strong>Selected Total:</strong>
-                      </Table.Summary.Cell>
-                      <Table.Summary.Cell index={3} align="right">
-                        <Space>
-                          <Tag color="blue" style={{ fontSize: '14px' }}>
-                            {selectedReceipts.length} receipts = {totalWeight.toFixed(2)} kg
-                          </Tag>
-                          <Tag color={Math.abs(diff) <= 0.5 ? 'green' : diff > 0 ? 'orange' : 'red'} style={{ fontSize: '14px' }}>
-                            {diff > 0 ? `Need ${diff.toFixed(2)} kg more` : diff < 0 ? `Over by ${Math.abs(diff).toFixed(2)} kg` : 'Perfect match ✓'}
-                          </Tag>
-                        </Space>
-                      </Table.Summary.Cell>
-                    </Table.Summary.Row>
-                  </Table.Summary>
-                );
-              }}
-            />
-          </>
-        )}
-      </Modal>
-
-      <Modal
-        title="Split Receipt"
-        open={splitReceiptModal}
-        onCancel={() => setSplitReceiptModal(false)}
-        footer={null}
-        width={600}
-      >
-        {receiptToSplit && (
-          <>
-            <Alert
-              message={`Splitting Receipt: ${receiptToSplit.receipt_number}`}
-              description={
-                <div>
-                  <Form.Item noStyle shouldUpdate>
-                    {() => {
-                      const weightNeeded = splitForm.getFieldValue('weight_needed');
-                      const isOverCapacity = weightNeeded < 0;
-                      const excessWeight = Math.abs(weightNeeded);
-                      
-                      return (
-                        <>
-                          {isOverCapacity ? (
-                            <>
-                              <p style={{ marginBottom: 4, color: '#ff4d4f' }}>
-                                <strong>⚠️ OVER-CAPACITY by {excessWeight.toFixed(2)} kg</strong>
-                              </p>
-                              <p style={{ marginBottom: 0 }}>
-                                <strong>Split 1 (Keep in sale):</strong> Auto-calculated to remove the excess weight.
-                                <br />
-                                <strong>Split 2 (Remove):</strong> The excess {excessWeight.toFixed(2)} kg will go back to available receipts.
-                              </p>
-                            </>
-                          ) : (
-                            <>
-                              <p style={{ marginBottom: 4, color: '#52c41a' }}>
-                                <strong>Need {weightNeeded > 0 ? `${weightNeeded.toFixed(2)} kg more` : 'to fill container'}</strong>
-                              </p>
-                              <p style={{ marginBottom: 0 }}>
-                                {weightNeeded > 0 && weightNeeded < receiptToSplit.net_weight_kg
-                                  ? `Split 1 has been auto-calculated to match the exact weight needed.`
-                                  : `Split this receipt into the amount needed. Adjust as required.`
-                                }
-                              </p>
-                            </>
-                          )}
-                        </>
-                      );
-                    }}
-                  </Form.Item>
-                </div>
-              }
-              type="warning"
-              showIcon
-              style={{ marginBottom: 16 }}
-            />
-            <Form form={splitForm} layout="vertical" onFinish={confirmSplitReceipt}>
-              <Form.Item name="weight_needed" hidden><InputNumber /></Form.Item>
-              <Row gutter={16}>
-                <Col span={8}>
-                  <Form.Item name="original_weight" label="Original Weight (kg)">
-                    <InputNumber disabled style={{ width: '100%' }} size="large" />
-                  </Form.Item>
-                </Col>
-                <Col span={8}>
-                  <Form.Item 
-                    name="split_weight" 
-                    label={
-                      <span>
-                        Split Amount (kg) <Tag color="green" style={{ fontSize: '10px' }}>Auto-Calculated</Tag>
-                      </span>
-                    }
-                    rules={[{ required: true, message: 'Please enter split weight' }]}
-                  >
-                    <InputNumber 
-                      min={0.01} 
-                      max={receiptToSplit.net_weight_kg - 0.01}
-                      step={0.01} 
-                      style={{ width: '100%' }} 
-                      size="large"
-                      onChange={handleSplitWeightChange}
-                      autoFocus
-                    />
-                  </Form.Item>
-                </Col>
-                <Col span={8}>
-                  <Form.Item name="remaining_weight" label="Remaining (kg)">
-                    <InputNumber disabled style={{ width: '100%' }} size="large" />
-                  </Form.Item>
-                </Col>
-              </Row>
-              <Form.Item noStyle shouldUpdate>
-                {() => {
-                  const splitWeight = splitForm.getFieldValue('split_weight') || 0;
-                  const remainingWeight = splitForm.getFieldValue('remaining_weight') || 0;
-                  const weightNeeded = splitForm.getFieldValue('weight_needed') || 0;
-                  const isOverCapacity = weightNeeded < 0;
-                  
-                  return (
-                    <Alert
-                      message="Split Breakdown"
-                      description={
-                        <div>
-                          <p style={{ marginBottom: 4 }}>
-                            <strong>Split 1 (Keep in sale):</strong> {typeof splitWeight === 'number' ? splitWeight.toFixed(2) : '0.00'} kg 
-                            {' '}→ {isOverCapacity ? 'Keeps this amount in the sale' : 'Added to this sale as new split portion'}
-                          </p>
-                          <p style={{ marginBottom: 0 }}>
-                            <strong>Split 2 ({isOverCapacity ? 'Removed' : 'Remaining'}):</strong> {typeof remainingWeight === 'number' ? remainingWeight.toFixed(2) : '0.00'} kg 
-                            {' '}→ {isOverCapacity ? 'Removed from sale, goes back to available receipts' : `Stays in original <code>${receiptToSplit.receipt_number}</code> for future sales`}
-                          </p>
-                        </div>
-                      }
-                      type="info"
-                      showIcon
-                      style={{ marginBottom: 16 }}
-                    />
-                  );
-                }}
-              </Form.Item>
-              <Form.Item>
-                <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-                  <Button onClick={() => setSplitReceiptModal(false)}>Cancel</Button>
-                  <Button type="primary" htmlType="submit" size="large">Confirm Split</Button>
-                </Space>
-              </Form.Item>
-            </Form>
-          </>
-        )}
-      </Modal>
     </div>
   );
 };

@@ -6,9 +6,12 @@ import Farmers from './components/Farmers/Farmers';
 import Manufacturers from './components/Manufacturers/Manufacturers';
 import Purchases from './components/Purchases/Purchases';
 import PurchaseHistory from './components/Purchases/PurchaseHistory';
+import Payment from './components/Purchases/Payment';
 import Sales from './components/Sales/Sales';
 import SalesHistory from './components/Sales/SalesHistory';
 import Inventory from './components/Inventory/Inventory';
+import Stockpiles from './components/Stockpiles/Stockpiles';
+import StockMovements from './components/Stockpiles/StockMovements';
 import Reports from './components/Reports/Reports';
 import Settings from './components/Settings/Settings';
 import SeasonConfig from './components/Settings/SeasonConfig';
@@ -102,8 +105,11 @@ function App() {
             <Route path="/manufacturers" element={<Manufacturers />} />
             <Route path="/purchases" element={<Purchases />} />
             <Route path="/purchases/history" element={<PurchaseHistory />} />
+            <Route path="/purchases/payment" element={<Payment />} />
             <Route path="/sales" element={<Sales />} />
             <Route path="/sales/history" element={<SalesHistory />} />
+            <Route path="/stockpiles" element={<Stockpiles />} />
+            <Route path="/stockpiles/movements" element={<StockMovements />} />
             <Route path="/inventory" element={<Inventory />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/settings" element={<Settings />} />

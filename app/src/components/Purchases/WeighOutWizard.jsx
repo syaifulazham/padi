@@ -81,11 +81,16 @@ const WeighOutWizard = ({
   const handleProductSelect = async (product) => {
     setLoading(true);
     try {
+      console.log('🔍 Fetching price for product:', product.product_id, product.product_name);
+      console.log('🔍 Active season:', activeSeason?.season_id);
+      
       // Fetch product price
       const priceResult = await window.electronAPI.seasonProductPrices.getProductPrice(
         activeSeason.season_id,
         product.product_id
       );
+
+      console.log('📊 Price result:', priceResult);
 
       if (priceResult?.success && priceResult.data?.current_price_per_ton) {
         const pricePerKg = priceResult.data.current_price_per_ton / 1000;
@@ -93,6 +98,7 @@ const WeighOutWizard = ({
         // Get season deductions configuration
         const seasonDeductions = activeSeason?.deduction_config || [];
         
+        console.log('✅ Price found:', pricePerKg, 'RM/kg');
         console.log('Loading season deductions:', seasonDeductions);
         
         setWizardData({
@@ -108,13 +114,25 @@ const WeighOutWizard = ({
           deductions: seasonDeductions
         });
         
+        console.log('⏭️ Moving to step 3 (Deductions)');
         moveToStep(3); // Move to Deductions stage
       } else {
-        message.warning('No price set for this product');
+        console.warn('❌ No price found for product:', product.product_name);
+        console.warn('   Price result data:', priceResult?.data);
+        message.warning({
+          content: (
+            <div>
+              <strong>No price set for this product</strong>
+              <br />
+              <small>Please set a price in Settings → Season & Prices</small>
+            </div>
+          ),
+          duration: 5
+        });
       }
     } catch (error) {
-      console.error('Error fetching price:', error);
-      message.error('Failed to load product price');
+      console.error('❌ Error fetching price:', error);
+      message.error('Failed to load product price: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -704,12 +722,14 @@ const WeighOutWizard = ({
                     <div>RM {wizardData.price_per_kg?.toFixed(2)}</div>
                   </div>
 
-                  <div>
-                    <div style={{ color: '#999', fontSize: 12, fontWeight: 600 }}>Total Amount</div>
-                    <div style={{ fontWeight: 600, color: '#52c41a', fontSize: 24 }}>
-                      RM {totalAmount}
+                  {totalDeductionRate > 0 && (
+                    <div>
+                      <div style={{ color: '#999', fontSize: 12, fontWeight: 600 }}>Total Amount</div>
+                      <div style={{ fontWeight: 600, color: '#52c41a', fontSize: 24 }}>
+                        RM {totalAmount}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>

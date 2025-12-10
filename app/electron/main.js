@@ -10,11 +10,12 @@ const productService = require('./database/queries/products');
 const seasonProductPriceService = require('./database/queries/seasonProductPrices');
 const purchaseService = require('./database/queries/purchases');
 const salesService = require('./database/queries/sales');
+const stockpilesService = require('./database/queries/stockpiles');
 const seasonService = require('./database/queries/seasons');
 const seasonPriceService = require('./database/queries/seasonPriceHistory');
 const weighbridgeService = require('./hardware/weighbridge');
 const settingsService = require('./services/settings');
-const { generatePurchaseReceipt } = require('./utils/receiptTemplate');
+const { generatePurchaseReceipt, generateSalesReceipt } = require('./utils/receiptTemplate');
 
 let mainWindow;
 
@@ -240,8 +241,16 @@ ipcMain.handle('purchases:getUnsold', async (event, seasonId) => {
   return await purchaseService.getUnsold(seasonId);
 });
 
+ipcMain.handle('purchases:createSplit', async (event, parentTransactionId, splitWeightKg, userId) => {
+  return await purchaseService.createSplit(parentTransactionId, splitWeightKg, userId);
+});
+
 ipcMain.handle('purchases:getTotalStats', async (event, seasonId) => {
   return await purchaseService.getTotalStats(seasonId);
+});
+
+ipcMain.handle('purchases:updatePayment', async (event, updateData) => {
+  return await purchaseService.updatePayment(updateData);
 });
 
 // Sales
@@ -263,6 +272,23 @@ ipcMain.handle('sales:getBySalesNumber', async (event, salesNumber) => {
 
 ipcMain.handle('sales:getTotalStats', async (event, seasonId) => {
   return await salesService.getTotalStats(seasonId);
+});
+
+// Stockpiles
+ipcMain.handle('stockpiles:getSummary', async (event, seasonId) => {
+  return await stockpilesService.getStockpileSummary(seasonId);
+});
+
+ipcMain.handle('stockpiles:getProductMovements', async (event, seasonId, productId, filters) => {
+  return await stockpilesService.getProductMovements(seasonId, productId, filters);
+});
+
+ipcMain.handle('stockpiles:getStats', async (event, seasonId) => {
+  return await stockpilesService.getStockpileStats(seasonId);
+});
+
+ipcMain.handle('stockpiles:getLowStockAlerts', async (event, seasonId, thresholdKg) => {
+  return await stockpilesService.getLowStockAlerts(seasonId, thresholdKg);
 });
 
 // Seasons
@@ -403,6 +429,13 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId) => {
     }
     
     const transaction = transactionResult.data;
+    
+    // Debug: Log transaction to verify receipt_number
+    if (!transaction.receipt_number) {
+      console.warn('⚠️ WARNING: receipt_number is undefined for transaction ID:', transactionId);
+      console.warn('   Transaction keys:', Object.keys(transaction));
+      console.warn('   Transaction data:', JSON.stringify(transaction, null, 2));
+    }
     
     // Fetch farmer details
     const farmerResult = await farmerService.getById(transaction.farmer_id);
@@ -562,6 +595,211 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId) => {
     
   } catch (error) {
     console.error('Error printing receipt:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('print:salesReceipt', async (event, salesId) => {
+  try {
+    console.log('🖨️  Printing sales receipt for sales ID:', salesId);
+    
+    // Check print settings
+    const printToPdfResult = await settingsService.get('print_to_pdf');
+    const printToPdf = printToPdfResult?.data || false;
+    const pdfSavePathResult = await settingsService.get('pdf_save_path');
+    const pdfSavePath = pdfSavePathResult?.data || null;
+    const pdfAutoOpenResult = await settingsService.get('pdf_auto_open');
+    const pdfAutoOpen = pdfAutoOpenResult?.data || false;
+    const paperSizeResult = await settingsService.get('paper_size');
+    const paperSize = paperSizeResult?.data || '80mm';
+    
+    // Fetch sales transaction details with purchase receipts
+    const salesResult = await salesService.getById(salesId);
+    if (!salesResult.success || !salesResult.data) {
+      return { success: false, error: 'Sales transaction not found' };
+    }
+    
+    const salesTransaction = salesResult.data;
+    
+    console.log('📋 Sales transaction data received:');
+    console.log('   - sales_id:', salesTransaction.sales_id);
+    console.log('   - sales_number:', salesTransaction.sales_number);
+    console.log('   - season_id:', salesTransaction.season_id);
+    console.log('   - season_name:', salesTransaction.season_name);
+    console.log('   - gross_weight_kg:', salesTransaction.gross_weight_kg);
+    console.log('   - tare_weight_kg:', salesTransaction.tare_weight_kg);
+    console.log('   - net_weight_kg:', salesTransaction.net_weight_kg);
+    console.log('   - sale_price_per_kg:', salesTransaction.sale_price_per_kg);
+    console.log('   - total_amount:', salesTransaction.total_amount);
+    console.log('   - sale_date:', salesTransaction.sale_date);
+    console.log('   - vehicle_number:', salesTransaction.vehicle_number);
+    
+    // Debug: Log sales transaction to verify sales_number
+    if (!salesTransaction.sales_number) {
+      console.warn('⚠️ WARNING: sales_number is undefined for sales ID:', salesId);
+      console.warn('   Sales transaction keys:', Object.keys(salesTransaction));
+      console.warn('   Sales transaction data:', JSON.stringify(salesTransaction, null, 2));
+    }
+    
+    // Fetch season details
+    let season = {};
+    if (salesTransaction.season_id) {
+      const seasonResult = await seasonService.getById(salesTransaction.season_id);
+      season = seasonResult?.data || {};
+    } else {
+      console.warn('⚠️ WARNING: season_id is undefined for sales ID:', salesId);
+      console.warn('   Using fallback season name from join:', salesTransaction.season_name);
+      // Use season info from the join if available
+      season = {
+        season_name: salesTransaction.season_name || 'Unknown Season',
+        year: salesTransaction.season_year || new Date().getFullYear()
+      };
+    }
+    
+    // Fetch company details
+    const companyResult = await settingsService.getCompanyDetails();
+    const companyDetails = companyResult?.data || {};
+    
+    // Generate sales receipt HTML with paper size
+    const receiptHTML = generateSalesReceipt(salesTransaction, season, companyDetails, paperSize);
+    
+    // Create hidden window for printing/PDF
+    const printWindow = new BrowserWindow({
+      width: 800,
+      height: 600,
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true
+      }
+    });
+    
+    // Load the receipt HTML
+    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(receiptHTML)}`);
+    
+    // Small delay to ensure rendering is complete
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    if (printToPdf && pdfSavePath) {
+      // Save as PDF
+      const fs = require('fs');
+      const pathModule = require('path');
+      
+      // Ensure directory exists
+      if (!fs.existsSync(pdfSavePath)) {
+        fs.mkdirSync(pdfSavePath, { recursive: true });
+      }
+      
+      // Generate filename
+      const salesNum = salesTransaction.sales_number || `ID${salesId}`;
+      const filename = `SalesReceipt_${salesNum}_${Date.now()}.pdf`;
+      const pdfPath = pathModule.join(pdfSavePath, filename);
+      
+      // Get page size based on paper size setting
+      let pdfOptions;
+      
+      if (paperSize === 'a4_portrait') {
+        pdfOptions = {
+          pageSize: 'A4',
+          landscape: false,
+          printBackground: true,
+          margin: {
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0
+          }
+        };
+      } else if (paperSize === 'a5_landscape') {
+        pdfOptions = {
+          pageSize: 'A5',
+          landscape: true,
+          printBackground: true,
+          margin: {
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0
+          }
+        };
+      } else {
+        // For 80mm thermal
+        pdfOptions = {
+          pageSize: {
+            width: 226.77,  // 80mm in points
+            height: 841.89  // 297mm (A4 height) in points
+          },
+          printBackground: true,
+          margin: {
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0
+          }
+        };
+      }
+      
+      // Generate PDF
+      const pdfData = await printWindow.webContents.printToPDF(pdfOptions);
+      
+      // Save to file
+      fs.writeFileSync(pdfPath, pdfData);
+      
+      printWindow.close();
+      
+      console.log('✅ Sales receipt saved as PDF:', pdfPath);
+      
+      // Auto-open if enabled
+      if (pdfAutoOpen) {
+        const { shell } = require('electron');
+        shell.openPath(pdfPath);
+      }
+      
+      return { 
+        success: true, 
+        mode: 'pdf',
+        path: pdfPath,
+        filename: filename
+      };
+      
+    } else {
+      // Print to physical printer
+      const pageSizes = {
+        '80mm': { width: 80000, height: 297000, landscape: false },
+        'a4_portrait': { width: 210000, height: 297000, landscape: false },
+        'a5_landscape': { width: 210000, height: 148000, landscape: true }
+      };
+      const pageSize = pageSizes[paperSize] || pageSizes['80mm'];
+      
+      const printOptions = {
+        silent: false,
+        printBackground: true,
+        color: false,
+        margins: {
+          marginType: 'none'
+        },
+        pageSize: {
+          width: pageSize.width,
+          height: pageSize.height
+        },
+        landscape: pageSize.landscape
+      };
+      
+      // Print using promise wrapper
+      return new Promise((resolve) => {
+        printWindow.webContents.print(printOptions, (success, errorType) => {
+          if (!success) {
+            console.error('Print failed:', errorType);
+          }
+          printWindow.close();
+          console.log('✅ Sales receipt printed successfully');
+          resolve({ success: true, mode: 'print' });
+        });
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error printing sales receipt:', error);
     return { success: false, error: error.message };
   }
 });

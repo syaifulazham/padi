@@ -84,6 +84,8 @@ async function create(purchaseData) {
       }
       
       console.log('📝 Data being inserted to database:');
+      console.log('  - product_id:', purchaseData.product_id);
+      console.log('  - grade_id:', purchaseData.grade_id);
       console.log('  - net_weight_kg (for DB):', purchaseData.net_weight_kg);
       console.log('  - total_amount (final):', finalTotalAmount);
       console.log('  - deduction_config:', JSON.stringify(purchaseData.deduction_config));
@@ -91,7 +93,7 @@ async function create(purchaseData) {
       // Insert purchase transaction
       const [result] = await connection.execute(`
         INSERT INTO purchase_transactions (
-          receipt_number, season_id, farmer_id, grade_id, transaction_date,
+          receipt_number, season_id, farmer_id, grade_id, product_id, transaction_date,
           gross_weight_kg, tare_weight_kg, net_weight_kg,
           moisture_content, foreign_matter,
           base_price_per_kg, moisture_penalty, foreign_matter_penalty,
@@ -101,12 +103,13 @@ async function create(purchaseData) {
           status, payment_status,
           weighbridge_id, weighing_log_id,
           created_by
-        ) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         receiptNumber,
         purchaseData.season_id,
         purchaseData.farmer_id,
         purchaseData.grade_id,
+        purchaseData.product_id || null,
         purchaseData.gross_weight_kg,
         purchaseData.tare_weight_kg || 0,
         purchaseData.net_weight_kg,
@@ -187,11 +190,13 @@ async function getAll(filters = {}) {
         f.farmer_code,
         f.full_name as farmer_name,
         pg.grade_name,
-        hs.season_name
+        hs.season_name,
+        pp.product_name
       FROM purchase_transactions pt
       JOIN farmers f ON pt.farmer_id = f.farmer_id
       JOIN paddy_grades pg ON pt.grade_id = pg.grade_id
       JOIN harvesting_seasons hs ON pt.season_id = hs.season_id
+      LEFT JOIN paddy_products pp ON pt.product_id = pp.product_id
       WHERE 1=1
     `;
     
@@ -253,11 +258,14 @@ async function getById(transactionId) {
         pg.grade_name,
         pg.grade_code,
         hs.season_name,
-        hs.season_code
+        hs.season_code,
+        pp.product_name,
+        pp.product_code
       FROM purchase_transactions pt
       JOIN farmers f ON pt.farmer_id = f.farmer_id
       JOIN paddy_grades pg ON pt.grade_id = pg.grade_id
       JOIN harvesting_seasons hs ON pt.season_id = hs.season_id
+      LEFT JOIN paddy_products pp ON pt.product_id = pp.product_id
       WHERE pt.transaction_id = ?
     `;
     
@@ -337,19 +345,28 @@ async function getUnsold(seasonId = null) {
         pt.receipt_number,
         pt.transaction_date,
         pt.net_weight_kg,
+        pt.gross_weight_kg,
+        pt.tare_weight_kg,
         pt.grade_id,
+        pt.product_id,
+        pt.is_split_parent,
+        pt.parent_transaction_id,
         f.farmer_code,
         f.full_name as farmer_name,
         pg.grade_name,
         hs.season_name,
+        pp.product_name,
+        pp.product_code,
         COALESCE(SUM(spm.quantity_kg), 0) as sold_quantity_kg,
         pt.net_weight_kg - COALESCE(SUM(spm.quantity_kg), 0) as available_quantity_kg
       FROM purchase_transactions pt
       JOIN farmers f ON pt.farmer_id = f.farmer_id
       JOIN paddy_grades pg ON pt.grade_id = pg.grade_id
       JOIN harvesting_seasons hs ON pt.season_id = hs.season_id
+      LEFT JOIN paddy_products pp ON pt.product_id = pp.product_id
       LEFT JOIN sales_purchase_mapping spm ON pt.transaction_id = spm.transaction_id
       WHERE pt.status = 'completed'
+        AND (pt.is_split_parent IS NULL OR pt.is_split_parent = 0)
     `;
     
     const params = [];
@@ -366,26 +383,77 @@ async function getUnsold(seasonId = null) {
         pt.receipt_number,
         pt.transaction_date,
         pt.net_weight_kg,
+        pt.gross_weight_kg,
+        pt.tare_weight_kg,
         pt.grade_id,
+        pt.product_id,
+        pt.is_split_parent,
+        pt.parent_transaction_id,
         f.farmer_code,
         f.full_name,
         pg.grade_name,
-        hs.season_name
+        hs.season_name,
+        pp.product_name,
+        pp.product_code
       HAVING available_quantity_kg > 0
-      ORDER BY pt.transaction_date DESC
+      ORDER BY pt.transaction_date DESC, pt.transaction_id ASC
     `;
     
     console.log('📊 Purchase getUnsold - Season ID:', seasonId);
+    console.log('📊 Purchase getUnsold - SQL:', sql);
+    console.log('📊 Purchase getUnsold - Params:', params);
+    
+    // Debug: Check total purchases without HAVING filter
+    const debugSql = sql.replace('HAVING available_quantity_kg > 0', '');
+    const debugRows = await db.query(debugSql, params);
+    console.log('🔍 DEBUG - Total purchases (including sold):', debugRows.length);
+    if (debugRows.length > 0) {
+      console.log('🔍 DEBUG - All purchases sample:', debugRows.slice(0, 3).map(r => ({
+        receipt: r.receipt_number,
+        net_weight: r.net_weight_kg,
+        sold: r.sold_quantity_kg,
+        available: r.available_quantity_kg
+      })));
+    }
+    
     const rows = await db.query(sql, params);
-    console.log('📊 Purchase getUnsold - Found receipts:', rows.length);
+    console.log('📊 Purchase getUnsold - Found receipts (available > 0):', rows.length);
+    
+    // Log first few receipts for debugging
+    if (rows.length > 0) {
+      console.log('📊 Sample receipts:', rows.slice(0, 3).map(r => ({
+        receipt: r.receipt_number,
+        net_weight: r.net_weight_kg,
+        sold: r.sold_quantity_kg,
+        available: r.available_quantity_kg
+      })));
+    }
     
     // Return rows with available_quantity_kg as net_weight_kg for the UI
-    const formattedRows = rows.map(row => ({
-      ...row,
-      net_weight_kg: row.available_quantity_kg,
-      original_weight_kg: row.net_weight_kg
-    }));
+    // For sales splits: gross_weight_kg = net_weight_kg and tare_weight_kg = 0
+    const formattedRows = rows.map(row => {
+      const originalNetWeight = parseFloat(row.net_weight_kg);
+      const availableNetWeight = parseFloat(row.available_quantity_kg);
+      const originalGrossWeight = parseFloat(row.gross_weight_kg);
+      const originalTareWeight = parseFloat(row.tare_weight_kg);
+      
+      // For available portions, set gross = net and tare = 0
+      // This represents the available paddy quantity without container weight
+      const availableGrossWeight = availableNetWeight;
+      const availableTareWeight = 0;
+      
+      return {
+        ...row,
+        net_weight_kg: availableNetWeight,
+        gross_weight_kg: availableGrossWeight,
+        tare_weight_kg: availableTareWeight,
+        original_weight_kg: originalNetWeight,
+        original_gross_weight_kg: originalGrossWeight,
+        original_tare_weight_kg: originalTareWeight
+      };
+    });
     
+    console.log('📊 Purchase getUnsold - Returning formatted rows:', formattedRows.length);
     return { success: true, data: formattedRows };
   } catch (error) {
     console.error('Error fetching unsold purchases:', error);
@@ -431,6 +499,364 @@ async function getTotalStats(seasonId = null) {
   }
 }
 
+/**
+ * Create a split receipt from an existing purchase transaction
+ * @param {number} parentTransactionId - The transaction ID to split from
+ * @param {number} splitWeightKg - The weight for the split portion
+ * @param {number} userId - User performing the split
+ * @returns {Object} Result with success status and split receipt data
+ */
+async function createSplit(parentTransactionId, splitWeightKg, userId = 1) {
+  try {
+    console.log('📋 Creating split receipt:', {
+      parent: parentTransactionId,
+      splitWeight: splitWeightKg,
+      user: userId
+    });
+
+    // Get parent transaction
+    const parentResult = await getById(parentTransactionId);
+    if (!parentResult.success || !parentResult.data) {
+      return { success: false, error: 'Parent transaction not found' };
+    }
+
+    const parent = parentResult.data;
+
+    // Validate split weight (should be based on NET weight - available paddy)
+    if (splitWeightKg <= 0 || splitWeightKg >= parent.net_weight_kg) {
+      return { success: false, error: 'Invalid split weight - must be between 0 and net weight' };
+    }
+
+    // Check if parent has already been sold (check available quantity)
+    const checkSoldSql = `
+      SELECT COALESCE(SUM(spm.quantity_kg), 0) as sold_quantity
+      FROM sales_purchase_mapping spm
+      WHERE spm.transaction_id = ?
+    `;
+    const soldResult = await db.query(checkSoldSql, [parentTransactionId]);
+    const soldQuantity = soldResult[0]?.sold_quantity || 0;
+    const availableNetQuantity = parent.net_weight_kg - soldQuantity;
+
+    if (availableNetQuantity <= 0) {
+      return { success: false, error: 'Parent receipt has already been fully sold' };
+    }
+
+    // Generate split receipt numbers (keep them short to fit VARCHAR(30))
+    // Create 2 new child receipts from the parent
+    // Use simple suffixes -A and -B to ensure uniqueness and fit within VARCHAR(30)
+    const splitReceipt1Number = `${parent.receipt_number}-A`;
+    const splitReceipt2Number = `${parent.receipt_number}-B`;
+
+    // For sales splits: gross_weight_kg = net_weight_kg and tare_weight_kg = 0
+    // Use the EXACT weights calculated by the frontend modal
+    const splitNetWeightKg = splitWeightKg;  // From frontend calculation
+    const remainingNetWeightKg = parent.net_weight_kg - splitNetWeightKg;
+    
+    // Gross = Net, Tare = 0 (no container weight for split receipts)
+    const splitGrossWeightKg = splitNetWeightKg;
+    const splitTareWeightKg = 0;
+    const remainingGrossWeightKg = remainingNetWeightKg;
+    const remainingTareWeightKg = 0;
+
+    // Use transaction helper for proper MySQL transaction handling
+    console.log('🔄 Starting transaction to create 2 child receipts (NET weight based, no tare)...');
+    console.log('   Parent:', parent.receipt_number, 'Product ID:', parent.product_id);
+    console.log('   Parent Original: Gross:', parent.gross_weight_kg, 'kg, Tare:', parent.tare_weight_kg, 'kg, Net:', parent.net_weight_kg, 'kg');
+    console.log('   Split requested (from frontend modal):', splitWeightKg, 'kg');
+    console.log('   Child 1 (to buyer):', splitReceipt1Number, '- Net:', splitNetWeightKg.toFixed(2), 'Gross:', splitGrossWeightKg.toFixed(2), 'Tare:', splitTareWeightKg);
+    console.log('   Child 2 (remaining):', splitReceipt2Number, '- Net:', remainingNetWeightKg.toFixed(2), 'Gross:', remainingGrossWeightKg.toFixed(2), 'Tare:', remainingTareWeightKg);
+    console.log('   ℹ️ Note: For sales splits, Gross = Net and Tare = 0 (paddy quantities only, no containers)');
+    
+    if (splitNetWeightKg === remainingNetWeightKg) {
+      console.warn('⚠️ WARNING: Both children have SAME net weight! Splitting exactly in half.');
+    }
+    
+    const result = await db.transaction(async (connection) => {
+      // Create FIRST split child receipt (the requested split weight)
+      console.log('📝 Inserting Child 1...');
+      const insertSql = `
+        INSERT INTO purchase_transactions (
+          receipt_number,
+          season_id,
+          farmer_id,
+          grade_id,
+          product_id,
+          transaction_date,
+          gross_weight_kg,
+          tare_weight_kg,
+          net_weight_kg,
+          moisture_content,
+          foreign_matter,
+          base_price_per_kg,
+          moisture_penalty,
+          foreign_matter_penalty,
+          bonus_amount,
+          final_price_per_kg,
+          total_amount,
+          vehicle_number,
+          driver_name,
+          status,
+          payment_status,
+          weighbridge_id,
+          parent_transaction_id,
+          split_date,
+          split_by,
+          created_by,
+          notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?, ?, ?, NOW(), ?, ?, ?)
+      `;
+
+      const totalAmount1 = splitNetWeightKg * parent.final_price_per_kg;
+      const totalAmount2 = remainingNetWeightKg * parent.final_price_per_kg;
+
+      const insertParams1 = [
+        splitReceipt1Number,
+        parent.season_id,
+        parent.farmer_id,
+        parent.grade_id,
+        parent.product_id, // Add product_id from parent
+        parent.transaction_date,
+        splitGrossWeightKg, // Gross weight for child 1
+        splitTareWeightKg, // Proportional tare weight
+        splitNetWeightKg, // Net weight for child 1
+        parent.moisture_content,
+        parent.foreign_matter,
+        parent.base_price_per_kg,
+        parent.moisture_penalty * (splitNetWeightKg / parent.net_weight_kg), // Proportional penalty
+        parent.foreign_matter_penalty * (splitNetWeightKg / parent.net_weight_kg), // Proportional penalty
+        parent.bonus_amount * (splitNetWeightKg / parent.net_weight_kg), // Proportional bonus
+        parent.final_price_per_kg,
+        totalAmount1,
+        parent.vehicle_number,
+        parent.driver_name,
+        parent.payment_status,
+        parent.weighbridge_id,
+        parentTransactionId,
+        userId,
+        userId,
+        `Split child 1 (to buyer) from ${parent.receipt_number}. Net: ${splitNetWeightKg.toFixed(2)} kg. Note: Gross = Net, Tare = 0 (paddy quantity only).`
+      ];
+
+      const [insertResult1] = await connection.execute(insertSql, insertParams1);
+      const splitChild1Id = insertResult1.insertId;
+      
+      if (!splitChild1Id) {
+        throw new Error('Failed to create first split child receipt');
+      }
+      
+      console.log('✅ Child 1 inserted to DB:', { 
+        id: splitChild1Id, 
+        receipt: splitReceipt1Number, 
+        net_weight_kg: splitNetWeightKg.toFixed(2),
+        gross_weight_kg: splitGrossWeightKg.toFixed(2),
+        tare_weight_kg: splitTareWeightKg,
+        total_amount: totalAmount1.toFixed(2),
+        note: 'Gross = Net, Tare = 0'
+      });
+
+      // Create SECOND split child receipt (the remaining weight)
+      console.log('📝 Inserting Child 2...');
+      const insertParams2 = [
+        splitReceipt2Number,
+        parent.season_id,
+        parent.farmer_id,
+        parent.grade_id,
+        parent.product_id, // Add product_id from parent
+        parent.transaction_date,
+        remainingGrossWeightKg, // Gross weight for child 2
+        remainingTareWeightKg, // Proportional tare weight
+        remainingNetWeightKg, // Net weight for child 2
+        parent.moisture_content,
+        parent.foreign_matter,
+        parent.base_price_per_kg,
+        parent.moisture_penalty * (remainingNetWeightKg / parent.net_weight_kg), // Proportional penalty
+        parent.foreign_matter_penalty * (remainingNetWeightKg / parent.net_weight_kg), // Proportional penalty
+        parent.bonus_amount * (remainingNetWeightKg / parent.net_weight_kg), // Proportional bonus
+        parent.final_price_per_kg,
+        totalAmount2,
+        parent.vehicle_number,
+        parent.driver_name,
+        parent.payment_status,
+        parent.weighbridge_id,
+        parentTransactionId,
+        userId,
+        userId,
+        `Split child 2 (remaining, available for future sales) from ${parent.receipt_number}. Net: ${remainingNetWeightKg.toFixed(2)} kg. Note: Gross = Net, Tare = 0 (paddy quantity only).`
+      ];
+
+      const [insertResult2] = await connection.execute(insertSql, insertParams2);
+      const splitChild2Id = insertResult2.insertId;
+      
+      if (!splitChild2Id) {
+        throw new Error('Failed to create second split child receipt');
+      }
+      
+      console.log('✅ Child 2 inserted to DB:', { 
+        id: splitChild2Id, 
+        receipt: splitReceipt2Number, 
+        net_weight_kg: remainingNetWeightKg.toFixed(2),
+        gross_weight_kg: remainingGrossWeightKg.toFixed(2),
+        tare_weight_kg: remainingTareWeightKg,
+        total_amount: totalAmount2.toFixed(2),
+        note: 'Gross = Net, Tare = 0'
+      });
+
+      // Mark parent transaction as fully split (no longer available)
+      const updateParentSql = `
+        UPDATE purchase_transactions
+        SET is_split_parent = 1,
+            net_weight_kg = 0,
+            updated_by = ?,
+            notes = CONCAT(COALESCE(notes, ''), '\n', 'Split on ', NOW(), ' by user ', ?, '. Created 2 child receipts: ', ?, ' and ', ?)
+        WHERE transaction_id = ?
+      `;
+
+      await connection.execute(updateParentSql, [
+        userId,
+        userId,
+        splitReceipt1Number,
+        splitReceipt2Number,
+        parentTransactionId
+      ]);
+      
+      console.log('✅ Parent marked as split (weight=0)');
+      console.log('🎯 Transaction complete - returning both child IDs:', { child1: splitChild1Id, child2: splitChild2Id });
+
+      return { child1: splitChild1Id, child2: splitChild2Id };
+    });
+
+    console.log('✅ Split receipts created:', {
+      child1Id: result.child1,
+      child1Receipt: splitReceipt1Number,
+      child1Net: splitNetWeightKg.toFixed(2),
+      child2Id: result.child2,
+      child2Receipt: splitReceipt2Number,
+      child2Net: remainingNetWeightKg.toFixed(2),
+      note: 'Both children have Gross = Net and Tare = 0'
+    });
+
+    // Fetch both created split receipts
+    console.log('🔍 Fetching child 1 by ID:', result.child1);
+    const child1Result = await getById(result.child1);
+    console.log('🔍 Child 1 fetch result:', child1Result.success ? 'SUCCESS' : 'FAILED');
+    
+    console.log('🔍 Fetching child 2 by ID:', result.child2);
+    const child2Result = await getById(result.child2);
+    console.log('🔍 Child 2 fetch result:', child2Result.success ? 'SUCCESS' : 'FAILED');
+
+    if (!child1Result.success || !child2Result.success) {
+      console.error('❌ Failed to fetch split child receipts');
+      console.error('   Child 1:', child1Result);
+      console.error('   Child 2:', child2Result);
+      return { 
+        success: false, 
+        error: 'Split created but failed to fetch child receipt details' 
+      };
+    }
+
+    console.log('✅ Both child receipts fetched successfully');
+    console.log('   Child 1:', child1Result.data.receipt_number, child1Result.data.net_weight_kg, 'kg');
+    console.log('   Child 2:', child2Result.data.receipt_number, child2Result.data.net_weight_kg, 'kg');
+
+    return {
+      success: true,
+      data: {
+        child1: child1Result.data,
+        child2: child2Result.data,
+        parent: {
+          transaction_id: parentTransactionId,
+          receipt_number: parent.receipt_number,
+          is_fully_split: true
+        }
+      }
+    };
+
+  } catch (error) {
+    console.error('Error creating split receipt:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Update payment with new deductions and recalculate amount
+ */
+async function updatePayment(updateData) {
+  try {
+    return await db.transaction(async (connection) => {
+      const { transaction_id, deduction_config, payment_status } = updateData;
+
+      // Get current transaction data
+      const [current] = await connection.execute(
+        'SELECT * FROM purchase_transactions WHERE transaction_id = ?',
+        [transaction_id]
+      );
+
+      if (current.length === 0) {
+        return { success: false, error: 'Transaction not found' };
+      }
+
+      const transaction = current[0];
+      
+      // Calculate new effective weight and total amount
+      const netWeight = parseFloat(transaction.net_weight_kg);
+      const basePrice = parseFloat(transaction.base_price_per_kg);
+      
+      // Calculate total deduction rate
+      let totalDeductionRate = 0;
+      let effectiveWeight = netWeight;
+      
+      if (deduction_config && deduction_config.length > 0) {
+        totalDeductionRate = deduction_config.reduce((sum, d) => sum + parseFloat(d.value || 0), 0);
+        effectiveWeight = netWeight * (1 - totalDeductionRate / 100);
+      }
+      
+      // Recalculate total amount using effective weight
+      const finalPricePerKg = parseFloat(transaction.final_price_per_kg) || basePrice;
+      const newTotalAmount = effectiveWeight * finalPricePerKg;
+      
+      console.log('💰 Payment Update Calculation:');
+      console.log('  - transaction_id:', transaction_id);
+      console.log('  - net_weight_kg:', netWeight);
+      console.log('  - total_deduction_rate:', totalDeductionRate);
+      console.log('  - effective_weight:', effectiveWeight);
+      console.log('  - final_price_per_kg:', finalPricePerKg);
+      console.log('  - new_total_amount:', newTotalAmount);
+      
+      // Update transaction with new deductions and amount
+      await connection.execute(`
+        UPDATE purchase_transactions 
+        SET 
+          deduction_config = ?,
+          total_amount = ?,
+          payment_status = ?,
+          updated_at = NOW()
+        WHERE transaction_id = ?
+      `, [
+        JSON.stringify(deduction_config),
+        newTotalAmount,
+        payment_status || transaction.payment_status,
+        transaction_id
+      ]);
+      
+      console.log('✅ Payment updated successfully');
+      
+      return {
+        success: true,
+        data: {
+          transaction_id,
+          new_total_amount: newTotalAmount,
+          effective_weight: effectiveWeight,
+          total_deduction_rate: totalDeductionRate,
+          message: 'Payment updated successfully'
+        }
+      };
+    });
+  } catch (error) {
+    console.error('Error updating payment:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 module.exports = {
   create,
   getAll,
@@ -438,5 +864,7 @@ module.exports = {
   getByReceipt,
   getDailySummary,
   getUnsold,
-  getTotalStats
+  getTotalStats,
+  createSplit,
+  updatePayment
 };

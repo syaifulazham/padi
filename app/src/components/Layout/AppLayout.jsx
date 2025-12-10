@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Layout, Menu, Space, Statistic, Spin, Tag, Popover, Divider } from 'antd';
+import { Layout, Menu, Space, Statistic, Spin, Tag, Popover, Divider, Modal, Form, InputNumber, message } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   DashboardOutlined,
@@ -12,6 +12,8 @@ import {
   BuildOutlined,
   PlusCircleOutlined,
   UnorderedListOutlined,
+  DollarOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 
 const { Header, Sider, Content } = Layout;
@@ -28,6 +30,10 @@ const AppLayout = ({ children }) => {
   const [activeSeason, setActiveSeason] = useState(null);
   const [productPrices, setProductPrices] = useState([]);
   const [loadingPrices, setLoadingPrices] = useState(false);
+  const [priceModalOpen, setPriceModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [previewPricePerKg, setPreviewPricePerKg] = useState(0);
+  const [priceForm] = Form.useForm();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -53,6 +59,50 @@ const AppLayout = ({ children }) => {
       setLoadingPrices(false);
     }
   }, []);
+
+  // Handle price update
+  const handlePriceUpdate = async () => {
+    try {
+      const values = await priceForm.validateFields();
+      
+      if (!activeSeason || !selectedProduct) {
+        message.error('Missing season or product information');
+        return;
+      }
+
+      const priceValue = parseFloat(values.price_per_ton);
+      if (!priceValue || priceValue <= 0) {
+        message.error('Please enter a valid price');
+        return;
+      }
+
+      const result = await window.electronAPI.seasonProductPrices?.updateProductPrice(
+        activeSeason.season_id,
+        selectedProduct.product_id,
+        priceValue,
+        'Price updated from navbar',
+        1 // TODO: Get from auth
+      );
+
+      if (result?.success) {
+        message.success(`${selectedProduct.product_name} price updated successfully!`);
+        setPriceModalOpen(false);
+        priceForm.resetFields();
+        setPreviewPricePerKg(0);
+        
+        // Refresh product prices
+        fetchProductPrices(activeSeason.season_id);
+        
+        // Dispatch event to refresh other components
+        window.dispatchEvent(new Event('season-changed'));
+      } else {
+        message.error(`Failed to update price: ${result?.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error updating price:', error);
+      message.error(`Failed to update price: ${error.message || 'Unknown error'}`);
+    }
+  };
 
   // Fetch active season
   useEffect(() => {
@@ -216,6 +266,11 @@ const AppLayout = ({ children }) => {
           icon: <UnorderedListOutlined />,
           label: 'History',
         },
+        {
+          key: '/purchases/payment',
+          icon: <DollarOutlined />,
+          label: 'Payment',
+        },
       ],
     },
     {
@@ -234,6 +289,11 @@ const AppLayout = ({ children }) => {
           label: 'History',
         },
       ],
+    },
+    {
+      key: '/stockpiles',
+      icon: <InboxOutlined />,
+      label: 'Stockpiles',
     },
   ];
 
@@ -469,11 +529,15 @@ const AppLayout = ({ children }) => {
                                 RM {pricePerTon.toFixed(2)}
                               </span>
                             </div>
-                            <div>
+                            <div style={{ marginBottom: 8 }}>
                               <span style={{ color: '#999' }}>Per KG:</span>{' '}
                               <span style={{ fontWeight: 600, color: '#1890ff' }}>
                                 RM {pricePerKg.toFixed(2)}
                               </span>
+                            </div>
+                            <Divider style={{ margin: '8px 0' }} />
+                            <div style={{ color: '#1890ff', fontSize: 11, textAlign: 'center' }}>
+                              <EditOutlined /> Click to update price
                             </div>
                           </div>
                         </div>
@@ -494,6 +558,16 @@ const AppLayout = ({ children }) => {
                               margin: 0,
                               cursor: 'pointer',
                               whiteSpace: 'nowrap'
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedProduct(pp);
+                              const pricePerTon = parseFloat(pp.current_price_per_ton);
+                              priceForm.setFieldsValue({ 
+                                price_per_ton: pricePerTon
+                              });
+                              setPreviewPricePerKg(pricePerTon / 1000);
+                              setPriceModalOpen(true);
                             }}
                           >
                             {pp.product_type === 'BERAS' ? '🌾' : '🌱'} {pp.variety === 'WANGI' ? '✨' : ''} 
@@ -572,6 +646,75 @@ const AppLayout = ({ children }) => {
           onClick={handleMenuClick}
         />
       </Sider>
+
+      {/* Price Update Modal */}
+      <Modal
+        title={
+          <div>
+            <DollarOutlined style={{ color: '#52c41a', marginRight: 8 }} />
+            Update Price - {selectedProduct?.product_name}
+          </div>
+        }
+        open={priceModalOpen}
+        onOk={handlePriceUpdate}
+        onCancel={() => {
+          setPriceModalOpen(false);
+          priceForm.resetFields();
+          setPreviewPricePerKg(0);
+        }}
+        okText="Update Price"
+        width={450}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Tag color={selectedProduct?.product_type === 'BERAS' ? 'green' : 'orange'}>
+            {selectedProduct?.product_type === 'BERAS' ? '🌾' : '🌱'} {selectedProduct?.variety === 'WANGI' ? '✨' : ''} {selectedProduct?.product_name}
+          </Tag>
+        </div>
+        
+        <Form 
+          form={priceForm} 
+          layout="vertical"
+          onValuesChange={(changedValues) => {
+            if (changedValues.price_per_ton) {
+              setPreviewPricePerKg(changedValues.price_per_ton / 1000);
+            }
+          }}
+        >
+          <Form.Item
+            label="Price per Ton (RM)"
+            name="price_per_ton"
+            rules={[
+              { required: true, message: 'Please enter price' },
+              { type: 'number', min: 0, message: 'Price must be positive' }
+            ]}
+          >
+            <InputNumber
+              placeholder="e.g., 850.00"
+              precision={2}
+              min={0}
+              step={10}
+              style={{ width: '100%' }}
+              addonBefore="RM"
+              addonAfter="/ton"
+              size="large"
+            />
+          </Form.Item>
+          
+          {previewPricePerKg > 0 && (
+            <div style={{
+              background: '#f0f2f5',
+              padding: 12,
+              borderRadius: 4,
+              fontSize: 13
+            }}>
+              <div style={{ color: '#666', marginBottom: 4 }}>Price per KG:</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: '#1890ff' }}>
+                RM {previewPricePerKg.toFixed(2)}/kg
+              </div>
+            </div>
+          )}
+        </Form>
+      </Modal>
     </Layout>
   );
 };

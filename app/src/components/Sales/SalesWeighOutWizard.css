@@ -1,0 +1,82 @@
+/* Selected row highlighting */
+.ant-table-row-selected {
+  background-color: #e6f7ff !important;
+}
+
+.ant-table-row-selected:hover {
+  background-color: #bae7ff !important;
+}
+
+/* Split receipt highlighting - priority items */
+.ant-table-row-split-parent {
+  background-color: #fff7e6 !important; /* Light orange */
+  border-left: 3px solid #fa8c16 !important;
+}
+
+.ant-table-row-split-parent:hover {
+  background-color: #ffe7ba !important;
+}
+
+.ant-table-row-split-child {
+  background-color: #f6ffed !important; /* Light green */
+  border-left: 3px solid #52c41a !important;
+}
+
+.ant-table-row-split-child:hover {
+  background-color: #d9f7be !important;
+}
+
+/* Split receipt selected state */
+.ant-table-row-split-parent.ant-table-row-selected {
+  background-color: #ffd591 !important;
+}
+
+.ant-table-row-split-child.ant-table-row-selected {
+  background-color: #b7eb8f !important;
+}
+
+/* Disabled row styling (when target weight is met) */
+.ant-table-row-disabled {
+  background-color: #f5f5f5 !important;
+  opacity: 0.5;
+  color: #999 !important;
+}
+
+.ant-table-row-disabled:hover {
+  background-color: #f5f5f5 !important;
+  cursor: not-allowed !important;
+}
+
+.ant-table-row-disabled .ant-checkbox-wrapper {
+  cursor: not-allowed;
+}
+
+/* Checkbox column styling */
+.ant-table-selection-column {
+  width: 50px !important;
+}
+
+/* Clickable row indication */
+.ant-table-tbody > tr {
+  transition: background-color 0.2s, opacity 0.2s;
+}
+
+.ant-table-tbody > tr:hover {
+  background-color: #f5f5f5;
+}
+
+/* Selected checkbox color */
+.ant-checkbox-checked .ant-checkbox-inner {
+  background-color: #1890ff;
+  border-color: #1890ff;
+}
+
+/* Disabled checkbox styling */
+.ant-checkbox-wrapper-disabled {
+  opacity: 0.6;
+}
+
+/* Modal footer custom styling */
+.ant-modal-footer > div {
+  width: 100%;
+}

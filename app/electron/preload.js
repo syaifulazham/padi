@@ -23,7 +23,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getById: (id) => ipcRenderer.invoke('purchases:getById', id),
     getByReceipt: (receiptNumber) => ipcRenderer.invoke('purchases:getByReceipt', receiptNumber),
     getUnsold: (seasonId) => ipcRenderer.invoke('purchases:getUnsold', seasonId),
-    getTotalStats: (seasonId) => ipcRenderer.invoke('purchases:getTotalStats', seasonId)
+    getTotalStats: (seasonId) => ipcRenderer.invoke('purchases:getTotalStats', seasonId),
+    createSplit: (parentTransactionId, splitWeightKg, userId) => ipcRenderer.invoke('purchases:createSplit', parentTransactionId, splitWeightKg, userId),
+    updatePayment: (updateData) => ipcRenderer.invoke('purchases:updatePayment', updateData)
   },
 
   // Sales
@@ -32,6 +34,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getAll: (filters) => ipcRenderer.invoke('sales:getAll', filters),
     getById: (id) => ipcRenderer.invoke('sales:getById', id),
     getTotalStats: (seasonId) => ipcRenderer.invoke('sales:getTotalStats', seasonId)
+  },
+
+  // Stockpiles
+  stockpiles: {
+    getSummary: (seasonId) => ipcRenderer.invoke('stockpiles:getSummary', seasonId),
+    getProductMovements: (seasonId, productId, filters) => ipcRenderer.invoke('stockpiles:getProductMovements', seasonId, productId, filters),
+    getStats: (seasonId) => ipcRenderer.invoke('stockpiles:getStats', seasonId),
+    getLowStockAlerts: (seasonId, thresholdKg) => ipcRenderer.invoke('stockpiles:getLowStockAlerts', seasonId, thresholdKg)
   },
 
   // Inventory
@@ -106,7 +116,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   printer: {
     print: (type, data) => ipcRenderer.invoke('printer:print', type, data),
     getPrinters: () => ipcRenderer.invoke('printer:getPrinters'),
-    purchaseReceipt: (transactionId) => ipcRenderer.invoke('print:purchaseReceipt', transactionId)
+    purchaseReceipt: (transactionId) => ipcRenderer.invoke('print:purchaseReceipt', transactionId),
+    salesReceipt: (salesId) => ipcRenderer.invoke('print:salesReceipt', salesId)
   },
 
   // Reports
