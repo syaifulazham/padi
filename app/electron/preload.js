@@ -16,6 +16,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
     search: (query) => ipcRenderer.invoke('farmers:search', query)
   },
 
+  // Farmer Documents
+  farmerDocuments: {
+    getByFarmerId: (farmerId) => ipcRenderer.invoke('farmerDocuments:getByFarmerId', farmerId),
+    getSubsidyCard: (farmerId) => ipcRenderer.invoke('farmerDocuments:getSubsidyCard', farmerId),
+    findByHashcode: (hashcode) => ipcRenderer.invoke('farmerDocuments:findByHashcode', hashcode),
+    create: (data) => ipcRenderer.invoke('farmerDocuments:create', data),
+    update: (id, data) => ipcRenderer.invoke('farmerDocuments:update', id, data),
+    delete: (id) => ipcRenderer.invoke('farmerDocuments:delete', id),
+    uploadImage: (farmerId, imageData) => ipcRenderer.invoke('farmerDocuments:uploadImage', farmerId, imageData),
+    getImage: (filePath) => ipcRenderer.invoke('farmerDocuments:getImage', filePath)
+  },
+
   // Purchases
   purchases: {
     create: (data) => ipcRenderer.invoke('purchases:create', data),

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Card, Table, Button, Modal, Form, Input, InputNumber, 
   Select, DatePicker, Space, message, Tag, Tooltip, Row, Col, 
-  Divider, Alert, Radio, List 
+  Divider, Alert, Radio, List, Collapse, Tabs 
 } from 'antd';
 import { 
   PlusOutlined, EditOutlined, EyeOutlined, 
@@ -46,12 +46,35 @@ const SeasonConfig = () => {
     return passcode;
   };
 
-  // Default deduction types (values in percentage 1-100)
-  const defaultDeductions = [
-    { deduction: 'Wap Basah', value: 5 },
-    { deduction: 'Hampa', value: 5 },
-    { deduction: 'Kotoran', value: 5 },
-    { deduction: 'Lain-lain', value: 5 }
+  // Default deduction presets (values in percentage 1-100)
+  const defaultDeductionPresets = [
+    {
+      preset_name: 'Standard',
+      deductions: [
+        { deduction: 'Wap Basah', value: 5 },
+        { deduction: 'Hampa', value: 5 },
+        { deduction: 'Kotoran', value: 5 },
+        { deduction: 'Lain-lain', value: 5 }
+      ]
+    },
+    {
+      preset_name: 'High Quality',
+      deductions: [
+        { deduction: 'Wap Basah', value: 3 },
+        { deduction: 'Hampa', value: 3 },
+        { deduction: 'Kotoran', value: 2 },
+        { deduction: 'Lain-lain', value: 2 }
+      ]
+    },
+    {
+      preset_name: 'Low Quality',
+      deductions: [
+        { deduction: 'Wap Basah', value: 8 },
+        { deduction: 'Hampa', value: 8 },
+        { deduction: 'Kotoran', value: 7 },
+        { deduction: 'Lain-lain', value: 7 }
+      ]
+    }
   ];
 
   useEffect(() => {
@@ -92,7 +115,7 @@ const SeasonConfig = () => {
     form.setFieldsValue({
       mode: 'LIVE',
       status: 'planned',
-      deduction_config: defaultDeductions,
+      deduction_presets: defaultDeductionPresets,
       opening_price_per_ton: 1800.00
     });
     setModalVisible(true);
@@ -101,10 +124,26 @@ const SeasonConfig = () => {
   const handleEdit = (season) => {
     setModalMode('edit');
     setSelectedSeason(season);
+    
+    // Convert old format to new format if needed
+    let deductionPresets = season.deduction_config;
+    if (Array.isArray(deductionPresets) && deductionPresets.length > 0) {
+      // Check if it's old format (array of deductions) or new format (array of presets)
+      if (!deductionPresets[0].preset_name) {
+        // Old format - convert to new format with single "Standard" preset
+        deductionPresets = [{
+          preset_name: 'Standard',
+          deductions: deductionPresets
+        }];
+      }
+    } else {
+      deductionPresets = defaultDeductionPresets;
+    }
+    
     form.setFieldsValue({
       ...season,
       date_range: [dayjs(season.start_date), dayjs(season.end_date)],
-      deduction_config: season.deduction_config || defaultDeductions
+      deduction_presets: deductionPresets
     });
     setModalVisible(true);
   };
@@ -112,10 +151,26 @@ const SeasonConfig = () => {
   const handleView = (season) => {
     setModalMode('view');
     setSelectedSeason(season);
+    
+    // Convert old format to new format if needed
+    let deductionPresets = season.deduction_config;
+    if (Array.isArray(deductionPresets) && deductionPresets.length > 0) {
+      // Check if it's old format (array of deductions) or new format (array of presets)
+      if (!deductionPresets[0].preset_name) {
+        // Old format - convert to new format with single "Standard" preset
+        deductionPresets = [{
+          preset_name: 'Standard',
+          deductions: deductionPresets
+        }];
+      }
+    } else {
+      deductionPresets = defaultDeductionPresets;
+    }
+    
     form.setFieldsValue({
       ...season,
       date_range: [dayjs(season.start_date), dayjs(season.end_date)],
-      deduction_config: season.deduction_config || defaultDeductions
+      deduction_presets: deductionPresets
     });
     setModalVisible(true);
   };
@@ -160,7 +215,7 @@ const SeasonConfig = () => {
           year: parseInt(season.year),
           season_number: parseInt(season.season_number),
           opening_price_per_ton: parseFloat(season.opening_price_per_ton),
-          deduction_config: season.deduction_config,
+          deduction_config: season.deduction_config || defaultDeductionPresets,
           mode: season.mode,
           season_type_id: parseInt(season.season_type_id),
           start_date: formatDate(season.start_date),
@@ -205,7 +260,7 @@ const SeasonConfig = () => {
         year: values.year,
         season_number: values.season_number,
         opening_price_per_ton: values.opening_price_per_ton,
-        deduction_config: values.deduction_config,
+        deduction_config: values.deduction_presets || defaultDeductionPresets,
         mode: values.mode,
         season_type_id: values.season_type_id,
         start_date: startDate.format('YYYY-MM-DD'),
@@ -641,70 +696,155 @@ const SeasonConfig = () => {
             </Col>
           </Row>
 
-          <Divider>Deduction Configuration</Divider>
+          <Divider>Deduction Presets Configuration</Divider>
 
           <Alert
-            message="Deduction Rates"
-            description="Configure deduction rates for different quality issues. Add or remove deduction items as needed. These rates will be automatically applied during purchase transactions."
+            message="Multiple Deduction Presets"
+            description="Create multiple named deduction presets (e.g., 'Standard', 'High Quality', 'Premium'). During weigh-in, you can select which preset to apply based on paddy quality."
             type="info"
             showIcon
             style={{ marginBottom: 16 }}
           />
 
-          <Form.List name="deduction_config">
-            {(fields, { add, remove }) => (
+          <Form.List name="deduction_presets">
+            {(presetFields, { add: addPreset, remove: removePreset }) => (
               <>
-                {fields.map(({ key, name, ...restField }) => (
-                  <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
+                {presetFields.map((presetField, presetIndex) => (
+                  <Card
+                    key={presetField.key}
+                    size="small"
+                    style={{ marginBottom: 16 }}
+                    title={
+                      <Space>
+                        <SettingOutlined />
+                        Preset #{presetIndex + 1}
+                      </Space>
+                    }
+                    extra={
+                      presetFields.length > 1 && (
+                        <Button
+                          type="text"
+                          danger
+                          size="small"
+                          icon={<MinusCircleOutlined />}
+                          onClick={() => removePreset(presetField.name)}
+                        >
+                          Remove Preset
+                        </Button>
+                      )
+                    }
+                  >
                     <Form.Item
-                      {...restField}
-                      name={[name, 'deduction']}
-                      label={name === 0 ? 'Deduction Type' : ''}
-                      rules={[{ required: true, message: 'Please enter deduction type' }]}
-                      style={{ marginBottom: 0, width: 300 }}
+                      name={[presetField.name, 'preset_name']}
+                      label="Preset Name"
+                      rules={[
+                        { required: true, message: 'Enter preset name' },
+                        ({ getFieldValue }) => ({
+                          validator(_, value) {
+                            if (!value) return Promise.resolve();
+                            const presets = getFieldValue('deduction_presets') || [];
+                            const duplicates = presets.filter((p, idx) => 
+                              p?.preset_name?.toLowerCase() === value.toLowerCase() && 
+                              idx !== presetField.name
+                            );
+                            if (duplicates.length > 0) {
+                              return Promise.reject(new Error('Preset name must be unique'));
+                            }
+                            return Promise.resolve();
+                          }
+                        })
+                      ]}
+                      style={{ marginBottom: 16 }}
                     >
-                      <Input placeholder="e.g., Wap Basah, Hampa, Kotoran" />
+                      <Input placeholder="e.g., Standard, High Quality, Premium" />
                     </Form.Item>
-                    <Form.Item
-                      {...restField}
-                      name={[name, 'value']}
-                      label={name === 0 ? 'Deduction Rate (%)' : ''}
-                      rules={[{ required: true, message: 'Please enter value' }]}
-                      style={{ marginBottom: 0, width: 200 }}
-                    >
-                      <InputNumber
-                        style={{ width: '100%' }}
-                        min={0}
-                        max={100}
-                        step={0.1}
-                        precision={2}
-                        placeholder="5.00"
-                        addonAfter="%"
-                        formatter={value => `${value}`}
-                        parser={value => value.replace(/[^0-9.]/g, '')}
-                      />
-                    </Form.Item>
-                    {fields.length > 1 && (
-                      <Button
-                        type="text"
-                        danger
-                        icon={<MinusCircleOutlined />}
-                        onClick={() => remove(name)}
-                        style={{ marginTop: name === 0 ? 30 : 0 }}
-                      >
-                        Remove
-                      </Button>
-                    )}
-                  </Space>
+
+                    <div style={{ marginBottom: 8, fontWeight: 500 }}>Deduction Items:</div>
+
+                    <Form.List name={[presetField.name, 'deductions']}>
+                      {(deductionFields, { add: addDeduction, remove: removeDeduction }) => (
+                        <>
+                          {deductionFields.map((deductionField, deductionIndex) => (
+                            <Space
+                              key={deductionField.key}
+                              style={{ display: 'flex', marginBottom: 8 }}
+                              align="baseline"
+                            >
+                              <Form.Item
+                                name={[deductionField.name, 'deduction']}
+                                label={deductionIndex === 0 ? 'Type' : ''}
+                                rules={[{ required: true, message: 'Required' }]}
+                                style={{ marginBottom: 0, width: 250 }}
+                              >
+                                <Input placeholder="e.g., Wap Basah, Hampa" />
+                              </Form.Item>
+                              <Form.Item
+                                name={[deductionField.name, 'value']}
+                                label={deductionIndex === 0 ? 'Rate (%)' : ''}
+                                rules={[{ required: true, message: 'Required' }]}
+                                style={{ marginBottom: 0, width: 150 }}
+                              >
+                                <InputNumber
+                                  style={{ width: '100%' }}
+                                  min={0}
+                                  max={100}
+                                  step={0.1}
+                                  precision={2}
+                                  placeholder="5.00"
+                                  addonAfter="%"
+                                />
+                              </Form.Item>
+                              {deductionFields.length > 1 && (
+                                <MinusCircleOutlined
+                                  style={{
+                                    fontSize: 18,
+                                    color: '#ff4d4f',
+                                    cursor: 'pointer',
+                                    marginTop: deductionIndex === 0 ? 30 : 0
+                                  }}
+                                  onClick={() => removeDeduction(deductionField.name)}
+                                />
+                              )}
+                            </Space>
+                          ))}
+                          <Form.Item>
+                            <Button
+                              type="dashed"
+                              onClick={() => addDeduction()}
+                              block
+                              size="small"
+                              icon={<PlusOutlined />}
+                            >
+                              Add Deduction Item
+                            </Button>
+                          </Form.Item>
+                        </>
+                      )}
+                    </Form.List>
+                  </Card>
                 ))}
                 <Form.Item>
                   <Button
                     type="dashed"
-                    onClick={() => add()}
+                    onClick={() => {
+                      const currentPresets = form.getFieldValue('deduction_presets') || [];
+                      const firstPreset = currentPresets[0];
+                      const newDeductions = firstPreset?.deductions?.map(d => ({
+                        deduction: d.deduction,
+                        value: 0
+                      })) || [
+                        { deduction: 'Wap Basah', value: 0 },
+                        { deduction: 'Hampa', value: 0 }
+                      ];
+                      addPreset({
+                        preset_name: `Preset ${presetFields.length + 1}`,
+                        deductions: newDeductions
+                      });
+                    }}
                     block
                     icon={<PlusOutlined />}
                   >
-                    Add Deduction Item
+                    Add New Deduction Preset
                   </Button>
                 </Form.Item>
               </>

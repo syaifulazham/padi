@@ -25,7 +25,11 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
     postcode: { label: 'Postcode', required: false },
     city: { label: 'City', required: false },
     state: { label: 'State', required: false },
-    farm_size_hectares: { label: 'Farm Size (Hectares)', required: false },
+    bank_name: { label: 'Bank Name', required: false },
+    bank_account_number: { label: 'Bank Account Number', required: false },
+    bank2_name: { label: 'Bank Name 2', required: false },
+    bank2_account_number: { label: 'Bank Account Number 2', required: false },
+    farm_size_acres: { label: 'Farm Size (Acres)', required: false },
     status: { label: 'Status', required: false },
     notes: { label: 'Notes', required: false },
   };
@@ -33,7 +37,7 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
   // Download CSV template
   const downloadCSVTemplate = () => {
     const headers = Object.keys(requiredFields).join(',');
-    const example = 'SUB-2024-001,850101015678,Ahmad bin Abdullah,0123456789,1985-01-01,Jalan Merdeka,12345,Kuala Lumpur,Selangor,5.5,active,Subsidy coupon holder';
+    const example = 'B001/11711,850101015678,Ahmad bin Abdullah,0123456789,1985-01-01,Jalan Merdeka,12345,Kuala Lumpur,Selangor,Maybank,1234567890,CIMB,9876543210,5.5,active,Subsidy coupon holder';
     const csv = headers + '\n' + example;
     
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -50,8 +54,8 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
   const downloadExcelTemplate = () => {
     const ws_data = [
       Object.values(requiredFields).map(f => f.label),
-      ['SUB-2024-001', '850101015678', 'Ahmad bin Abdullah', '0123456789', '1985-01-01', 
-       'Jalan Merdeka', '12345', 'Kuala Lumpur', 'Selangor', '5.5', 'active', 'Subsidy coupon holder']
+      ['B001/11711', '850101015678', 'Ahmad bin Abdullah', '0123456789', '1985-01-01', 
+       'Jalan Merdeka', '12345', 'Kuala Lumpur', 'Selangor', 'Maybank', '1234567890', 'CIMB', '9876543210', '5.5', 'active', 'Subsidy coupon holder']
     ];
     
     const ws = XLSX.utils.aoa_to_sheet(ws_data);
@@ -116,6 +120,14 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
     }));
   };
 
+  // Handle multi-column mapping for address
+  const handleAddressMultiChange = (selectedIndices) => {
+    setMappedColumns(prev => ({
+      ...prev,
+      address: selectedIndices
+    }));
+  };
+
   // Generate preview
   const generatePreview = () => {
     if (!fileData || Object.keys(mappedColumns).length === 0) {
@@ -136,7 +148,17 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
       const mappedRow = { key: index };
       Object.keys(mappedColumns).forEach(field => {
         const colIndex = mappedColumns[field];
-        mappedRow[field] = row[colIndex] !== undefined ? row[colIndex] : '';
+        
+        // Handle multi-column concatenation for address
+        if (field === 'address' && Array.isArray(colIndex)) {
+          const addressParts = colIndex
+            .map(idx => row[idx])
+            .filter(val => val !== undefined && val !== '')
+            .map(val => String(val).trim());
+          mappedRow[field] = addressParts.join(', ');
+        } else {
+          mappedRow[field] = row[colIndex] !== undefined ? row[colIndex] : '';
+        }
       });
       return mappedRow;
     });
@@ -153,7 +175,18 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
         const farmer = {};
         Object.keys(mappedColumns).forEach(field => {
           const colIndex = mappedColumns[field];
-          let value = row[colIndex];
+          let value;
+          
+          // Handle multi-column concatenation for address
+          if (field === 'address' && Array.isArray(colIndex)) {
+            const addressParts = colIndex
+              .map(idx => row[idx])
+              .filter(val => val !== undefined && val !== '')
+              .map(val => String(val).trim());
+            value = addressParts.length > 0 ? addressParts.join(', ') : null;
+          } else {
+            value = row[colIndex];
+          }
           
           // Convert empty strings to null
           if (value === '' || value === undefined) {
@@ -161,8 +194,16 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
           }
           
           // Convert farm_size to number
-          if (field === 'farm_size_hectares' && value !== null) {
+          if (field === 'farm_size_acres' && value !== null) {
             value = parseFloat(value);
+          }
+          
+          // Auto-format IC number to 000000-00-0000
+          if (field === 'ic_number' && value !== null) {
+            const digitsOnly = String(value).replace(/\D/g, '');
+            if (digitsOnly.length === 12) {
+              value = `${digitsOnly.slice(0, 6)}-${digitsOnly.slice(6, 8)}-${digitsOnly.slice(8, 12)}`;
+            }
           }
           
           farmer[field] = value;
@@ -170,7 +211,7 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
         
         // Set defaults
         if (!farmer.status) farmer.status = 'active';
-        if (!farmer.farm_size_hectares) farmer.farm_size_hectares = 0;
+        if (!farmer.farm_size_acres) farmer.farm_size_acres = 0;
         
         return farmer;
       });
@@ -255,35 +296,58 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
             description="Download the template, fill it with your data, then upload it back. The uploaded file can have different column names - you'll map them in the next step."
             type="info"
             showIcon
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: 24 }}
           />
           
-          <Space style={{ marginBottom: 16 }}>
-            <Button 
-              icon={<DownloadOutlined />} 
-              onClick={downloadCSVTemplate}
-            >
-              Download CSV Template
-            </Button>
-            <Button 
-              icon={<DownloadOutlined />} 
-              onClick={downloadExcelTemplate}
-              type="primary"
-            >
-              Download Excel Template
-            </Button>
-          </Space>
+          <div style={{
+            background: '#fafafa',
+            border: '1px solid #d9d9d9',
+            borderRadius: '8px',
+            padding: '20px',
+            marginBottom: 24
+          }}>
+            <h4 style={{ marginTop: 0, marginBottom: 12, fontSize: '14px', fontWeight: 600 }}>
+              📋 Download Template
+            </h4>
+            <Space size="middle">
+              <Button 
+                icon={<DownloadOutlined />} 
+                onClick={downloadExcelTemplate}
+                type="primary"
+                size="large"
+              >
+                Download Excel Template
+              </Button>
+              <Button 
+                icon={<DownloadOutlined />} 
+                onClick={downloadCSVTemplate}
+                size="large"
+              >
+                Download CSV Template
+              </Button>
+            </Space>
+          </div>
 
-          <Upload
-            accept=".csv,.xlsx,.xls"
-            beforeUpload={handleFileUpload}
-            maxCount={1}
-            showUploadList={true}
-          >
-            <Button icon={<UploadOutlined />} size="large" type="dashed" block>
-              Click to Upload CSV or Excel File
-            </Button>
-          </Upload>
+          <div style={{
+            background: '#fafafa',
+            border: '1px dashed #d9d9d9',
+            borderRadius: '8px',
+            padding: '20px'
+          }}>
+            <h4 style={{ marginTop: 0, marginBottom: 12, fontSize: '14px', fontWeight: 600 }}>
+              📤 Upload Your File
+            </h4>
+            <Upload
+              accept=".csv,.xlsx,.xls"
+              beforeUpload={handleFileUpload}
+              maxCount={1}
+              showUploadList={true}
+            >
+              <Button icon={<UploadOutlined />} size="large" type="dashed" block>
+                Click to Upload CSV or Excel File
+              </Button>
+            </Upload>
+          </div>
         </div>
       )}
 
@@ -304,20 +368,38 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
                 <div style={{ width: 200, fontWeight: 'bold' }}>
                   {requiredFields[field].label}
                   {requiredFields[field].required && <span style={{ color: 'red' }}> *</span>}
+                  {field === 'address' && <div style={{ fontSize: '11px', color: '#666', fontWeight: 'normal' }}>Multi-select</div>}
                 </div>
-                <Select
-                  style={{ flex: 1 }}
-                  placeholder="Select column from your file"
-                  value={mappedColumns[field]}
-                  onChange={(value) => handleMappingChange(field, value)}
-                  allowClear
-                >
-                  {headers.map((header, index) => (
-                    <Option key={index} value={index}>
-                      {header} (Column {index + 1})
-                    </Option>
-                  ))}
-                </Select>
+                {field === 'address' ? (
+                  <Select
+                    mode="multiple"
+                    style={{ flex: 1 }}
+                    placeholder="Select one or more columns to concatenate"
+                    value={mappedColumns[field]}
+                    onChange={handleAddressMultiChange}
+                    allowClear
+                  >
+                    {headers.map((header, index) => (
+                      <Option key={index} value={index}>
+                        {header} (Column {index + 1})
+                      </Option>
+                    ))}
+                  </Select>
+                ) : (
+                  <Select
+                    style={{ flex: 1 }}
+                    placeholder="Select column from your file"
+                    value={mappedColumns[field]}
+                    onChange={(value) => handleMappingChange(field, value)}
+                    allowClear
+                  >
+                    {headers.map((header, index) => (
+                      <Option key={index} value={index}>
+                        {header} (Column {index + 1})
+                      </Option>
+                    ))}
+                  </Select>
+                )}
               </div>
             ))}
           </div>

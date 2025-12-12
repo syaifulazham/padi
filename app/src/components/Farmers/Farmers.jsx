@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Button, Space, Input, message } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, UploadOutlined, ScanOutlined } from '@ant-design/icons';
 import AddFarmerModal from './AddFarmerModal';
 import BulkUploadModal from './BulkUploadModal';
+import QRScannerModal from './QRScannerModal';
 
 const Farmers = () => {
   const [farmers, setFarmers] = useState([]);
@@ -10,6 +11,8 @@ const Farmers = () => {
   const [searchText, setSearchText] = useState('');
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [editingFarmer, setEditingFarmer] = useState(null);
 
   useEffect(() => {
     loadFarmers();
@@ -51,6 +54,49 @@ const Farmers = () => {
     }
   };
 
+  const handleQRScan = async (qrCode) => {
+    setScannerOpen(false);
+    setLoading(true);
+    
+    try {
+      console.log('Searching farmer by QR code:', qrCode);
+      const result = await window.electronAPI.farmerDocuments.findByHashcode(qrCode);
+      
+      if (result.success) {
+        message.success(`Found: ${result.data.full_name} (${result.data.farmer_code})`);
+        
+        // Get the full farmer details
+        const farmerResult = await window.electronAPI.farmers.getById(result.data.farmer_id);
+        
+        if (farmerResult.success) {
+          // Automatically filter to show only this farmer
+          setFarmers([farmerResult.data]);
+          setSearchText(result.data.farmer_code);
+        } else {
+          message.warning('Could not load farmer details');
+          loadFarmers();
+        }
+      } else {
+        message.warning('No farmer found with this QR code');
+      }
+    } catch (error) {
+      console.error('Error searching by QR code:', error);
+      message.error('Failed to search by QR code: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = (farmer) => {
+    setEditingFarmer(farmer);
+    setAddModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setAddModalOpen(false);
+    setEditingFarmer(null);
+  };
+
   const columns = [
     {
       title: 'Subsidy No.',
@@ -82,9 +128,9 @@ const Farmers = () => {
       width: 120,
     },
     {
-      title: 'Farm Size (ha)',
-      dataIndex: 'farm_size_hectares',
-      key: 'farm_size_hectares',
+      title: 'Farm Size (acres)',
+      dataIndex: 'farm_size_acres',
+      key: 'farm_size_acres',
       width: 120,
       render: (val) => val ? parseFloat(val).toFixed(2) : '-'
     },
@@ -111,7 +157,7 @@ const Farmers = () => {
           <Button 
             type="link" 
             icon={<EditOutlined />}
-            onClick={() => message.info('Edit feature coming soon')}
+            onClick={() => handleEdit(record)}
           >
             Edit
           </Button>
@@ -130,32 +176,51 @@ const Farmers = () => {
 
   return (
     <div>
-      <Space style={{ marginBottom: 16 }} wrap>
-        <Input
-          placeholder="Search farmers..."
-          prefix={<SearchOutlined />}
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          onPressEnter={handleSearch}
-          style={{ width: 300 }}
-        />
-        <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
-          Search
-        </Button>
-        <Button 
-          type="primary" 
-          icon={<PlusOutlined />}
-          onClick={() => setAddModalOpen(true)}
-        >
-          Add Farmer
-        </Button>
-        <Button 
-          icon={<UploadOutlined />}
-          onClick={() => setBulkUploadOpen(true)}
-        >
-          Bulk Upload
-        </Button>
-      </Space>
+      <div style={{ 
+        marginBottom: 16, 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '12px'
+      }}>
+        <Space>
+          <Input
+            placeholder="Search farmers..."
+            prefix={<SearchOutlined />}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            onPressEnter={handleSearch}
+            style={{ width: 300 }}
+          />
+          <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
+            Search
+          </Button>
+          <Button 
+            icon={<ScanOutlined />} 
+            onClick={() => setScannerOpen(true)}
+            title="Scan QR code to search farmer"
+          >
+            Scan QR
+          </Button>
+        </Space>
+        
+        <Space>
+          <Button 
+            type="primary" 
+            icon={<PlusOutlined />}
+            onClick={() => setAddModalOpen(true)}
+          >
+            Add Farmer
+          </Button>
+          <Button 
+            icon={<UploadOutlined />}
+            onClick={() => setBulkUploadOpen(true)}
+          >
+            Bulk Upload
+          </Button>
+        </Space>
+      </div>
 
       <Table
         columns={columns}
@@ -171,8 +236,9 @@ const Farmers = () => {
       {/* Add Farmer Modal */}
       <AddFarmerModal
         open={addModalOpen}
-        onClose={() => setAddModalOpen(false)}
+        onClose={handleModalClose}
         onSuccess={loadFarmers}
+        editingFarmer={editingFarmer}
       />
 
       {/* Bulk Upload Modal */}
@@ -180,6 +246,13 @@ const Farmers = () => {
         open={bulkUploadOpen}
         onClose={() => setBulkUploadOpen(false)}
         onSuccess={loadFarmers}
+      />
+
+      {/* QR Scanner Modal */}
+      <QRScannerModal
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScanSuccess={handleQRScan}
       />
     </div>
   );

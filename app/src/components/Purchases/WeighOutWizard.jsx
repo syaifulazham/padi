@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, Button, InputNumber, message, Steps, Space, Tag, Divider, Form, Input, Alert, Modal } from 'antd';
+import { Modal, Steps, Button, Form, Input, InputNumber, message, Divider, Space, Tag, Tooltip, Radio, Card } from 'antd';
 import { 
   ArrowLeftOutlined, 
   ArrowRightOutlined, 
@@ -9,7 +9,9 @@ import {
   FileTextOutlined,
   SearchOutlined,
   PercentageOutlined,
-  InfoCircleOutlined
+  InfoCircleOutlined,
+  AppstoreOutlined,
+  SettingOutlined
 } from '@ant-design/icons';
 
 const WeighOutWizard = ({ 
@@ -33,6 +35,9 @@ const WeighOutWizard = ({
   });
   const [loading, setLoading] = useState(false);
   const [deductionForm] = Form.useForm();
+  const [deductionPresets, setDeductionPresets] = useState([]);
+  const [selectedPresetIndex, setSelectedPresetIndex] = useState(0);
+  const [presetModalOpen, setPresetModalOpen] = useState(false);
   
   // Refs for auto-focus
   const productRefs = useRef([]);
@@ -95,23 +100,44 @@ const WeighOutWizard = ({
       if (priceResult?.success && priceResult.data?.current_price_per_ton) {
         const pricePerKg = priceResult.data.current_price_per_ton / 1000;
         
-        // Get season deductions configuration
-        const seasonDeductions = activeSeason?.deduction_config || [];
+        // Get season deductions configuration (new preset format)
+        const deductionConfig = activeSeason?.deduction_config || [];
+        let presets = [];
+        let defaultDeductions = [];
+        
+        // Check if new format (array of presets) or old format (array of deductions)
+        const isNewFormat = Array.isArray(deductionConfig) && 
+                           deductionConfig.length > 0 && 
+                           deductionConfig[0].preset_name !== undefined;
+        
+        if (isNewFormat) {
+          // New format with multiple presets
+          presets = deductionConfig;
+          defaultDeductions = presets[0]?.deductions || [];
+          console.log('✅ Using new preset format. Presets:', presets.map(p => p.preset_name));
+        } else {
+          // Old format - convert to single preset
+          presets = [{ preset_name: 'Standard', deductions: deductionConfig }];
+          defaultDeductions = deductionConfig;
+          console.log('✅ Using old format, converted to preset');
+        }
         
         console.log('✅ Price found:', pricePerKg, 'RM/kg');
-        console.log('Loading season deductions:', seasonDeductions);
+        console.log('Loading default deductions from first preset:', defaultDeductions);
         
+        setDeductionPresets(presets);
+        setSelectedPresetIndex(0);
         setWizardData({
           ...wizardData,
           product_id: product.product_id,
           product: product,
           price_per_kg: pricePerKg,
-          deductions: seasonDeductions
+          deductions: defaultDeductions
         });
         
-        // Initialize deduction form with season deductions
+        // Initialize deduction form with first preset's deductions
         deductionForm.setFieldsValue({
-          deductions: seasonDeductions
+          deductions: defaultDeductions
         });
         
         console.log('⏭️ Moving to step 3 (Deductions)');
@@ -136,6 +162,18 @@ const WeighOutWizard = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePresetChange = (index) => {
+    const selectedPreset = deductionPresets[index];
+    const newDeductions = selectedPreset?.deductions || [];
+    
+    setSelectedPresetIndex(index);
+    setWizardData({ ...wizardData, deductions: newDeductions });
+    deductionForm.setFieldsValue({ deductions: newDeductions });
+    setPresetModalOpen(false);
+    
+    message.success(`Switched to "${selectedPreset.preset_name}" preset`);
   };
 
   const openFarmerSearch = () => {
@@ -505,9 +543,26 @@ const WeighOutWizard = ({
         {/* Stage 3: Deductions */}
         {currentStep === 3 && (
           <div style={{ textAlign: 'center' }}>
+            {/* Compact preset selector */}
+            <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8 }}>
+              <Tag color="blue" style={{ margin: 0, fontSize: 13 }}>
+                <SettingOutlined /> {deductionPresets[selectedPresetIndex]?.preset_name || 'Standard'}
+              </Tag>
+              {deductionPresets.length > 1 && (
+                <Tooltip title="Change preset">
+                  <Button
+                    size="small"
+                    icon={<AppstoreOutlined />}
+                    onClick={() => setPresetModalOpen(true)}
+                    type="link"
+                  />
+                </Tooltip>
+              )}
+            </div>
+
             <Form
               form={deductionForm}
-              layout="vertical"
+              layout="inline"
               onValuesChange={(_, allValues) => {
                 if (allValues.deductions) {
                   setWizardData({ ...wizardData, deductions: allValues.deductions });
@@ -515,12 +570,12 @@ const WeighOutWizard = ({
               }}
             >
               <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: 24,
-                maxWidth: 900,
-                margin: '0 auto 24px',
-                textAlign: 'center'
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 12,
+                maxWidth: 800,
+                margin: '0 auto',
+                justifyContent: 'center'
               }}>
                 <Form.List name="deductions">
                   {(fields) => (
@@ -531,20 +586,23 @@ const WeighOutWizard = ({
                           <div 
                             key={`deduction-${field.key}-${index}`}
                             style={{
-                              background: '#fff',
-                              padding: 20,
-                              borderRadius: 8,
-                              border: '2px solid #d9d9d9'
+                              background: '#fafafa',
+                              padding: '8px 12px',
+                              borderRadius: 6,
+                              border: '1px solid #d9d9d9',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 8
                             }}
                           >
-                            <div style={{
-                              fontSize: 14,
-                              fontWeight: 600,
-                              marginBottom: 12,
-                              color: '#595959'
+                            <span style={{
+                              fontSize: 13,
+                              fontWeight: 500,
+                              color: '#595959',
+                              minWidth: 80
                             }}>
                               {deductionItem?.deduction || 'Deduction'}
-                            </div>
+                            </span>
                             
                             <Form.Item
                               key={`${field.key}-deduction`}
@@ -559,19 +617,19 @@ const WeighOutWizard = ({
                               name={[field.name, 'value']}
                               fieldKey={[field.fieldKey, 'value']}
                               rules={[
-                                { required: true, message: 'Enter rate' },
+                                { required: true, message: 'Required' },
                                 { type: 'number', min: 0, max: 100, message: '0-100%' }
                               ]}
                               style={{ marginBottom: 0 }}
                             >
                               <InputNumber
-                                placeholder="0.00"
+                                placeholder="0"
                                 precision={2}
                                 min={0}
                                 max={100}
                                 step={0.5}
-                                size="large"
-                                style={{ width: '100%', fontSize: 20 }}
+                                size="middle"
+                                style={{ width: 80 }}
                                 addonAfter="%"
                                 autoFocus={index === 0}
                               />
@@ -757,6 +815,63 @@ const WeighOutWizard = ({
           </div>
         )}
       </div>
+
+      {/* Preset Selection Modal */}
+      <Modal
+        title={
+          <Space>
+            <AppstoreOutlined />
+            Select Deduction Preset
+          </Space>
+        }
+        open={presetModalOpen}
+        onCancel={() => setPresetModalOpen(false)}
+        footer={null}
+        width={600}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <p style={{ color: '#666', marginBottom: 16 }}>
+            Choose the appropriate deduction preset based on paddy quality:
+          </p>
+          <Radio.Group 
+            value={selectedPresetIndex} 
+            onChange={(e) => handlePresetChange(e.target.value)}
+            style={{ width: '100%' }}
+          >
+            <Space direction="vertical" style={{ width: '100%' }}>
+              {deductionPresets.map((preset, index) => {
+                const totalRate = preset.deductions.reduce((sum, d) => sum + parseFloat(d.value || 0), 0);
+                return (
+                  <Radio 
+                    key={index} 
+                    value={index}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      border: selectedPresetIndex === index ? '2px solid #1890ff' : '1px solid #d9d9d9',
+                      borderRadius: 8,
+                      backgroundColor: selectedPresetIndex === index ? '#e6f7ff' : 'transparent',
+                      transition: 'all 0.3s'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 15 }}>{preset.preset_name}</div>
+                        <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
+                          {preset.deductions.map(d => d.deduction).join(', ')}
+                        </div>
+                      </div>
+                      <Tag color={totalRate < 15 ? 'green' : totalRate < 25 ? 'orange' : 'red'} style={{ marginLeft: 8 }}>
+                        {totalRate.toFixed(1)}%
+                      </Tag>
+                    </div>
+                  </Radio>
+                );
+              })}
+            </Space>
+          </Radio.Group>
+        </div>
+      </Modal>
     </Card>
   );
 };

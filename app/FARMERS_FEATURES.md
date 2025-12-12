@@ -163,13 +163,13 @@ This package handles Excel/CSV file reading and writing.
 ### CSV Template (farmers_template.csv)
 ```csv
 farmer_code,ic_number,full_name,phone,date_of_birth,address,postcode,city,state,farm_size_hectares,status,notes
-F001,850101015678,Ahmad bin Abdullah,0123456789,1985-01-01,Jalan Merdeka,12345,Kuala Lumpur,Selangor,5.5,active,Sample farmer
+F001,850101-01-5678,Ahmad bin Abdullah,0123456789,1985-01-01,Jalan Merdeka,12345,Kuala Lumpur,Selangor,5.5,active,Sample farmer
 ```
 
 ### Excel Template (farmers_template.xlsx)
 | farmer_code | ic_number | full_name | phone | date_of_birth | address | postcode | city | state | farm_size_hectares | status | notes |
 |-------------|-----------|-----------|-------|---------------|---------|----------|------|-------|-------------------|--------|-------|
-| F001 | 850101015678 | Ahmad bin Abdullah | 0123456789 | 1985-01-01 | Jalan Merdeka | 12345 | Kuala Lumpur | Selangor | 5.5 | active | Sample farmer |
+| F001 | 850101-01-5678 | Ahmad bin Abdullah | 0123456789 | 1985-01-01 | Jalan Merdeka | 12345 | Kuala Lumpur | Selangor | 5.5 | active | Sample farmer |
 
 ---
 
@@ -181,7 +181,7 @@ Your uploaded file can have **different column names**. The mapping feature lets
 **Your File:**
 ```
 Code, Identity Card, Name, Mobile, ...
-F001, 850101015678, Ahmad, 0123456789, ...
+F001, 850101-01-5678, Ahmad, 0123456789, ...
 ```
 
 **Mapping:**
@@ -194,7 +194,7 @@ F001, 850101015678, Ahmad, 0123456789, ...
 **Your File:**
 ```
 ID, farmer_code, ic_number, full_name, employee_name, ...
-1, F001, 850101015678, Ahmad, John, ...
+1, F001, 850101-01-5678, Ahmad, John, ...
 ```
 
 **Mapping:**
@@ -207,7 +207,7 @@ ID, farmer_code, ic_number, full_name, employee_name, ...
 **Your File:**
 ```
 full_name, ic_number, farmer_code, ...
-Ahmad, 850101015678, F001, ...
+Ahmad, 850101-01-5678, F001, ...
 ```
 
 **Mapping:**
@@ -234,7 +234,7 @@ Ahmad, 850101015678, F001, ...
 
 **Error Messages:**
 ```
-Row 5: Duplicate entry '850101015678' for key 'ic_number'
+Row 5: Duplicate entry '850101-01-5678' for key 'ic_number'
 Row 12: farmer_code cannot be null
 Row 18: Invalid farm_size_hectares value
 ```

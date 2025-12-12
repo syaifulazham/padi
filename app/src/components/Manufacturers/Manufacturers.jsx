@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Button, Space, Input, message, Tag } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
+import AddManufacturerModal from './AddManufacturerModal';
 
 const Manufacturers = () => {
   const [manufacturers, setManufacturers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [editingManufacturer, setEditingManufacturer] = useState(null);
 
   useEffect(() => {
     loadManufacturers();
@@ -47,6 +50,16 @@ const Manufacturers = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEdit = (manufacturer) => {
+    setEditingManufacturer(manufacturer);
+    setAddModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setAddModalOpen(false);
+    setEditingManufacturer(null);
   };
 
   const columns = [
@@ -114,7 +127,7 @@ const Manufacturers = () => {
           <Button 
             type="link" 
             icon={<EditOutlined />}
-            onClick={() => message.info('Edit feature coming soon')}
+            onClick={() => handleEdit(record)}
           >
             Edit
           </Button>
@@ -148,7 +161,7 @@ const Manufacturers = () => {
         <Button 
           type="primary" 
           icon={<PlusOutlined />}
-          onClick={() => message.info('Add manufacturer feature coming soon')}
+          onClick={() => setAddModalOpen(true)}
         >
           Add Manufacturer
         </Button>
@@ -166,6 +179,14 @@ const Manufacturers = () => {
           showSizeChanger: true,
           pageSizeOptions: ['10', '20', '50', '100']
         }}
+      />
+
+      {/* Add/Edit Manufacturer Modal */}
+      <AddManufacturerModal
+        open={addModalOpen}
+        onClose={handleModalClose}
+        onSuccess={loadManufacturers}
+        editingManufacturer={editingManufacturer}
       />
     </div>
   );

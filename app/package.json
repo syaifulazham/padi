@@ -33,6 +33,7 @@
     "dayjs": "^1.11.10",
     "dotenv": "^16.3.1",
     "electron-store": "^8.1.0",
+    "jsqr": "^1.4.0",
     "mysql2": "^3.6.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -55,6 +56,7 @@
   "build": {
     "appId": "com.paddycenter.app",
     "productName": "Paddy Collection Center",
+    "npmRebuild": false,
     "directories": {
       "output": "dist"
     },
@@ -65,21 +67,23 @@
     ],
     "win": {
       "target": [
-        "nsis"
-      ],
-      "icon": "public/icon.ico"
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
     },
     "mac": {
       "target": [
         "dmg"
-      ],
-      "icon": "public/icon.icns"
+      ]
     },
     "linux": {
       "target": [
         "AppImage"
-      ],
-      "icon": "public/icon.png"
+      ]
     }
   }
 }

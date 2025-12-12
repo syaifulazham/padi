@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, Form, Input, InputNumber, Button, Space, Row, Col, message, Modal, Statistic, Alert, Tag, Table, Select, Divider } from 'antd';
-import { PlusOutlined, ClockCircleOutlined, TruckOutlined, SearchOutlined, SaveOutlined } from '@ant-design/icons';
+import { Card, Form, Input, InputNumber, Button, Space, Row, Col, message, Modal, Statistic, Alert, Tag, Table, Select, Divider, Segmented, Spin } from 'antd';
+import { PlusOutlined, ClockCircleOutlined, TruckOutlined, SearchOutlined, SaveOutlined, ScanOutlined, QrcodeOutlined, CameraOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import jsQR from 'jsqr';
 import DeductionConfirmModal from './DeductionConfirmModal';
 import SetCurrentPriceModal from './SetCurrentPriceModal';
 import WeighOutWizard from './WeighOutWizard';
@@ -27,6 +28,17 @@ const Purchases = () => {
   const [lorryModalOpen, setLorryModalOpen] = useState(false);
   const [recallModalOpen, setRecallModalOpen] = useState(false);
   const [farmerSearchModal, setFarmerSearchModal] = useState(false);
+  const [scanMethod, setScanMethod] = useState(() => {
+    // Load preference from localStorage
+    return localStorage.getItem('qr_scan_method') || 'device';
+  });
+  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState(null);
+  const qrInputRef = useRef(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
+  const scanIntervalRef = useRef(null);
   const [weightInMode, setWeightInMode] = useState(false); // Show weight-in panel
   const [currentLorry, setCurrentLorry] = useState(null);
   const [activeSession, setActiveSession] = useState(null); // Currently weighing out
@@ -54,7 +66,6 @@ const Purchases = () => {
   useEffect(() => {
     loadActiveSeason();
     loadFarmers();
-    loadProducts();
 
     // Listen for farmer search request from wizard
     const handleWizardFarmerSearch = (event) => {
@@ -73,6 +84,24 @@ const Purchases = () => {
       delete window._wizardFarmerCallback;
     };
   }, []);
+
+  // Auto-start camera when modal opens with camera mode selected
+  useEffect(() => {
+    if (farmerSearchModal && scanMethod === 'camera' && !cameraActive) {
+      setTimeout(() => {
+        startCamera();
+      }, 100);
+    }
+  }, [farmerSearchModal, scanMethod]);
+
+  // Load products when active season changes
+  useEffect(() => {
+    if (activeSeason) {
+      loadProducts();
+    } else {
+      setProducts([]);
+    }
+  }, [activeSeason]);
 
   // Auto-save pending sessions to localStorage whenever they change
   useEffect(() => {
@@ -134,13 +163,34 @@ const Purchases = () => {
   };
 
   const loadProducts = async () => {
+    if (!activeSeason) {
+      console.warn('No active season, cannot load products');
+      setProducts([]);
+      return;
+    }
+
     try {
-      const result = await window.electronAPI.products.getActive();
-      if (result?.success) {
-        setProducts(result.data || []);
+      // Fetch products configured for the active season
+      const result = await window.electronAPI.seasonProductPrices.getSeasonProductPrices(activeSeason.season_id);
+      if (result?.success && result.data) {
+        // Map to include product details from the season product prices
+        const seasonProducts = result.data.map(spp => ({
+          product_id: spp.product_id,
+          product_code: spp.product_code,
+          product_name: spp.product_name,
+          product_type: spp.product_type,
+          variety: spp.variety,
+          current_price_per_ton: spp.current_price_per_ton
+        }));
+        setProducts(seasonProducts);
+        console.log(`✅ Loaded ${seasonProducts.length} products for season:`, activeSeason.season_name);
+      } else {
+        setProducts([]);
+        console.warn('No products configured for this season');
       }
     } catch (error) {
-      console.error('Failed to load products:', error);
+      console.error('Failed to load season products:', error);
+      setProducts([]);
     }
   };
 
@@ -197,6 +247,146 @@ const Purchases = () => {
     setFarmerSearchText('');
     setFarmerOptions([]);
     setFarmerSearchModal(true);
+    
+    setTimeout(() => {
+      if (scanMethod === 'device' && qrInputRef.current) {
+        // Auto-focus QR input if device mode
+        qrInputRef.current.focus();
+      } else if (scanMethod === 'camera') {
+        // Auto-start camera if camera mode
+        startCamera();
+      }
+    }, 100);
+  };
+
+  const handleScanMethodChange = (value) => {
+    setScanMethod(value);
+    localStorage.setItem('qr_scan_method', value);
+    
+    if (value === 'device') {
+      // Stop camera if switching to device mode
+      stopCamera();
+      setTimeout(() => {
+        if (qrInputRef.current) {
+          qrInputRef.current.focus();
+        }
+      }, 100);
+    } else if (value === 'camera') {
+      // Start camera if switching to camera mode
+      startCamera();
+    }
+  };
+
+  const startCamera = async () => {
+    try {
+      setCameraError(null);
+      setCameraActive(true);
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera not supported in this browser');
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      });
+
+      streamRef.current = stream;
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+        
+        videoRef.current.onloadedmetadata = () => {
+          startScanning();
+        };
+      }
+    } catch (err) {
+      console.error('Camera access error:', err);
+      setCameraError(`Camera access denied or not available: ${err.message}`);
+      setCameraActive(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+
+    setCameraActive(false);
+  };
+
+  const startScanning = () => {
+    scanIntervalRef.current = setInterval(() => {
+      scanQRCodeFromVideo();
+    }, 300);
+  };
+
+  const scanQRCodeFromVideo = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+
+    if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) {
+      return;
+    }
+
+    const ctx = canvas.getContext('2d');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: 'attemptBoth',
+    });
+
+    if (code) {
+      console.log('QR Code detected:', code.data);
+      stopCamera();
+      searchByQRCode(code.data);
+    }
+  };
+
+  const handleQRInput = async (e) => {
+    const qrCode = e.target.value.trim();
+    if (qrCode.length > 10) { // Assume QR codes are longer than 10 chars
+      await searchByQRCode(qrCode);
+      e.target.value = ''; // Clear the field
+    }
+  };
+
+  const searchByQRCode = async (qrCode) => {
+    try {
+      console.log('Searching farmer by QR code:', qrCode);
+      const result = await window.electronAPI.farmerDocuments.findByHashcode(qrCode);
+      
+      if (result.success) {
+        // Get the full farmer details
+        const farmerResult = await window.electronAPI.farmers.getById(result.data.farmer_id);
+        
+        if (farmerResult.success) {
+          message.success(`Found: ${result.data.full_name} (${result.data.farmer_code})`);
+          selectFarmer(farmerResult.data);
+        } else {
+          message.warning('Could not load farmer details');
+        }
+      } else {
+        message.warning('No farmer found with this QR code');
+      }
+    } catch (error) {
+      console.error('Error searching by QR code:', error);
+      message.error('Failed to search by QR code: ' + error.message);
+    }
   };
 
   const selectFarmer = (farmer) => {
@@ -892,25 +1082,185 @@ const Purchases = () => {
 
       {/* Farmer Search Modal */}
       <Modal
-        title="Search Farmer"
+        title={
+          <Space>
+            <SearchOutlined />
+            Search Farmer - Multiple Methods
+          </Space>
+        }
         open={farmerSearchModal}
-        onCancel={() => setFarmerSearchModal(false)}
+        onCancel={() => {
+          stopCamera();
+          setFarmerSearchModal(false);
+        }}
         footer={null}
         width={900}
+        afterClose={() => {
+          stopCamera();
+        }}
       >
         <Space direction="vertical" style={{ width: '100%' }} size="large">
-          <Input
-            size="large"
-            placeholder="Search by name, subsidy no., or IC number..."
-            prefix={<SearchOutlined />}
-            value={farmerSearchText}
-            onChange={(e) => {
-              setFarmerSearchText(e.target.value);
-              searchFarmers(e.target.value);
-            }}
-            autoFocus
-            allowClear
+          <Alert
+            message="Choose your search method"
+            description="Select your preferred QR scan method below, or use manual search"
+            type="info"
+            showIcon
           />
+
+          {/* QR Scan Method Toggle */}
+          <div>
+            <div style={{ marginBottom: 8, fontWeight: 500 }}>
+              QR Code Scan Method
+            </div>
+            <Segmented
+              value={scanMethod}
+              onChange={handleScanMethodChange}
+              options={[
+                {
+                  label: (
+                    <span>
+                      <QrcodeOutlined /> QR Scanner Device
+                    </span>
+                  ),
+                  value: 'device',
+                },
+                {
+                  label: (
+                    <span>
+                      <ScanOutlined /> Camera Scan
+                    </span>
+                  ),
+                  value: 'camera',
+                },
+              ]}
+              block
+              size="large"
+            />
+          </div>
+
+          {/* Conditional QR Method Display */}
+          {scanMethod === 'device' ? (
+            <div>
+              <Input
+                ref={qrInputRef}
+                size="large"
+                placeholder="Focus here and scan with QR scanner device..."
+                prefix={<QrcodeOutlined />}
+                onChange={handleQRInput}
+                onPressEnter={(e) => {
+                  handleQRInput(e);
+                  e.target.value = '';
+                }}
+                autoFocus
+              />
+              <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
+                📱 Hardware QR scanners will input here automatically
+              </div>
+            </div>
+          ) : (
+            <div>
+              {cameraError && (
+                <Alert
+                  message="Camera Error"
+                  description={cameraError}
+                  type="error"
+                  showIcon
+                  closable
+                  onClose={() => setCameraError(null)}
+                  style={{ marginBottom: 16 }}
+                />
+              )}
+
+              {!cameraError && (
+                <Alert
+                  message="Position QR code in front of camera"
+                  description="The QR code will be scanned automatically when detected"
+                  type="info"
+                  showIcon
+                  style={{ marginBottom: 16 }}
+                />
+              )}
+
+              <div style={{ 
+                position: 'relative',
+                width: '100%',
+                backgroundColor: '#000',
+                borderRadius: 8,
+                overflow: 'hidden',
+                minHeight: 300,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                {!cameraActive && !cameraError && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 10,
+                    textAlign: 'center',
+                    color: 'white'
+                  }}>
+                    <Spin size="large" />
+                    <div style={{ marginTop: 16 }}>Starting camera...</div>
+                  </div>
+                )}
+
+                <video
+                  ref={videoRef}
+                  style={{
+                    width: '100%',
+                    height: 'auto',
+                    display: cameraActive ? 'block' : 'none'
+                  }}
+                  playsInline
+                />
+
+                <canvas
+                  ref={canvasRef}
+                  style={{ display: 'none' }}
+                />
+
+                {!cameraActive && cameraError && (
+                  <div style={{ 
+                    color: 'white', 
+                    padding: 20,
+                    textAlign: 'center'
+                  }}>
+                    <CameraOutlined style={{ fontSize: 48, marginBottom: 16 }} />
+                    <div>Camera not available or access denied</div>
+                  </div>
+                )}
+              </div>
+
+              {cameraActive && (
+                <div style={{ textAlign: 'center', fontSize: 12, color: '#888', marginTop: 8 }}>
+                  📸 Camera active - Point at QR code
+                </div>
+              )}
+            </div>
+          )}
+
+          <Divider>OR</Divider>
+
+          {/* Manual Text Search */}
+          <div>
+            <div style={{ marginBottom: 8, fontWeight: 500 }}>
+              <SearchOutlined /> Manual Search
+            </div>
+            <Input
+              size="large"
+              placeholder="Search by name, subsidy no., or IC number..."
+              prefix={<SearchOutlined />}
+              value={farmerSearchText}
+              onChange={(e) => {
+                setFarmerSearchText(e.target.value);
+                searchFarmers(e.target.value);
+              }}
+              allowClear
+            />
+          </div>
 
           {farmerSearchText.length > 0 && farmerSearchText.length < 2 && (
             <Alert
@@ -1010,6 +1360,7 @@ const Purchases = () => {
         onCancel={handlePriceSetCancel}
         season={activeSeason}
       />
+
     </div>
   );
 };

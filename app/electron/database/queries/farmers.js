@@ -24,7 +24,9 @@ async function getAll(filters = {}) {
         postcode,
         bank_name,
         bank_account_number,
-        farm_size_hectares,
+        bank2_name,
+        bank2_account_number,
+        farm_size_acres,
         status,
         registration_date,
         created_at
@@ -86,9 +88,10 @@ async function create(farmerData) {
         farmer_code, ic_number, full_name, phone, email,
         address, postcode, city, state,
         bank_name, bank_account_number,
-        farm_size_hectares, status, registration_date,
+        bank2_name, bank2_account_number,
+        farm_size_acres, status, registration_date,
         created_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     
     const params = [
@@ -103,7 +106,9 @@ async function create(farmerData) {
       farmerData.state || null,
       farmerData.bank_name || null,
       farmerData.bank_account_number || null,
-      farmerData.farm_size_hectares || null,
+      farmerData.bank2_name || null,
+      farmerData.bank2_account_number || null,
+      farmerData.farm_size_acres || null,
       farmerData.status || 'active',
       farmerData.registration_date || new Date(),
       farmerData.created_by || 1
@@ -145,7 +150,9 @@ async function update(farmerId, farmerData) {
         state = ?,
         bank_name = ?,
         bank_account_number = ?,
-        farm_size_hectares = ?,
+        bank2_name = ?,
+        bank2_account_number = ?,
+        farm_size_acres = ?,
         status = ?,
         updated_by = ?
       WHERE farmer_id = ?
@@ -163,7 +170,9 @@ async function update(farmerId, farmerData) {
       farmerData.state || null,
       farmerData.bank_name || null,
       farmerData.bank_account_number || null,
-      farmerData.farm_size_hectares || null,
+      farmerData.bank2_name || null,
+      farmerData.bank2_account_number || null,
+      farmerData.farm_size_acres || null,
       farmerData.status || 'active',
       farmerData.updated_by || 1,
       farmerId

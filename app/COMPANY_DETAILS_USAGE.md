@@ -81,7 +81,7 @@ All four fields are **mandatory** and validated:
 ├─────────────────────────────────────┤
 │    Farmer: Ahmad bin Abdullah       │
 │    Subsidy No: SUB-2024-001         │
-│    IC: 850101015678                 │
+│    IC: 850101-01-5678               │
 │                                     │
 │    Grade: Super                     │
 │    Weight: 1,250.00 kg              │

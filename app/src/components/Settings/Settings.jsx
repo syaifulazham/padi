@@ -11,10 +11,13 @@ const Settings = () => {
   const [loading, setLoading] = useState(false);
   const [settings, setSettings] = useState({});
   const [systemInfo, setSystemInfo] = useState({});
+  const [printers, setPrinters] = useState([]);
+  const [loadingPrinters, setLoadingPrinters] = useState(false);
 
   useEffect(() => {
     loadSettings();
     loadSystemInfo();
+    loadPrinters();
   }, []);
 
   const loadSettings = async () => {
@@ -89,6 +92,30 @@ const Settings = () => {
       }
     } catch (error) {
       console.log('System info not available');
+    }
+  };
+
+  const loadPrinters = async () => {
+    setLoadingPrinters(true);
+    try {
+      const result = await window.electronAPI.printer?.getPrinters();
+      if (result?.success && result.data) {
+        setPrinters(result.data);
+        if (result.data.length > 0) {
+          message.success(`Found ${result.data.length} printer(s)`);
+        } else {
+          message.warning('No printers found on this system');
+        }
+      } else {
+        message.warning('Unable to load printers');
+        setPrinters([]);
+      }
+    } catch (error) {
+      console.error('Error loading printers:', error);
+      message.error('Failed to load printers');
+      setPrinters([]);
+    } finally {
+      setLoadingPrinters(false);
     }
   };
 
@@ -261,6 +288,59 @@ const Settings = () => {
                   <Option value="DD/MM/YYYY">DD/MM/YYYY (07/11/2024)</Option>
                   <Option value="MM/DD/YYYY">MM/DD/YYYY (11/07/2024)</Option>
                 </Select>
+              </Form.Item>
+
+              <Divider orientation="left">Printer</Divider>
+              
+              <Form.Item
+                name="default_printer"
+                label="Default Printer"
+                extra="Select the printer for receipts and documents"
+              >
+                <Select
+                  placeholder="Select a printer"
+                  loading={loadingPrinters}
+                  showSearch
+                  optionFilterProp="children"
+                  notFoundContent={loadingPrinters ? 'Loading...' : 'No printers found'}
+                  dropdownRender={(menu) => (
+                    <>
+                      {menu}
+                      <Divider style={{ margin: '8px 0' }} />
+                      <Space style={{ padding: '0 8px 4px' }}>
+                        <Button
+                          type="text"
+                          icon={<ReloadOutlined />}
+                          onClick={() => loadPrinters()}
+                          loading={loadingPrinters}
+                        >
+                          Refresh Printers
+                        </Button>
+                      </Space>
+                    </>
+                  )}
+                >
+                  {printers.map((printer) => (
+                    <Option key={printer.name} value={printer.name}>
+                      {printer.name} {printer.isDefault ? '(Default)' : ''}
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
+
+              <Form.Item
+                name="auto_print"
+                label="Auto Print After Transaction"
+                valuePropName="checked"
+              >
+                <Switch />
+              </Form.Item>
+
+              <Form.Item
+                name="print_copies"
+                label="Number of Copies"
+              >
+                <InputNumber min={1} max={5} style={{ width: '100%' }} />
               </Form.Item>
 
               <Space style={{ marginTop: 16 }}>

@@ -67,13 +67,13 @@ The system now supports various subsidy number formats:
 ### CSV Template (farmers_template.csv)
 ```csv
 farmer_code,ic_number,full_name,phone,date_of_birth,address,postcode,city,state,farm_size_hectares,status,notes
-SUB-2024-001,850101015678,Ahmad bin Abdullah,0123456789,1985-01-01,Jalan Merdeka,12345,Kuala Lumpur,Selangor,5.5,active,Subsidy coupon holder
+SUB-2024-001,850101-01-5678,Ahmad bin Abdullah,0123456789,1985-01-01,Jalan Merdeka,12345,Kuala Lumpur,Selangor,5.5,active,Subsidy coupon holder
 ```
 
 ### Excel Template (farmers_template.xlsx)
 | Subsidy No. | IC Number | Full Name | Phone | Date of Birth | Address | Postcode | City | State | Farm Size (Hectares) | Status | Notes |
 |-------------|-----------|-----------|-------|---------------|---------|----------|------|-------|---------------------|--------|-------|
-| SUB-2024-001 | 850101015678 | Ahmad bin Abdullah | 0123456789 | 1985-01-01 | Jalan Merdeka | 12345 | Kuala Lumpur | Selangor | 5.5 | active | Subsidy coupon holder |
+| SUB-2024-001 | 850101-01-5678 | Ahmad bin Abdullah | 0123456789 | 1985-01-01 | Jalan Merdeka | 12345 | Kuala Lumpur | Selangor | 5.5 | active | Subsidy coupon holder |
 
 ---
 
@@ -91,7 +91,7 @@ Your existing CSV/Excel files will still work! The column is still called `farme
 **Flexible Mapping Example:**
 ```csv
 Subsidy Number,Identity Card,Name,...
-KPN-01-2024-001,850101015678,Ahmad,...
+KPN-01-2024-001,850101-01-5678,Ahmad,...
 ```
 
 Map: `Subsidy Number` → `Subsidy No.`

@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, InputNumber, Table, message, Alert, Tabs, Timeline, Button } from 'antd';
-import { DollarOutlined, HistoryOutlined } from '@ant-design/icons';
+import { Modal, Form, InputNumber, Table, message, Alert, Tabs, Timeline, Button, Transfer, Tag } from 'antd';
+import { DollarOutlined, HistoryOutlined, AppstoreAddOutlined } from '@ant-design/icons';
 
 const SeasonProductPriceModal = ({ visible, onCancel, season, mode = 'view' }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [products, setProducts] = useState([]);
+  const [allProducts, setAllProducts] = useState([]); // All available products
+  const [selectedProductIds, setSelectedProductIds] = useState([]); // Selected product IDs for this season
   const [productPrices, setProductPrices] = useState([]);
   const [priceHistory, setPriceHistory] = useState({});
-  const [activeTab, setActiveTab] = useState('prices');
+  const [activeTab, setActiveTab] = useState(mode === 'edit' ? 'selection' : 'prices');
 
   useEffect(() => {
     if (visible) {
@@ -23,7 +24,7 @@ const SeasonProductPriceModal = ({ visible, onCancel, season, mode = 'view' }) =
     try {
       const result = await window.electronAPI.products.getActive();
       if (result?.success) {
-        setProducts(result.data);
+        setAllProducts(result.data);
       }
     } catch (error) {
       console.error('Error loading products:', error);
@@ -35,6 +36,10 @@ const SeasonProductPriceModal = ({ visible, onCancel, season, mode = 'view' }) =
       const result = await window.electronAPI.seasonProductPrices.getSeasonProductPrices(season.season_id);
       if (result?.success) {
         setProductPrices(result.data);
+        
+        // Set selected products based on existing prices
+        const existingProductIds = result.data.map(pp => pp.product_id);
+        setSelectedProductIds(existingProductIds);
         
         // Set form values
         const formValues = {};
@@ -74,7 +79,10 @@ const SeasonProductPriceModal = ({ visible, onCancel, season, mode = 'view' }) =
       console.log('📝 Updating product prices for season:', season.season_id);
       console.log('Form values:', values);
       
-      for (const product of products) {
+      // Get selected products
+      const selectedProducts = allProducts.filter(p => selectedProductIds.includes(p.product_id));
+      
+      for (const product of selectedProducts) {
         const fieldName = `product_${product.product_id}`;
         const priceValue = typeof values[fieldName] === 'string' 
           ? parseFloat(values[fieldName]) 
@@ -216,7 +224,77 @@ const SeasonProductPriceModal = ({ visible, onCancel, season, mode = 'view' }) =
     }
   ];
 
-  const tabItems = [
+  // Get only selected products for display
+  const displayProducts = mode === 'view' 
+    ? allProducts.filter(p => productPrices.some(pp => pp.product_id === p.product_id))
+    : allProducts.filter(p => selectedProductIds.includes(p.product_id));
+
+  const tabItems = mode === 'edit' ? [
+    {
+      key: 'selection',
+      label: (
+        <span>
+          <AppstoreAddOutlined /> Select Products ({selectedProductIds.length})
+        </span>
+      ),
+      children: (
+        <div>
+          <Alert
+            message="Select Products for This Season"
+            description="Choose which products should be available for pricing in this season. You can select multiple products from the list."
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+          
+          <Transfer
+            dataSource={allProducts.map(p => ({
+              key: p.product_id,
+              title: p.product_name,
+              description: `${p.product_type === 'BERAS' ? '🌾 Beras' : '🌱 Benih'} - ${p.variety === 'WANGI' ? '✨ Wangi' : 'Biasa'}`,
+              disabled: false
+            }))}
+            titles={['Available Products', 'Selected Products']}
+            targetKeys={selectedProductIds}
+            onChange={(newTargetKeys) => setSelectedProductIds(newTargetKeys)}
+            render={item => (
+              <div>
+                <div style={{ fontWeight: 500 }}>{item.title}</div>
+                <div style={{ fontSize: 12, color: '#999' }}>{item.description}</div>
+              </div>
+            )}
+            listStyle={{
+              width: 350,
+              height: 400,
+            }}
+            showSearch
+            filterOption={(inputValue, item) =>
+              item.title.toLowerCase().indexOf(inputValue.toLowerCase()) !== -1
+            }
+          />
+          
+          {selectedProductIds.length > 0 && (
+            <Alert
+              message={`${selectedProductIds.length} product(s) selected`}
+              description="Click 'Next' or switch to 'Set Prices' tab to configure prices for selected products."
+              type="success"
+              showIcon
+              style={{ marginTop: 16 }}
+            />
+          )}
+          
+          {selectedProductIds.length === 0 && (
+            <Alert
+              message="No products selected"
+              description="Please select at least one product to continue."
+              type="warning"
+              showIcon
+              style={{ marginTop: 16 }}
+            />
+          )}
+        </div>
+      )
+    },
     {
       key: 'prices',
       label: (
@@ -226,26 +304,42 @@ const SeasonProductPriceModal = ({ visible, onCancel, season, mode = 'view' }) =
       ),
       children: (
         <div>
-          <Alert
-            message={`Product Prices for ${season?.season_name || 'Season'}`}
-            description={mode === 'edit' 
-              ? 'Update the current prices for each product. Changes will be recorded in price history.'
-              : 'View current prices for all products in this season.'
-            }
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-
-          <Form form={form} layout="vertical">
-            <Table
-              columns={columns}
-              dataSource={products}
-              rowKey="product_id"
-              pagination={false}
-              size="middle"
+          {mode === 'edit' && selectedProductIds.length === 0 ? (
+            <Alert
+              message="No Products Selected"
+              description="Please go to 'Select Products' tab and choose at least one product before setting prices."
+              type="warning"
+              showIcon
+              style={{ marginBottom: 16 }}
             />
-          </Form>
+          ) : (
+            <Alert
+              message={`Product Prices for ${season?.season_name || 'Season'}`}
+              description={mode === 'edit' 
+                ? `Set prices for ${selectedProductIds.length} selected product(s). Changes will be recorded in price history.`
+                : 'View current prices for all products in this season.'
+              }
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+          )}
+
+          {displayProducts.length > 0 ? (
+            <Form form={form} layout="vertical">
+              <Table
+                columns={columns}
+                dataSource={displayProducts}
+                rowKey="product_id"
+                pagination={false}
+                size="middle"
+              />
+            </Form>
+          ) : (
+            <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>
+              No products to display. {mode === 'edit' ? 'Please select products first.' : 'No products configured for this season.'}
+            </div>
+          )}
         </div>
       )
     },
@@ -266,7 +360,105 @@ const SeasonProductPriceModal = ({ visible, onCancel, season, mode = 'view' }) =
             style={{ marginBottom: 16 }}
           />
 
-          {products.map(product => {
+          {displayProducts.map(product => {
+            const history = priceHistory[product.product_id] || [];
+            
+            return (
+              <div key={product.product_id} style={{ marginBottom: 24 }}>
+                <h4>{product.product_name}</h4>
+                {history.length === 0 ? (
+                  <div 
+                    style={{ 
+                      padding: 16, 
+                      background: '#f5f5f5', 
+                      borderRadius: 4,
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => loadPriceHistory(product.product_id)}
+                  >
+                    Click to load price history
+                  </div>
+                ) : (
+                  <Timeline
+                    items={history.map(h => ({
+                      children: (
+                        <div>
+                          <div style={{ fontWeight: 600 }}>
+                            RM {parseFloat(h.price_per_ton).toFixed(2)} per ton
+                          </div>
+                          <div style={{ fontSize: 12, color: '#999' }}>
+                            {new Date(h.effective_date).toLocaleString()}
+                          </div>
+                          {h.notes && (
+                            <div style={{ fontSize: 12, fontStyle: 'italic', marginTop: 4 }}>
+                              {h.notes}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    }))}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )
+    }
+  ] : [
+    {
+      key: 'prices',
+      label: (
+        <span>
+          <DollarOutlined /> Current Prices
+        </span>
+      ),
+      children: (
+        <div>
+          <Alert
+            message={`Product Prices for ${season?.season_name || 'Season'}`}
+            description='View current prices for all products in this season.'
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+
+          {displayProducts.length > 0 ? (
+            <Form form={form} layout="vertical">
+              <Table
+                columns={columns}
+                dataSource={displayProducts}
+                rowKey="product_id"
+                pagination={false}
+                size="middle"
+              />
+            </Form>
+          ) : (
+            <div style={{ textAlign: 'center', padding: 40, color: '#999' }}>
+              No products configured for this season.
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'history',
+      label: (
+        <span>
+          <HistoryOutlined /> Price History
+        </span>
+      ),
+      children: (
+        <div>
+          <Alert
+            message="Price Change History"
+            description="View the history of price changes for each product."
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+
+          {displayProducts.map(product => {
             const history = priceHistory[product.product_id] || [];
             
             return (
@@ -319,8 +511,9 @@ const SeasonProductPriceModal = ({ visible, onCancel, season, mode = 'view' }) =
       open={visible}
       onOk={mode === 'edit' ? handleSubmit : null}
       onCancel={() => onCancel()}
-      width={800}
-      okText={mode === 'edit' ? 'Update Prices' : undefined}
+      width={900}
+      okText={mode === 'edit' ? 'Save Prices' : undefined}
+      okButtonProps={{ disabled: mode === 'edit' && selectedProductIds.length === 0 }}
       cancelText={mode === 'edit' ? 'Cancel' : 'Close'}
       confirmLoading={loading}
       footer={mode === 'view' ? [

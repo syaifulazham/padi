@@ -5,6 +5,7 @@ require('dotenv').config({ path: path.join(__dirname, '../.env') });
 // Import services
 const db = require('./database/connection');
 const farmerService = require('./database/queries/farmers');
+const farmerDocumentsService = require('./database/queries/farmerDocuments');
 const manufacturerService = require('./database/queries/manufacturers');
 const productService = require('./database/queries/products');
 const seasonProductPriceService = require('./database/queries/seasonProductPrices');
@@ -139,6 +140,85 @@ ipcMain.handle('farmers:delete', async (event, id) => {
 
 ipcMain.handle('farmers:search', async (event, query) => {
   return await farmerService.search(query);
+});
+
+// Farmer Documents
+ipcMain.handle('farmerDocuments:getByFarmerId', async (event, farmerId) => {
+  return await farmerDocumentsService.getByFarmerId(farmerId);
+});
+
+ipcMain.handle('farmerDocuments:getSubsidyCard', async (event, farmerId) => {
+  return await farmerDocumentsService.getSubsidyCard(farmerId);
+});
+
+ipcMain.handle('farmerDocuments:findByHashcode', async (event, hashcode) => {
+  return await farmerDocumentsService.findByHashcode(hashcode);
+});
+
+ipcMain.handle('farmerDocuments:create', async (event, data) => {
+  return await farmerDocumentsService.create(data);
+});
+
+ipcMain.handle('farmerDocuments:update', async (event, id, data) => {
+  return await farmerDocumentsService.update(id, data);
+});
+
+ipcMain.handle('farmerDocuments:delete', async (event, id) => {
+  return await farmerDocumentsService.delete(id);
+});
+
+// File upload handler for subsidy card images
+ipcMain.handle('farmerDocuments:uploadImage', async (event, farmerId, imageData) => {
+  const fs = require('fs').promises;
+  const path = require('path');
+  
+  try {
+    // Create uploads directory if it doesn't exist
+    const uploadsDir = path.join(app.getPath('userData'), 'uploads', 'subsidy_cards');
+    await fs.mkdir(uploadsDir, { recursive: true });
+    
+    // Generate filename: farmerId_timestamp.png
+    const timestamp = Date.now();
+    const filename = `${farmerId}_${timestamp}.png`;
+    const filePath = path.join(uploadsDir, filename);
+    
+    // Convert base64 to buffer and save
+    const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+    await fs.writeFile(filePath, buffer);
+    
+    // Get file size
+    const stats = await fs.stat(filePath);
+    
+    return {
+      success: true,
+      data: {
+        filePath: filePath,
+        fileName: filename,
+        fileSize: stats.size
+      }
+    };
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Get image as base64 for display
+ipcMain.handle('farmerDocuments:getImage', async (event, filePath) => {
+  const fs = require('fs').promises;
+  
+  try {
+    const buffer = await fs.readFile(filePath);
+    const base64 = buffer.toString('base64');
+    return {
+      success: true,
+      data: `data:image/png;base64,${base64}`
+    };
+  } catch (error) {
+    console.error('Error reading image:', error);
+    return { success: false, error: error.message };
+  }
 });
 
 // Manufacturers
@@ -800,6 +880,20 @@ ipcMain.handle('print:salesReceipt', async (event, salesId) => {
     
   } catch (error) {
     console.error('Error printing sales receipt:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Get list of installed printers
+ipcMain.handle('printer:getPrinters', async () => {
+  try {
+    const printers = await mainWindow.webContents.getPrintersAsync();
+    return {
+      success: true,
+      data: printers
+    };
+  } catch (error) {
+    console.error('Error getting printers:', error);
     return { success: false, error: error.message };
   }
 });

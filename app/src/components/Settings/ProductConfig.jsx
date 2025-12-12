@@ -7,7 +7,6 @@ const { Option } = Select;
 
 const ProductConfig = () => {
   const [products, setProducts] = useState([]);
-  const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
@@ -16,7 +15,6 @@ const ProductConfig = () => {
 
   useEffect(() => {
     loadProducts();
-    loadInventory();
   }, []);
 
   const loadProducts = async () => {
@@ -36,16 +34,6 @@ const ProductConfig = () => {
     }
   };
 
-  const loadInventory = async () => {
-    try {
-      const result = await window.electronAPI.products.getInventorySummary();
-      if (result?.success) {
-        setInventory(result.data);
-      }
-    } catch (error) {
-      console.error('Error loading inventory:', error);
-    }
-  };
 
   const handleAdd = () => {
     setModalMode('create');
@@ -79,7 +67,6 @@ const ProductConfig = () => {
       if (result?.success) {
         message.success('Product deleted successfully');
         loadProducts();
-        loadInventory();
       } else {
         message.error(result?.error || 'Failed to delete product');
       }
@@ -106,7 +93,6 @@ const ProductConfig = () => {
         setModalVisible(false);
         form.resetFields();
         loadProducts();
-        loadInventory();
       } else {
         message.error(result?.error || `Failed to ${modalMode} product`);
       }
@@ -118,10 +104,6 @@ const ProductConfig = () => {
     }
   };
 
-  const getInventoryForProduct = (productId) => {
-    const inv = inventory.find(i => i.product_id === productId);
-    return inv ? parseFloat(inv.current_stock_kg || 0) : 0;
-  };
 
   const columns = [
     {
@@ -158,23 +140,6 @@ const ProductConfig = () => {
           {variety === 'WANGI' ? '✨ Wangi' : 'Biasa'}
         </Tag>
       )
-    },
-    {
-      title: 'Current Stock',
-      key: 'stock',
-      width: 150,
-      align: 'right',
-      render: (_, record) => {
-        const stock = getInventoryForProduct(record.product_id);
-        return (
-          <span style={{ 
-            fontWeight: 600,
-            color: stock > 0 ? '#52c41a' : '#999'
-          }}>
-            {stock.toFixed(2)} kg
-          </span>
-        );
-      }
     },
     {
       title: 'Status',
@@ -221,10 +186,6 @@ const ProductConfig = () => {
     }
   ];
 
-  // Calculate total inventory
-  const totalStock = inventory.reduce((sum, item) => 
-    sum + parseFloat(item.current_stock_kg || 0), 0
-  );
 
   return (
     <div>
@@ -247,7 +208,7 @@ const ProductConfig = () => {
         }
       >
         <Row gutter={16} style={{ marginBottom: 24 }}>
-          <Col span={8}>
+          <Col span={12}>
             <Card>
               <Statistic
                 title="Total Products"
@@ -256,22 +217,12 @@ const ProductConfig = () => {
               />
             </Card>
           </Col>
-          <Col span={8}>
+          <Col span={12}>
             <Card>
               <Statistic
                 title="Active Products"
                 value={products.filter(p => p.is_active).length}
                 valueStyle={{ color: '#52c41a' }}
-              />
-            </Card>
-          </Col>
-          <Col span={8}>
-            <Card>
-              <Statistic
-                title="Total Stock"
-                value={totalStock.toFixed(2)}
-                suffix="kg"
-                valueStyle={{ color: '#1890ff' }}
               />
             </Card>
           </Col>
