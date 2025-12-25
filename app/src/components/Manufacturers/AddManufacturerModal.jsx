@@ -1,11 +1,13 @@
 import React from 'react';
 import { Modal, Form, Input, InputNumber, Select, DatePicker, Row, Col, message } from 'antd';
 import dayjs from 'dayjs';
+import { useI18n } from '../../i18n/I18nProvider';
 
 const { TextArea } = Input;
 const { Option } = Select;
 
 const AddManufacturerModal = ({ open, onClose, onSuccess, editingManufacturer = null }) => {
+  const { t } = useI18n();
   const [form] = Form.useForm();
   const [loading, setLoading] = React.useState(false);
   const isEditMode = !!editingManufacturer;
@@ -47,15 +49,21 @@ const AddManufacturerModal = ({ open, onClose, onSuccess, editingManufacturer = 
       }
       
       if (result.success) {
-        message.success(isEditMode ? 'Manufacturer updated successfully!' : 'Manufacturer added successfully!');
+        message.success(isEditMode ? t('manufacturers.modal.messages.updated') : t('manufacturers.modal.messages.added'));
         form.resetFields();
         onSuccess();
         onClose();
       } else {
-        message.error(result.error || (isEditMode ? 'Failed to update manufacturer' : 'Failed to add manufacturer'));
+        message.error(
+          result.error ||
+            (isEditMode ? t('manufacturers.modal.messages.updateFailed') : t('manufacturers.modal.messages.addFailed'))
+        );
       }
     } catch (error) {
-      message.error((isEditMode ? 'Error updating manufacturer: ' : 'Error adding manufacturer: ') + error.message);
+      message.error(
+        (isEditMode ? t('manufacturers.modal.messages.updateErrorPrefix') : t('manufacturers.modal.messages.addErrorPrefix')) +
+          error.message
+      );
       console.error(error);
     } finally {
       setLoading(false);
@@ -69,14 +77,14 @@ const AddManufacturerModal = ({ open, onClose, onSuccess, editingManufacturer = 
 
   return (
     <Modal
-      title={isEditMode ? "Edit Manufacturer" : "Add New Manufacturer"}
+      title={isEditMode ? t('manufacturers.modal.editTitle') : t('manufacturers.modal.addTitle')}
       open={open}
       onOk={() => form.submit()}
       onCancel={handleCancel}
       confirmLoading={loading}
       width={900}
-      okText={isEditMode ? "Update Manufacturer" : "Add Manufacturer"}
-      cancelText="Cancel"
+      okText={isEditMode ? t('manufacturers.modal.updateOk') : t('manufacturers.modal.addOk')}
+      cancelText={t('manufacturers.modal.cancel')}
     >
       <Form
         form={form}
@@ -92,99 +100,99 @@ const AddManufacturerModal = ({ open, onClose, onSuccess, editingManufacturer = 
           <Col span={12}>
             <Form.Item
               name="manufacturer_code"
-              label="Manufacturer Code"
+              label={t('manufacturers.modal.fields.manufacturerCode')}
               rules={[
-                { required: true, message: 'Please enter manufacturer code' },
-                { pattern: /^[A-Z0-9-]+$/, message: 'Only uppercase letters, numbers, and dashes' }
+                { required: true, message: t('manufacturers.modal.validations.enterManufacturerCode') },
+                { pattern: /^[A-Z0-9-]+$/, message: t('manufacturers.modal.validations.manufacturerCodePattern') }
               ]}
             >
-              <Input placeholder="e.g., MFR-001" />
+              <Input placeholder={t('manufacturers.modal.placeholders.manufacturerCode')} />
             </Form.Item>
           </Col>
           <Col span={12}>
             <Form.Item
               name="registration_number"
-              label="Registration Number"
-              rules={[{ required: true, message: 'Please enter registration number' }]}
+              label={t('manufacturers.modal.fields.registrationNumber')}
+              rules={[{ required: true, message: t('manufacturers.modal.validations.enterRegistrationNumber') }]}
             >
-              <Input placeholder="e.g., ROC123456-A" />
+              <Input placeholder={t('manufacturers.modal.placeholders.registrationNumber')} />
             </Form.Item>
           </Col>
         </Row>
 
         <Form.Item
           name="company_name"
-          label="Company Name"
-          rules={[{ required: true, message: 'Please enter company name' }]}
+          label={t('manufacturers.modal.fields.companyName')}
+          rules={[{ required: true, message: t('manufacturers.modal.validations.enterCompanyName') }]}
         >
-          <Input placeholder="e.g., Kilang Beras Sdn Bhd" />
+          <Input placeholder={t('manufacturers.modal.placeholders.companyName')} />
         </Form.Item>
 
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item
               name="contact_person"
-              label="Contact Person"
+              label={t('manufacturers.modal.fields.contactPerson')}
             >
-              <Input placeholder="e.g., Ahmad bin Abdullah" />
+              <Input placeholder={t('manufacturers.modal.placeholders.contactPerson')} />
             </Form.Item>
           </Col>
           <Col span={12}>
             <Form.Item
               name="phone"
-              label="Phone Number"
+              label={t('manufacturers.modal.fields.phoneNumber')}
               rules={[
-                { pattern: /^[0-9-+()]*$/, message: 'Invalid phone format' }
+                { pattern: /^[0-9-+()]*$/, message: t('manufacturers.modal.validations.invalidPhone') }
               ]}
             >
-              <Input placeholder="e.g., 0123456789" />
+              <Input placeholder={t('manufacturers.modal.placeholders.phone')} />
             </Form.Item>
           </Col>
         </Row>
 
         <Form.Item
           name="email"
-          label="Email"
+          label={t('manufacturers.modal.fields.email')}
           rules={[
-            { type: 'email', message: 'Invalid email format' }
+            { type: 'email', message: t('manufacturers.modal.validations.invalidEmail') }
           ]}
         >
-          <Input placeholder="e.g., contact@company.com" />
+          <Input placeholder={t('manufacturers.modal.placeholders.email')} />
         </Form.Item>
 
         <Form.Item
           name="address"
-          label="Address"
+          label={t('manufacturers.modal.fields.address')}
         >
-          <TextArea rows={2} placeholder="Street address" />
+          <TextArea rows={2} placeholder={t('manufacturers.modal.placeholders.address')} />
         </Form.Item>
 
         <Row gutter={16}>
           <Col span={8}>
             <Form.Item
               name="postcode"
-              label="Postcode"
+              label={t('manufacturers.modal.fields.postcode')}
               rules={[
-                { pattern: /^\d{5}$/, message: 'Postcode must be 5 digits' }
+                { pattern: /^\d{5}$/, message: t('manufacturers.modal.validations.postcode5Digits') }
               ]}
             >
-              <Input placeholder="e.g., 12345" maxLength={5} />
+              <Input placeholder={t('manufacturers.modal.placeholders.postcode')} maxLength={5} />
             </Form.Item>
           </Col>
           <Col span={8}>
             <Form.Item
               name="city"
-              label="City"
+              label={t('manufacturers.modal.fields.city')}
             >
-              <Input placeholder="e.g., Kuala Lumpur" />
+              <Input placeholder={t('manufacturers.modal.placeholders.city')} />
             </Form.Item>
           </Col>
           <Col span={8}>
             <Form.Item
               name="state"
-              label="State"
+              label={t('manufacturers.modal.fields.state')}
             >
-              <Select placeholder="Select state">
+              <Select placeholder={t('manufacturers.modal.placeholders.selectState')}>
                 <Option value="Johor">Johor</Option>
                 <Option value="Kedah">Kedah</Option>
                 <Option value="Kelantan">Kelantan</Option>
@@ -210,13 +218,13 @@ const AddManufacturerModal = ({ open, onClose, onSuccess, editingManufacturer = 
           <Col span={8}>
             <Form.Item
               name="credit_limit"
-              label="Credit Limit (RM)"
+              label={t('manufacturers.modal.fields.creditLimitRm')}
             >
               <InputNumber
                 min={0}
                 step={1000}
                 style={{ width: '100%' }}
-                placeholder="e.g., 50000"
+                placeholder={t('manufacturers.modal.placeholders.creditLimit')}
                 formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                 parser={value => value.replace(/\$\s?|(,*)/g, '')}
               />
@@ -225,26 +233,26 @@ const AddManufacturerModal = ({ open, onClose, onSuccess, editingManufacturer = 
           <Col span={8}>
             <Form.Item
               name="payment_terms"
-              label="Payment Terms (Days)"
+              label={t('manufacturers.modal.fields.paymentTermsDays')}
             >
               <InputNumber
                 min={0}
                 max={365}
                 style={{ width: '100%' }}
-                placeholder="e.g., 30"
+                placeholder={t('manufacturers.modal.placeholders.paymentTerms')}
               />
             </Form.Item>
           </Col>
           <Col span={8}>
             <Form.Item
               name="status"
-              label="Status"
-              rules={[{ required: true, message: 'Please select status' }]}
+              label={t('manufacturers.modal.fields.status')}
+              rules={[{ required: true, message: t('manufacturers.modal.validations.selectStatus') }]}
             >
               <Select>
-                <Option value="active">Active</Option>
-                <Option value="inactive">Inactive</Option>
-                <Option value="suspended">Suspended</Option>
+                <Option value="active">{t('manufacturers.modal.statusOptions.active')}</Option>
+                <Option value="inactive">{t('manufacturers.modal.statusOptions.inactive')}</Option>
+                <Option value="suspended">{t('manufacturers.modal.statusOptions.suspended')}</Option>
               </Select>
             </Form.Item>
           </Col>
@@ -254,7 +262,7 @@ const AddManufacturerModal = ({ open, onClose, onSuccess, editingManufacturer = 
           <Col span={12}>
             <Form.Item
               name="contract_start_date"
-              label="Contract Start Date"
+              label={t('manufacturers.modal.fields.contractStartDate')}
             >
               <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
             </Form.Item>
@@ -262,7 +270,7 @@ const AddManufacturerModal = ({ open, onClose, onSuccess, editingManufacturer = 
           <Col span={12}>
             <Form.Item
               name="contract_end_date"
-              label="Contract End Date"
+              label={t('manufacturers.modal.fields.contractEndDate')}
             >
               <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
             </Form.Item>
@@ -271,9 +279,9 @@ const AddManufacturerModal = ({ open, onClose, onSuccess, editingManufacturer = 
 
         <Form.Item
           name="notes"
-          label="Notes"
+          label={t('manufacturers.modal.fields.notes')}
         >
-          <TextArea rows={3} placeholder="Additional notes about the manufacturer" />
+          <TextArea rows={3} placeholder={t('manufacturers.modal.placeholders.notes')} />
         </Form.Item>
       </Form>
     </Modal>

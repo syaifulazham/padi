@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { Modal, Upload, Button, Steps, Table, Select, message, Alert, Space } from 'antd';
 import { UploadOutlined, DownloadOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import * as XLSX from 'xlsx';
+import { useI18n } from '../../i18n/I18nProvider';
 
 const { Step } = Steps;
 const { Option } = Select;
 
 const BulkUploadModal = ({ open, onClose, onSuccess }) => {
+  const { t } = useI18n();
   const [currentStep, setCurrentStep] = useState(0);
   const [fileData, setFileData] = useState(null);
   const [headers, setHeaders] = useState([]);
@@ -16,22 +18,22 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
 
   // Required fields mapping
   const requiredFields = {
-    farmer_code: { label: 'Subsidy No.', required: true },
-    ic_number: { label: 'IC Number', required: true },
-    full_name: { label: 'Full Name', required: true },
-    phone: { label: 'Phone', required: false },
-    date_of_birth: { label: 'Date of Birth', required: false },
-    address: { label: 'Address', required: false },
-    postcode: { label: 'Postcode', required: false },
-    city: { label: 'City', required: false },
-    state: { label: 'State', required: false },
-    bank_name: { label: 'Bank Name', required: false },
-    bank_account_number: { label: 'Bank Account Number', required: false },
-    bank2_name: { label: 'Bank Name 2', required: false },
-    bank2_account_number: { label: 'Bank Account Number 2', required: false },
-    farm_size_acres: { label: 'Farm Size (Acres)', required: false },
-    status: { label: 'Status', required: false },
-    notes: { label: 'Notes', required: false },
+    farmer_code: { label: t('farmers.modal.fields.farmerCode'), required: true },
+    ic_number: { label: t('farmers.modal.fields.icNumber'), required: true },
+    full_name: { label: t('farmers.modal.fields.fullName'), required: true },
+    phone: { label: t('farmers.columns.phone'), required: false },
+    date_of_birth: { label: t('farmers.modal.fields.dateOfBirth'), required: false },
+    address: { label: t('farmers.modal.fields.address'), required: false },
+    postcode: { label: t('farmers.modal.fields.postcode'), required: false },
+    city: { label: t('farmers.modal.fields.city'), required: false },
+    state: { label: t('farmers.modal.fields.state'), required: false },
+    bank_name: { label: t('farmers.modal.fields.bankName'), required: false },
+    bank_account_number: { label: t('farmers.modal.fields.bankAccountNumber'), required: false },
+    bank2_name: { label: t('farmers.modal.fields.bankName2Optional'), required: false },
+    bank2_account_number: { label: t('farmers.modal.fields.bankAccountNumber2'), required: false },
+    farm_size_acres: { label: t('farmers.modal.fields.farmSizeAcres'), required: false },
+    status: { label: t('farmers.modal.fields.status'), required: false },
+    notes: { label: t('farmers.modal.fields.notes'), required: false },
   };
 
   // Download CSV template
@@ -47,7 +49,7 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
     a.download = 'farmers_template.csv';
     a.click();
     window.URL.revokeObjectURL(url);
-    message.success('CSV template downloaded');
+    message.success(t('farmers.bulk.templateDownloadedCsv'));
   };
 
   // Download Excel template
@@ -62,7 +64,7 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Farmers');
     XLSX.writeFile(wb, 'farmers_template.xlsx');
-    message.success('Excel template downloaded');
+    message.success(t('farmers.bulk.templateDownloadedExcel'));
   };
 
   // Handle file upload
@@ -78,7 +80,7 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
         
         if (jsonData.length < 2) {
-          message.error('File must contain headers and at least one row of data');
+          message.error(t('farmers.bulk.fileMustContainRows'));
           return;
         }
         
@@ -102,9 +104,9 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
         });
         setMappedColumns(autoMapping);
         
-        message.success(`File loaded: ${rows.length} rows found`);
+        message.success(t('farmers.bulk.fileLoaded').replace('{count}', rows.length));
       } catch (error) {
-        message.error('Error reading file: ' + error.message);
+        message.error(t('farmers.bulk.errorReadingFile').replace('{error}', error.message));
       }
     };
     
@@ -131,7 +133,7 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
   // Generate preview
   const generatePreview = () => {
     if (!fileData || Object.keys(mappedColumns).length === 0) {
-      message.warning('Please map at least the required fields');
+      message.warning(t('farmers.bulk.mapAtLeastRequired'));
       return;
     }
 
@@ -140,7 +142,7 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
       .filter(field => requiredFields[field].required && mappedColumns[field] === undefined);
     
     if (missingRequired.length > 0) {
-      message.error(`Missing required fields: ${missingRequired.join(', ')}`);
+      message.error(t('farmers.bulk.missingRequired').replace('{fields}', missingRequired.join(', ')));
       return;
     }
 
@@ -236,11 +238,11 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
       }
 
       if (successCount > 0) {
-        message.success(`Successfully imported ${successCount} farmers`);
+        message.success(t('farmers.bulk.importedSuccess').replace('{count}', successCount));
       }
       
       if (errorCount > 0) {
-        message.warning(`${errorCount} farmers failed to import. Check console for details.`);
+        message.warning(t('farmers.bulk.importFailedCount').replace('{count}', errorCount));
         console.error('Import errors:', errors);
       }
 
@@ -249,7 +251,7 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
         handleClose();
       }
     } catch (error) {
-      message.error('Import failed: ' + error.message);
+      message.error(t('farmers.bulk.importFailed').replace('{error}', error.message));
     } finally {
       setLoading(false);
     }
@@ -276,24 +278,24 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
 
   return (
     <Modal
-      title="Bulk Upload Farmers"
+      title={t('farmers.bulk.title')}
       open={open}
       onCancel={handleClose}
       width={1000}
       footer={null}
     >
       <Steps current={currentStep} style={{ marginBottom: 24 }}>
-        <Step title="Upload File" icon={<UploadOutlined />} />
-        <Step title="Map Columns" icon={<CheckCircleOutlined />} />
-        <Step title="Preview & Import" icon={<CheckCircleOutlined />} />
+        <Step title={t('farmers.bulk.uploadStep')} icon={<UploadOutlined />} />
+        <Step title={t('farmers.bulk.mapStep')} icon={<CheckCircleOutlined />} />
+        <Step title={t('farmers.bulk.previewStep')} icon={<CheckCircleOutlined />} />
       </Steps>
 
       {/* Step 1: Upload File */}
       {currentStep === 0 && (
         <div>
           <Alert
-            message="Download Template First"
-            description="Download the template, fill it with your data, then upload it back. The uploaded file can have different column names - you'll map them in the next step."
+            message={t('farmers.bulk.downloadTemplateFirst')}
+            description={t('farmers.bulk.downloadTemplateDesc')}
             type="info"
             showIcon
             style={{ marginBottom: 24 }}
@@ -307,7 +309,7 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
             marginBottom: 24
           }}>
             <h4 style={{ marginTop: 0, marginBottom: 12, fontSize: '14px', fontWeight: 600 }}>
-              📋 Download Template
+              {t('farmers.bulk.downloadTemplateHeading')}
             </h4>
             <Space size="middle">
               <Button 
@@ -316,14 +318,14 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
                 type="primary"
                 size="large"
               >
-                Download Excel Template
+                {t('farmers.bulk.downloadExcelTemplate')}
               </Button>
               <Button 
                 icon={<DownloadOutlined />} 
                 onClick={downloadCSVTemplate}
                 size="large"
               >
-                Download CSV Template
+                {t('farmers.bulk.downloadCsvTemplate')}
               </Button>
             </Space>
           </div>
@@ -335,7 +337,7 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
             padding: '20px'
           }}>
             <h4 style={{ marginTop: 0, marginBottom: 12, fontSize: '14px', fontWeight: 600 }}>
-              📤 Upload Your File
+              {t('farmers.bulk.uploadYourFileHeading')}
             </h4>
             <Upload
               accept=".csv,.xlsx,.xls"
@@ -344,7 +346,7 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
               showUploadList={true}
             >
               <Button icon={<UploadOutlined />} size="large" type="dashed" block>
-                Click to Upload CSV or Excel File
+                {t('farmers.bulk.clickToUpload')}
               </Button>
             </Upload>
           </div>
@@ -355,8 +357,8 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
       {currentStep === 1 && (
         <div>
           <Alert
-            message="Map Your Columns"
-            description="Match your file columns to the required fields. Red fields are required."
+            message={t('farmers.bulk.mapColumnsTitle')}
+            description={t('farmers.bulk.mapColumnsDesc')}
             type="info"
             showIcon
             style={{ marginBottom: 16 }}
@@ -368,34 +370,34 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
                 <div style={{ width: 200, fontWeight: 'bold' }}>
                   {requiredFields[field].label}
                   {requiredFields[field].required && <span style={{ color: 'red' }}> *</span>}
-                  {field === 'address' && <div style={{ fontSize: '11px', color: '#666', fontWeight: 'normal' }}>Multi-select</div>}
+                  {field === 'address' && <div style={{ fontSize: '11px', color: '#666', fontWeight: 'normal' }}>{t('farmers.bulk.multiselectHint')}</div>}
                 </div>
                 {field === 'address' ? (
                   <Select
                     mode="multiple"
                     style={{ flex: 1 }}
-                    placeholder="Select one or more columns to concatenate"
+                    placeholder={t('farmers.bulk.selectColumnsConcat')}
                     value={mappedColumns[field]}
                     onChange={handleAddressMultiChange}
                     allowClear
                   >
                     {headers.map((header, index) => (
                       <Option key={index} value={index}>
-                        {header} (Column {index + 1})
+                        {header} ({t('farmers.bulk.columnNumber').replace('{n}', index + 1)})
                       </Option>
                     ))}
                   </Select>
                 ) : (
                   <Select
                     style={{ flex: 1 }}
-                    placeholder="Select column from your file"
+                    placeholder={t('farmers.bulk.selectColumn')}
                     value={mappedColumns[field]}
                     onChange={(value) => handleMappingChange(field, value)}
                     allowClear
                   >
                     {headers.map((header, index) => (
                       <Option key={index} value={index}>
-                        {header} (Column {index + 1})
+                        {header} ({t('farmers.bulk.columnNumber').replace('{n}', index + 1)})
                       </Option>
                     ))}
                   </Select>
@@ -406,9 +408,9 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
 
           <div style={{ marginTop: 16, textAlign: 'right' }}>
             <Space>
-              <Button onClick={() => setCurrentStep(0)}>Back</Button>
+              <Button onClick={() => setCurrentStep(0)}>{t('farmers.bulk.back')}</Button>
               <Button type="primary" onClick={generatePreview}>
-                Next: Preview Data
+                {t('farmers.bulk.nextPreview')}
               </Button>
             </Space>
           </div>
@@ -419,8 +421,10 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
       {currentStep === 2 && (
         <div>
           <Alert
-            message={`Preview: Showing first ${previewData.length} of ${fileData.length} rows`}
-            description="Review the data before importing. Click Import to proceed."
+            message={t('farmers.bulk.previewTitle')
+              .replace('{previewCount}', previewData.length)
+              .replace('{totalCount}', fileData.length)}
+            description={t('farmers.bulk.previewDesc')}
             type="success"
             showIcon
             style={{ marginBottom: 16 }}
@@ -436,13 +440,13 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
 
           <div style={{ marginTop: 16, textAlign: 'right' }}>
             <Space>
-              <Button onClick={() => setCurrentStep(1)}>Back</Button>
+              <Button onClick={() => setCurrentStep(1)}>{t('farmers.bulk.back')}</Button>
               <Button 
                 type="primary" 
                 loading={loading}
                 onClick={handleImport}
               >
-                Import {fileData.length} Farmers
+                {t('farmers.bulk.importN').replace('{count}', fileData.length)}
               </Button>
             </Space>
           </div>

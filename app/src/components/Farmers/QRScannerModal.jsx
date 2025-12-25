@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Button, Alert, Space, Spin } from 'antd';
 import { CameraOutlined, CloseOutlined } from '@ant-design/icons';
 import jsQR from 'jsqr';
+import { useI18n } from '../../i18n/I18nProvider';
 
 const QRScannerModal = ({ open, onClose, onScanSuccess }) => {
+  const { t } = useI18n();
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState(null);
   const [cameraAvailable, setCameraAvailable] = useState(true);
@@ -117,14 +119,14 @@ const QRScannerModal = ({ open, onClose, onScanSuccess }) => {
       title={
         <Space>
           <CameraOutlined />
-          Scan QR Code to Search Farmer
+          {t('farmers.qr.title')}
         </Space>
       }
       open={open}
       onCancel={handleClose}
       footer={[
         <Button key="close" onClick={handleClose}>
-          Close
+          {t('farmers.qr.close')}
         </Button>
       ]}
       width={600}
@@ -132,7 +134,7 @@ const QRScannerModal = ({ open, onClose, onScanSuccess }) => {
       <Space direction="vertical" style={{ width: '100%' }}>
         {error && (
           <Alert
-            message="Camera Error"
+            message={t('farmers.qr.cameraErrorTitle')}
             description={error}
             type="error"
             showIcon
@@ -143,8 +145,8 @@ const QRScannerModal = ({ open, onClose, onScanSuccess }) => {
 
         {!error && cameraAvailable && (
           <Alert
-            message="Position the QR code in front of the camera"
-            description="The QR code will be scanned automatically when detected"
+            message={t('farmers.qr.positionQrTitle')}
+            description={t('farmers.qr.positionQrDesc')}
             type="info"
             showIcon
           />
@@ -172,7 +174,7 @@ const QRScannerModal = ({ open, onClose, onScanSuccess }) => {
               color: 'white'
             }}>
               <Spin size="large" />
-              <div style={{ marginTop: 16 }}>Initializing camera...</div>
+              <div style={{ marginTop: 16 }}>{t('farmers.qr.initializingCamera')}</div>
             </div>
           )}
 
@@ -198,9 +200,9 @@ const QRScannerModal = ({ open, onClose, onScanSuccess }) => {
               textAlign: 'center'
             }}>
               <CameraOutlined style={{ fontSize: 48, marginBottom: 16 }} />
-              <div>Camera not available or access denied</div>
+              <div>{t('farmers.qr.cameraNotAvailable')}</div>
               <div style={{ fontSize: 12, marginTop: 8, opacity: 0.7 }}>
-                Please check camera permissions in your browser settings
+                {t('farmers.qr.checkPermissions')}
               </div>
             </div>
           )}
@@ -208,7 +210,7 @@ const QRScannerModal = ({ open, onClose, onScanSuccess }) => {
 
         {cameraAvailable && !error && (
           <div style={{ textAlign: 'center', fontSize: 12, color: '#888' }}>
-            📸 Camera active - Point at QR code on subsidy card
+            {t('farmers.qr.cameraActiveHint')}
           </div>
         )}
       </Space>

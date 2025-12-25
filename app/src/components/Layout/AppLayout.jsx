@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Layout, Menu, Space, Statistic, Spin, Tag, Popover, Divider, Modal, Form, InputNumber, message } from 'antd';
+import { Layout, Menu, Space, Statistic, Spin, Tag, Popover, Divider, Modal, Form, InputNumber, message, Button } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   DashboardOutlined,
@@ -14,13 +14,21 @@ import {
   UnorderedListOutlined,
   DollarOutlined,
   EditOutlined,
+  CarOutlined,
+  SwapOutlined,
+  HomeOutlined,
 } from '@ant-design/icons';
+import { useI18n } from '../../i18n/I18nProvider';
+import bluishPaddyField from '../../img/bluish-paddy-field.png';
 
 const { Header, Sider, Content } = Layout;
 
 const AppLayout = ({ children }) => {
+  const MODE_STORAGE_KEY = 'app_mode';
+
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
+  const [appMode, setAppMode] = useState('management');
   const [stats, setStats] = useState({
     totalPurchases: 0,
     totalSales: 0,
@@ -36,6 +44,31 @@ const AppLayout = ({ children }) => {
   const [priceForm] = Form.useForm();
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useI18n();
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage?.getItem(MODE_STORAGE_KEY);
+      if (saved === 'operation' || saved === 'management') {
+        setAppMode(saved);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, []);
+
+  const toggleMode = () => {
+    setAppMode((prev) => {
+      const next = prev === 'operation' ? 'management' : 'operation';
+      try {
+        window.localStorage?.setItem(MODE_STORAGE_KEY, next);
+      } catch (e) {
+        // ignore
+      }
+      window.dispatchEvent(new Event('mode-changed'));
+      return next;
+    });
+  };
 
   // Fetch product prices for active season
   const fetchProductPrices = useCallback(async (seasonId) => {
@@ -198,102 +231,131 @@ const AppLayout = ({ children }) => {
     };
   }, [fetchStats]);
 
-  // Left sidebar - Management & Configuration
-  const leftMenuItems = [
-    {
-      key: '/',
-      icon: <DashboardOutlined />,
-      label: 'Dashboard',
-    },
-    {
-      key: '/farmers',
-      icon: <TeamOutlined />,
-      label: 'Farmers',
-    },
-    {
-      key: '/manufacturers',
-      icon: <BuildOutlined />,
-      label: 'Manufacturers',
-    },
-    {
-      key: '/inventory',
-      icon: <InboxOutlined />,
-      label: 'Inventory',
-    },
-    {
-      key: '/reports',
-      icon: <BarChartOutlined />,
-      label: 'Reports',
-    },
-    {
-      key: 'settings-group',
-      icon: <SettingOutlined />,
-      label: 'Settings',
-      children: [
-        {
-          key: '/settings',
-          icon: <SettingOutlined />,
-          label: 'General',
-        },
-        {
-          key: '/settings/seasons',
-          icon: <DashboardOutlined />,
-          label: 'Season Config',
-        },
-        {
-          key: '/settings/products',
-          icon: <InboxOutlined />,
-          label: 'Product Config',
-        },
-      ],
-    },
-  ];
+  const leftMenuItems = (() => {
+    const items = [
+      {
+        key: '/home',
+        icon: <HomeOutlined />,
+        label: t('menu.home'),
+      },
+      {
+        key: '/',
+        icon: <DashboardOutlined />,
+        label: t('menu.dashboard'),
+      },
+      {
+        key: '/farmers',
+        icon: <TeamOutlined />,
+        label: t('menu.farmers'),
+      },
+      {
+        key: '/manufacturers',
+        icon: <BuildOutlined />,
+        label: t('menu.manufacturers'),
+      },
+      {
+        key: 'reports-group',
+        icon: <BarChartOutlined />,
+        label: t('menu.reports'),
+        children: [
+          {
+            key: '/reports/purchases',
+            icon: <ShoppingCartOutlined />,
+            label: t('menu.purchaseReport'),
+          },
+          {
+            key: '/reports/sales',
+            icon: <DollarOutlined />,
+            label: t('menu.salesReport'),
+          },
+          {
+            key: '/reports/lorry',
+            icon: <CarOutlined />,
+            label: t('menu.lorryReport'),
+          },
+        ],
+      },
+      {
+        key: 'settings-group',
+        icon: <SettingOutlined />,
+        label: t('menu.settings'),
+        children: [
+          {
+            key: '/settings',
+            icon: <SettingOutlined />,
+            label: t('menu.general'),
+          },
+          {
+            key: '/settings/seasons',
+            icon: <DashboardOutlined />,
+            label: t('menu.seasonConfig'),
+          },
+          {
+            key: '/settings/products',
+            icon: <InboxOutlined />,
+            label: t('menu.productConfig'),
+          },
+          {
+            key: '/settings/backup',
+            icon: <InboxOutlined />,
+            label: t('menu.backupRestore'),
+          },
+        ],
+      },
+    ];
+
+    if (appMode === 'operation') {
+      return items.filter((item) => !['/farmers', '/manufacturers', 'settings-group'].includes(item.key));
+    }
+
+    return items;
+  })();
 
   // Right sidebar - Transactions
   const rightMenuItems = [
     {
       key: 'purchases-group',
       icon: <ShoppingCartOutlined />,
-      label: 'Purchases',
+      label: t('menu.purchases'),
       children: [
         {
           key: '/purchases',
           icon: <PlusCircleOutlined />,
-          label: 'Weigh-In',
+          label: t('menu.weighIn'),
         },
         {
           key: '/purchases/history',
           icon: <UnorderedListOutlined />,
-          label: 'History',
+          label: t('menu.history'),
         },
         {
           key: '/purchases/payment',
           icon: <DollarOutlined />,
-          label: 'Payment',
+          label: t('menu.payment'),
         },
       ],
     },
     {
       key: 'sales-group',
       icon: <ShopOutlined />,
-      label: 'Sales',
+      label: t('menu.sales'),
       children: [
         {
           key: '/sales',
           icon: <PlusCircleOutlined />,
-          label: 'Weigh-In',
+          label: t('menu.weighIn'),
         },
         {
           key: '/sales/history',
           icon: <UnorderedListOutlined />,
-          label: 'History',
+          label: t('menu.history'),
         },
       ],
     },
     {
       key: '/stockpiles',
       icon: <InboxOutlined />,
-      label: 'Stockpiles',
+      label: t('menu.stockpiles'),
     },
   ];
 
@@ -375,7 +437,7 @@ const AppLayout = ({ children }) => {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
             <h2 style={{ margin: 0 }}>
-              {allMenuItems.find(item => item.key === location.pathname)?.label || 'Dashboard'}
+              {allMenuItems.find(item => item.key === location.pathname)?.label || t('menu.dashboard')}
             </h2>
             {activeSeason && (
               <>
@@ -386,7 +448,7 @@ const AppLayout = ({ children }) => {
                 }} />
                 <div style={{ padding: '0 20px' }}>
                   <Statistic
-                    title={<span style={{ fontSize: 11, color: '#666', fontWeight: 500 }}>🌾 Season</span>}
+                    title={<span style={{ fontSize: 11, color: '#666', fontWeight: 500 }}>{t('topNav.season')}</span>}
                     value={`${activeSeason.season_number}/${activeSeason.year}`}
                     valueStyle={{ fontSize: 18, color: '#262626', fontWeight: 600 }}
                   />
@@ -416,7 +478,7 @@ const AppLayout = ({ children }) => {
                 
                 <div style={{ padding: '0 20px' }}>
                   <Statistic
-                    title={<span style={{ fontSize: 11, color: '#666', fontWeight: 500 }}>📦 Total Purchases</span>}
+                    title={<span style={{ fontSize: 11, color: '#666', fontWeight: 500 }}>{t('topNav.totalPurchases')}</span>}
                     value={stats.totalPurchases}
                     suffix="kg"
                     precision={2}
@@ -433,7 +495,7 @@ const AppLayout = ({ children }) => {
                 
                 <div style={{ padding: '0 20px' }}>
                   <Statistic
-                    title={<span style={{ fontSize: 11, color: '#666', fontWeight: 500 }}>📊 In Inventory</span>}
+                    title={<span style={{ fontSize: 11, color: '#666', fontWeight: 500 }}>{t('topNav.inInventory')}</span>}
                     value={stats.inventory}
                     suffix="kg"
                     precision={2}
@@ -450,7 +512,7 @@ const AppLayout = ({ children }) => {
                 
                 <div style={{ padding: '0 20px' }}>
                   <Statistic
-                    title={<span style={{ fontSize: 11, color: '#666', fontWeight: 500 }}>🚚 Sold to Manufacturers</span>}
+                    title={<span style={{ fontSize: 11, color: '#666', fontWeight: 500 }}>{t('topNav.soldToManufacturers')}</span>}
                     value={stats.totalSales}
                     suffix="kg"
                     precision={2}
@@ -462,7 +524,20 @@ const AppLayout = ({ children }) => {
           </div>
           
           <div>
-            <span>Welcome, Admin</span>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+              <span>{t('topNav.welcome')}</span>
+              <Popover
+                placement="bottomRight"
+                content={`${t('topNav.mode')} ${appMode === 'operation' ? t('topNav.modes.operation') : t('topNav.modes.management')}`}
+              >
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<SwapOutlined />}
+                  onClick={toggleMode}
+                />
+              </Popover>
+            </div>
           </div>
         </Header>
 
@@ -498,7 +573,7 @@ const AppLayout = ({ children }) => {
                   fontWeight: 500,
                   whiteSpace: 'nowrap'
                 }}>
-                  💰 Current Prices:
+                  {t('topNav.currentPrices')}
                 </span>
                 
                 {loadingPrices ? (
@@ -524,20 +599,20 @@ const AppLayout = ({ children }) => {
                           <Divider style={{ margin: '8px 0' }} />
                           <div style={{ fontSize: 12 }}>
                             <div style={{ marginBottom: 4 }}>
-                              <span style={{ color: '#999' }}>Per Ton:</span>{' '}
+                              <span style={{ color: '#999' }}>{t('topNav.perTon')}</span>{' '}
                               <span style={{ fontWeight: 600, color: '#52c41a' }}>
                                 RM {pricePerTon.toFixed(2)}
                               </span>
                             </div>
                             <div style={{ marginBottom: 8 }}>
-                              <span style={{ color: '#999' }}>Per KG:</span>{' '}
+                              <span style={{ color: '#999' }}>{t('topNav.perKg')}</span>{' '}
                               <span style={{ fontWeight: 600, color: '#1890ff' }}>
                                 RM {pricePerKg.toFixed(2)}
                               </span>
                             </div>
                             <Divider style={{ margin: '8px 0' }} />
                             <div style={{ color: '#1890ff', fontSize: 11, textAlign: 'center' }}>
-                              <EditOutlined /> Click to update price
+                              <EditOutlined /> {t('topNav.clickToUpdatePrice')}
                             </div>
                           </div>
                         </div>
@@ -579,20 +654,20 @@ const AppLayout = ({ children }) => {
                   </div>
                 ) : (
                   <Tag color="orange" style={{ margin: 0 }}>
-                    No prices set
+                    {t('topNav.noPricesSet')}
                   </Tag>
                 )}
               </>
             )}
             {!activeSeason && (
-              <span style={{ fontSize: 13, color: '#999' }}>No active season</span>
+              <span style={{ fontSize: 13, color: '#999' }}>{t('topNav.noActiveSeason')}</span>
             )}
           </div>
           
           <div style={{ fontSize: 12, color: '#999', whiteSpace: 'nowrap', marginLeft: 16 }}>
             {activeSeason && (
               <span>
-                Mode: <Tag color={activeSeason.mode === 'LIVE' ? 'green' : 'orange'}>{activeSeason.mode}</Tag>
+                {t('topNav.mode')}{' '}<Tag color={activeSeason.mode === 'LIVE' ? 'green' : 'orange'}>{activeSeason.mode}</Tag>
               </span>
             )}
           </div>
@@ -603,7 +678,11 @@ const AppLayout = ({ children }) => {
           margin: '154px 16px 24px 16px',
           padding: 24,
           minHeight: 280,
-          background: '#fff',
+          background: location.pathname === '/home' ? 'transparent' : '#fff',
+          backgroundImage: location.pathname === '/home' ? `url(${bluishPaddyField})` : undefined,
+          backgroundSize: location.pathname === '/home' ? 'cover' : undefined,
+          backgroundPosition: location.pathname === '/home' ? 'center' : undefined,
+          backgroundRepeat: location.pathname === '/home' ? 'no-repeat' : undefined,
         }}>
           {children}
         </Content>
@@ -652,7 +731,7 @@ const AppLayout = ({ children }) => {
         title={
           <div>
             <DollarOutlined style={{ color: '#52c41a', marginRight: 8 }} />
-            Update Price - {selectedProduct?.product_name}
+            {t('topNav.updatePriceTitle').replace('{productName}', selectedProduct?.product_name || '')}
           </div>
         }
         open={priceModalOpen}
@@ -662,7 +741,7 @@ const AppLayout = ({ children }) => {
           priceForm.resetFields();
           setPreviewPricePerKg(0);
         }}
-        okText="Update Price"
+        okText={t('topNav.updatePriceOk')}
         width={450}
       >
         <div style={{ marginBottom: 16 }}>
@@ -681,15 +760,15 @@ const AppLayout = ({ children }) => {
           }}
         >
           <Form.Item
-            label="Price per Ton (RM)"
+            label={t('topNav.pricePerTonLabel')}
             name="price_per_ton"
             rules={[
-              { required: true, message: 'Please enter price' },
-              { type: 'number', min: 0, message: 'Price must be positive' }
+              { required: true, message: t('topNav.priceRequired') },
+              { type: 'number', min: 0, message: t('topNav.pricePositive') }
             ]}
           >
             <InputNumber
-              placeholder="e.g., 850.00"
+              placeholder={t('topNav.pricePlaceholder')}
               precision={2}
               min={0}
               step={10}
@@ -707,7 +786,7 @@ const AppLayout = ({ children }) => {
               borderRadius: 4,
               fontSize: 13
             }}>
-              <div style={{ color: '#666', marginBottom: 4 }}>Price per KG:</div>
+              <div style={{ color: '#666', marginBottom: 4 }}>{t('topNav.pricePerKgLabel')}</div>
               <div style={{ fontSize: 16, fontWeight: 600, color: '#1890ff' }}>
                 RM {previewPricePerKg.toFixed(2)}/kg
               </div>

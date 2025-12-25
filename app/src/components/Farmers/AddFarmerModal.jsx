@@ -2,11 +2,13 @@ import React from 'react';
 import { Modal, Form, Input, Select, DatePicker, InputNumber, Row, Col, message, Tabs } from 'antd';
 import dayjs from 'dayjs';
 import SubsidyCardUpload from './SubsidyCardUpload';
+import { useI18n } from '../../i18n/I18nProvider';
 
 const { TextArea } = Input;
 const { Option } = Select;
 
 const AddFarmerModal = ({ open, onClose, onSuccess, editingFarmer = null }) => {
+  const { t } = useI18n();
   const [form] = Form.useForm();
   const [loading, setLoading] = React.useState(false);
   const isEditMode = !!editingFarmer;
@@ -68,15 +70,20 @@ const AddFarmerModal = ({ open, onClose, onSuccess, editingFarmer = null }) => {
       }
       
       if (result.success) {
-        message.success(isEditMode ? 'Farmer updated successfully!' : 'Farmer added successfully!');
+        message.success(isEditMode ? t('farmers.modal.messages.updated') : t('farmers.modal.messages.added'));
         form.resetFields();
         onSuccess();
         onClose();
       } else {
-        message.error(result.error || (isEditMode ? 'Failed to update farmer' : 'Failed to add farmer'));
+        message.error(
+          result.error || (isEditMode ? t('farmers.modal.messages.updateFailed') : t('farmers.modal.messages.addFailed'))
+        );
       }
     } catch (error) {
-      message.error((isEditMode ? 'Error updating farmer: ' : 'Error adding farmer: ') + error.message);
+      message.error(
+        (isEditMode ? t('farmers.modal.messages.updateErrorPrefix') : t('farmers.modal.messages.addErrorPrefix')) +
+          error.message
+      );
       console.error(error);
     } finally {
       setLoading(false);
@@ -91,7 +98,7 @@ const AddFarmerModal = ({ open, onClose, onSuccess, editingFarmer = null }) => {
   const tabItems = [
     {
       key: 'details',
-      label: 'Farmer Details',
+      label: t('farmers.modal.tabs.details'),
       children: (
         <Form
           form={form}
@@ -106,21 +113,21 @@ const AddFarmerModal = ({ open, onClose, onSuccess, editingFarmer = null }) => {
           <Col span={12}>
             <Form.Item
               name="farmer_code"
-              label="Subsidy No."
+              label={t('farmers.modal.fields.farmerCode')}
               rules={[
-                { required: true, message: 'Please enter subsidy number' },
-                { pattern: /^[A-Z0-9-/]+$/, message: 'Only uppercase letters, numbers, dashes, and forward slashes allowed' }
+                { required: true, message: t('farmers.modal.validations.enterSubsidyNumber') },
+                { pattern: /^[A-Z0-9-/]+$/, message: t('farmers.modal.validations.subsidyPattern') }
               ]}
             >
-              <Input placeholder="e.g., B001/11711" />
+              <Input placeholder={t('farmers.modal.placeholders.farmerCode')} />
             </Form.Item>
           </Col>
           <Col span={12}>
             <Form.Item
               name="ic_number"
-              label="IC Number"
+              label={t('farmers.modal.fields.icNumber')}
               rules={[
-                { required: true, message: 'Please enter IC number' },
+                { required: true, message: t('farmers.modal.validations.enterIc') },
                 { 
                   validator: (_, value) => {
                     if (!value) return Promise.resolve();
@@ -128,13 +135,13 @@ const AddFarmerModal = ({ open, onClose, onSuccess, editingFarmer = null }) => {
                     if (digitsOnly.length === 12) {
                       return Promise.resolve();
                     }
-                    return Promise.reject(new Error('IC must be 12 digits'));
+                    return Promise.reject(new Error(t('farmers.modal.validations.ic12Digits')));
                   }
                 }
               ]}
             >
               <Input 
-                placeholder="e.g., 850101015678 or 850101-01-5678" 
+                placeholder={t('farmers.modal.placeholders.icNumber')}
                 maxLength={14} 
                 onChange={handleIcNumberChange}
               />
@@ -144,28 +151,28 @@ const AddFarmerModal = ({ open, onClose, onSuccess, editingFarmer = null }) => {
 
         <Form.Item
           name="full_name"
-          label="Full Name"
-          rules={[{ required: true, message: 'Please enter full name' }]}
+          label={t('farmers.modal.fields.fullName')}
+          rules={[{ required: true, message: t('farmers.modal.validations.enterFullName') }]}
         >
-          <Input placeholder="e.g., Ahmad bin Abdullah" />
+          <Input placeholder={t('farmers.modal.placeholders.fullName')} />
         </Form.Item>
 
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item
               name="phone"
-              label="Phone Number"
+              label={t('farmers.modal.fields.phoneNumber')}
               rules={[
-                { pattern: /^[0-9-+()]*$/, message: 'Invalid phone format' }
+                { pattern: /^[0-9-+()]*$/, message: t('farmers.modal.validations.invalidPhone') }
               ]}
             >
-              <Input placeholder="e.g., 0123456789" />
+              <Input placeholder={t('farmers.modal.placeholders.phone')} />
             </Form.Item>
           </Col>
           <Col span={12}>
             <Form.Item
               name="date_of_birth"
-              label="Date of Birth"
+              label={t('farmers.modal.fields.dateOfBirth')}
             >
               <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
             </Form.Item>
@@ -174,37 +181,37 @@ const AddFarmerModal = ({ open, onClose, onSuccess, editingFarmer = null }) => {
 
         <Form.Item
           name="address"
-          label="Address"
+          label={t('farmers.modal.fields.address')}
         >
-          <TextArea rows={2} placeholder="Street address" />
+          <TextArea rows={2} placeholder={t('farmers.modal.placeholders.address')} />
         </Form.Item>
 
         <Row gutter={16}>
           <Col span={8}>
             <Form.Item
               name="postcode"
-              label="Postcode"
+              label={t('farmers.modal.fields.postcode')}
               rules={[
-                { pattern: /^\d{5}$/, message: 'Postcode must be 5 digits' }
+                { pattern: /^\d{5}$/, message: t('farmers.modal.validations.postcode5Digits') }
               ]}
             >
-              <Input placeholder="e.g., 12345" maxLength={5} />
+              <Input placeholder={t('farmers.modal.placeholders.postcode')} maxLength={5} />
             </Form.Item>
           </Col>
           <Col span={8}>
             <Form.Item
               name="city"
-              label="City"
+              label={t('farmers.modal.fields.city')}
             >
-              <Input placeholder="e.g., Kuala Lumpur" />
+              <Input placeholder={t('farmers.modal.placeholders.city')} />
             </Form.Item>
           </Col>
           <Col span={8}>
             <Form.Item
               name="state"
-              label="State"
+              label={t('farmers.modal.fields.state')}
             >
-              <Select placeholder="Select state">
+              <Select placeholder={t('farmers.modal.placeholders.selectState')}>
                 <Option value="Johor">Johor</Option>
                 <Option value="Kedah">Kedah</Option>
                 <Option value="Kelantan">Kelantan</Option>
@@ -230,17 +237,17 @@ const AddFarmerModal = ({ open, onClose, onSuccess, editingFarmer = null }) => {
           <Col span={12}>
             <Form.Item
               name="bank_name"
-              label="Bank Name"
+              label={t('farmers.modal.fields.bankName')}
             >
-              <Input placeholder="e.g., Maybank" />
+              <Input placeholder={t('farmers.modal.placeholders.bankName')} />
             </Form.Item>
           </Col>
           <Col span={12}>
             <Form.Item
               name="bank_account_number"
-              label="Bank Account Number"
+              label={t('farmers.modal.fields.bankAccountNumber')}
             >
-              <Input placeholder="e.g., 1234567890" />
+              <Input placeholder={t('farmers.modal.placeholders.bankAccountNumber')} />
             </Form.Item>
           </Col>
         </Row>
@@ -249,17 +256,17 @@ const AddFarmerModal = ({ open, onClose, onSuccess, editingFarmer = null }) => {
           <Col span={12}>
             <Form.Item
               name="bank2_name"
-              label="Bank Name 2 (Optional)"
+              label={t('farmers.modal.fields.bankName2Optional')}
             >
-              <Input placeholder="e.g., CIMB" />
+              <Input placeholder={t('farmers.modal.placeholders.bankName2')} />
             </Form.Item>
           </Col>
           <Col span={12}>
             <Form.Item
               name="bank2_account_number"
-              label="Bank Account Number 2"
+              label={t('farmers.modal.fields.bankAccountNumber2')}
             >
-              <Input placeholder="e.g., 9876543210" />
+              <Input placeholder={t('farmers.modal.placeholders.bankAccountNumber2')} />
             </Form.Item>
           </Col>
         </Row>
@@ -268,29 +275,29 @@ const AddFarmerModal = ({ open, onClose, onSuccess, editingFarmer = null }) => {
           <Col span={12}>
             <Form.Item
               name="farm_size_acres"
-              label="Farm Size (Acres)"
+              label={t('farmers.modal.fields.farmSizeAcres')}
               rules={[
-                { required: true, message: 'Please enter farm size' }
+                { required: true, message: t('farmers.modal.validations.enterFarmSize') }
               ]}
             >
               <InputNumber
                 min={0}
                 step={0.1}
                 style={{ width: '100%' }}
-                placeholder="e.g., 5.5"
+                placeholder={t('farmers.modal.placeholders.farmSize')}
               />
             </Form.Item>
           </Col>
           <Col span={12}>
             <Form.Item
               name="status"
-              label="Status"
-              rules={[{ required: true, message: 'Please select status' }]}
+              label={t('farmers.modal.fields.status')}
+              rules={[{ required: true, message: t('farmers.modal.validations.selectStatus') }]}
             >
               <Select>
-                <Option value="active">Active</Option>
-                <Option value="inactive">Inactive</Option>
-                <Option value="suspended">Suspended</Option>
+                <Option value="active">{t('farmers.modal.statusOptions.active')}</Option>
+                <Option value="inactive">{t('farmers.modal.statusOptions.inactive')}</Option>
+                <Option value="suspended">{t('farmers.modal.statusOptions.suspended')}</Option>
               </Select>
             </Form.Item>
           </Col>
@@ -298,16 +305,16 @@ const AddFarmerModal = ({ open, onClose, onSuccess, editingFarmer = null }) => {
 
         <Form.Item
           name="notes"
-          label="Notes"
+          label={t('farmers.modal.fields.notes')}
         >
-          <TextArea rows={3} placeholder="Additional notes about the farmer" />
+          <TextArea rows={3} placeholder={t('farmers.modal.placeholders.notes')} />
         </Form.Item>
       </Form>
       )
     },
     {
       key: 'subsidy_card',
-      label: 'Subsidy Card',
+      label: t('farmers.modal.tabs.subsidyCard'),
       children: (
         <SubsidyCardUpload 
           farmerId={editingFarmer?.farmer_id} 
@@ -319,14 +326,14 @@ const AddFarmerModal = ({ open, onClose, onSuccess, editingFarmer = null }) => {
 
   return (
     <Modal
-      title={isEditMode ? "Edit Farmer" : "Add New Farmer"}
+      title={isEditMode ? t('farmers.modal.editTitle') : t('farmers.modal.addTitle')}
       open={open}
       onOk={() => form.submit()}
       onCancel={handleCancel}
       confirmLoading={loading}
       width={900}
-      okText={isEditMode ? "Update Farmer" : "Add Farmer"}
-      cancelText="Cancel"
+      okText={isEditMode ? t('farmers.modal.updateOk') : t('farmers.modal.addOk')}
+      cancelText={t('farmers.modal.cancel')}
     >
       <Tabs items={tabItems} />
     </Modal>

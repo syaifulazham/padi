@@ -11,10 +11,153 @@ const db = require('../connection');
 async function create(purchaseData) {
   try {
     return await db.transaction(async (connection) => {
+      console.log('🧩 purchases.create() code version: 2025-12-12T19:00+08 safeParams');
+
+      if (!purchaseData) {
+        return { success: false, error: 'Missing purchase data' };
+      }
+
+      const toNull = (v) => (v === undefined ? null : v);
+      const safeParams = (params) => (Array.isArray(params) ? params.map((v) => (v === undefined ? null : v)) : params);
+
+      const seasonId = Number(purchaseData.season_id);
+      const farmerId = Number(purchaseData.farmer_id);
+
+      if (!seasonId || Number.isNaN(seasonId)) {
+        return { success: false, error: 'Invalid season_id' };
+      }
+      if (!farmerId || Number.isNaN(farmerId)) {
+        return { success: false, error: 'Invalid farmer_id' };
+      }
+
+      purchaseData.season_id = seasonId;
+      purchaseData.farmer_id = farmerId;
+      purchaseData.product_id = toNull(purchaseData.product_id);
+      purchaseData.gross_weight_kg = Number(purchaseData.gross_weight_kg);
+      purchaseData.tare_weight_kg = toNull(purchaseData.tare_weight_kg);
+      purchaseData.net_weight_kg = Number(purchaseData.net_weight_kg);
+      purchaseData.moisture_content = Number(toNull(purchaseData.moisture_content) ?? 14.0);
+      purchaseData.foreign_matter = Number(toNull(purchaseData.foreign_matter) ?? 0.0);
+      purchaseData.base_price_per_kg = Number(purchaseData.base_price_per_kg);
+      purchaseData.vehicle_number = toNull(purchaseData.vehicle_number);
+      purchaseData.driver_name = toNull(purchaseData.driver_name);
+      purchaseData.weighbridge_id = toNull(purchaseData.weighbridge_id);
+      purchaseData.weighing_log_id = toNull(purchaseData.weighing_log_id);
+      purchaseData.created_by = Number(toNull(purchaseData.created_by) ?? 1);
+      purchaseData.effective_weight_kg = toNull(purchaseData.effective_weight_kg);
+      if (purchaseData.effective_weight_kg !== null) {
+        purchaseData.effective_weight_kg = Number(purchaseData.effective_weight_kg);
+      }
+
+      if (!purchaseData.gross_weight_kg || Number.isNaN(purchaseData.gross_weight_kg)) {
+        return { success: false, error: 'Invalid gross_weight_kg' };
+      }
+      if (!purchaseData.net_weight_kg || Number.isNaN(purchaseData.net_weight_kg)) {
+        return { success: false, error: 'Invalid net_weight_kg' };
+      }
+      if (!purchaseData.base_price_per_kg || Number.isNaN(purchaseData.base_price_per_kg)) {
+        return { success: false, error: 'Invalid base_price_per_kg' };
+      }
+
+      // Diagnostics: confirm DB/schema and grades visibility
+      try {
+        const [dbRows] = await connection.execute('SELECT DATABASE() as db');
+        const currentDb = dbRows?.[0]?.db;
+        const [gradeCountRows] = await connection.execute('SELECT COUNT(*) as cnt FROM paddy_grades');
+        const gradeCnt = gradeCountRows?.[0]?.cnt;
+        const [gradeSampleRows] = await connection.execute(
+          "SELECT grade_id, grade_code, status FROM paddy_grades ORDER BY grade_id ASC LIMIT 5"
+        );
+        console.log('🧪 Grades diagnostics:', {
+          database: currentDb,
+          grade_count: gradeCnt,
+          grade_sample: gradeSampleRows
+        });
+      } catch (e) {
+        console.warn('🧪 Grades diagnostics failed:', e?.message || e);
+      }
+
+      // Ensure grade_id exists to avoid FK constraint errors
+      let resolvedGradeId = purchaseData.grade_id;
+      if (resolvedGradeId !== null && resolvedGradeId !== undefined) {
+        resolvedGradeId = Number(resolvedGradeId);
+      }
+
+      if (!resolvedGradeId || Number.isNaN(resolvedGradeId)) {
+        const [defaultGradeRows] = await connection.execute(
+          `SELECT grade_id FROM paddy_grades WHERE status = 'active' ORDER BY display_order ASC, grade_id ASC LIMIT 1`
+        );
+        resolvedGradeId = defaultGradeRows?.[0]?.grade_id;
+
+        if (!resolvedGradeId) {
+          const [anyGradeRows] = await connection.execute(
+            `SELECT grade_id FROM paddy_grades ORDER BY display_order ASC, grade_id ASC LIMIT 1`
+          );
+          resolvedGradeId = anyGradeRows?.[0]?.grade_id;
+        }
+      } else {
+        const [gradeRows] = await connection.execute(
+          `SELECT grade_id FROM paddy_grades WHERE grade_id = ? AND status = 'active' LIMIT 1`,
+          safeParams([resolvedGradeId])
+        );
+        if (!gradeRows || gradeRows.length === 0) {
+          const [defaultGradeRows] = await connection.execute(
+            `SELECT grade_id FROM paddy_grades WHERE status = 'active' ORDER BY display_order ASC, grade_id ASC LIMIT 1`
+          );
+          resolvedGradeId = defaultGradeRows?.[0]?.grade_id;
+
+          if (!resolvedGradeId) {
+            const [anyGradeRows] = await connection.execute(
+              `SELECT grade_id FROM paddy_grades ORDER BY display_order ASC, grade_id ASC LIMIT 1`
+            );
+            resolvedGradeId = anyGradeRows?.[0]?.grade_id;
+          }
+        }
+      }
+
+      if (!resolvedGradeId) {
+        try {
+          const [gradeCountRows] = await connection.execute('SELECT COUNT(*) as cnt FROM paddy_grades');
+          const gradeCnt = gradeCountRows?.[0]?.cnt;
+
+          if (Number(gradeCnt) === 0) {
+            await connection.execute(
+              `INSERT IGNORE INTO paddy_grades (grade_code, grade_name, description, min_moisture_content, max_moisture_content, max_foreign_matter, display_order, status)
+               VALUES
+               ('PREM', 'Premium', 'Highest quality paddy', 12.0, 14.0, 1.0, 1, 'active'),
+               ('A', 'Grade A', 'High quality paddy', 13.0, 15.0, 2.0, 2, 'active'),
+               ('B', 'Grade B', 'Medium quality paddy', 14.0, 16.0, 3.0, 3, 'active'),
+               ('C', 'Grade C', 'Standard quality paddy', 15.0, 18.0, 5.0, 4, 'active'),
+               ('REJ', 'Reject', 'Below standard quality', 18.0, 25.0, 10.0, 5, 'active')`
+            );
+          }
+
+          const [retryRows] = await connection.execute(
+            `SELECT grade_id FROM paddy_grades WHERE status = 'active' ORDER BY display_order ASC, grade_id ASC LIMIT 1`
+          );
+          resolvedGradeId = retryRows?.[0]?.grade_id;
+
+          if (!resolvedGradeId) {
+            const [anyGradeRows] = await connection.execute(
+              `SELECT grade_id FROM paddy_grades ORDER BY display_order ASC, grade_id ASC LIMIT 1`
+            );
+            resolvedGradeId = anyGradeRows?.[0]?.grade_id;
+          }
+        } catch (e) {
+          console.warn('🧪 Grade auto-seed failed:', e?.message || e);
+        }
+
+        if (!resolvedGradeId) {
+          return { success: false, error: 'No active paddy grades found. Please configure grades before creating purchases.' };
+        }
+      }
+
+      purchaseData.grade_id = resolvedGradeId;
+
       // Generate receipt number using OUT parameter
       await connection.execute(
         'CALL sp_generate_receipt_number(?, @receipt_number)',
-        [purchaseData.season_id]
+        safeParams([purchaseData.season_id])
       );
       
       // Get the OUT parameter value
@@ -51,14 +194,14 @@ async function create(purchaseData) {
       
       const [calcResult] = await connection.execute(`
         CALL sp_calculate_purchase_amount(?, ?, ?, ?, ?, ?, @moisture_penalty, @fm_penalty, @final_price, @total_amount)
-      `, [
+      `, safeParams([
         weightForCalculation,
         purchaseData.base_price_per_kg,
         purchaseData.moisture_content,
         purchaseData.foreign_matter,
         purchaseData.season_id,
         purchaseData.grade_id
-      ]);
+      ]));
       
       // Get calculated values
       const [calculated] = await connection.execute(`
@@ -104,14 +247,14 @@ async function create(purchaseData) {
           weighbridge_id, weighing_log_id,
           created_by
         ) VALUES (?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [
+      `, safeParams([
         receiptNumber,
         purchaseData.season_id,
         purchaseData.farmer_id,
         purchaseData.grade_id,
-        purchaseData.product_id || null,
+        purchaseData.product_id,
         purchaseData.gross_weight_kg,
-        purchaseData.tare_weight_kg || 0,
+        purchaseData.tare_weight_kg ?? 0,
         purchaseData.net_weight_kg,
         purchaseData.moisture_content,
         purchaseData.foreign_matter,
@@ -121,14 +264,14 @@ async function create(purchaseData) {
         purchaseData.deduction_config ? JSON.stringify(purchaseData.deduction_config) : null,
         calc.final_price_per_kg,
         finalTotalAmount,  // Use recalculated amount with effective weight
-        purchaseData.vehicle_number || null,
-        purchaseData.driver_name || null,
+        purchaseData.vehicle_number,
+        purchaseData.driver_name,
         'completed',
         'unpaid',
-        purchaseData.weighbridge_id || null,
-        purchaseData.weighing_log_id || null,
-        purchaseData.created_by || 1
-      ]);
+        purchaseData.weighbridge_id,
+        purchaseData.weighing_log_id,
+        purchaseData.created_by
+      ]));
       
       console.log('✅ Purchase inserted with ID:', result.insertId);
       console.log('📋 Receipt Number:', receiptNumber);
@@ -191,7 +334,8 @@ async function getAll(filters = {}) {
         f.full_name as farmer_name,
         pg.grade_name,
         hs.season_name,
-        pp.product_name
+        pp.product_name,
+        pp.product_code
       FROM purchase_transactions pt
       JOIN farmers f ON pt.farmer_id = f.farmer_id
       JOIN paddy_grades pg ON pt.grade_id = pg.grade_id
@@ -591,6 +735,7 @@ async function createSplit(parentTransactionId, splitWeightKg, userId = 1) {
           moisture_penalty,
           foreign_matter_penalty,
           bonus_amount,
+          deduction_config,
           final_price_per_kg,
           total_amount,
           vehicle_number,
@@ -603,12 +748,36 @@ async function createSplit(parentTransactionId, splitWeightKg, userId = 1) {
           split_by,
           created_by,
           notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?, ?, ?, NOW(), ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'completed', ?, ?, ?, NOW(), ?, ?, ?)
       `;
 
-      const totalAmount1 = splitNetWeightKg * parent.final_price_per_kg;
-      const totalAmount2 = remainingNetWeightKg * parent.final_price_per_kg;
+      // Calculate total amount with deductions applied (effective weight)
+      let totalDeductionRate = 0;
+      if (parent.deduction_config) {
+        const deductionConfig = typeof parent.deduction_config === 'string' 
+          ? JSON.parse(parent.deduction_config) 
+          : parent.deduction_config;
+        
+        if (Array.isArray(deductionConfig) && deductionConfig.length > 0) {
+          totalDeductionRate = deductionConfig.reduce((sum, d) => sum + parseFloat(d.value || 0), 0);
+        }
+      }
+      
+      const effectiveWeight1 = splitNetWeightKg * (1 - totalDeductionRate / 100);
+      const effectiveWeight2 = remainingNetWeightKg * (1 - totalDeductionRate / 100);
+      
+      const totalAmount1 = effectiveWeight1 * parent.final_price_per_kg;
+      const totalAmount2 = effectiveWeight2 * parent.final_price_per_kg;
+      
+      console.log('💰 Calculating amounts with deductions:');
+      console.log('   Deduction rate:', totalDeductionRate.toFixed(2), '%');
+      console.log('   Child 1: Net', splitNetWeightKg.toFixed(2), 'kg → Effective', effectiveWeight1.toFixed(2), 'kg → Amount RM', totalAmount1.toFixed(2));
+      console.log('   Child 2: Net', remainingNetWeightKg.toFixed(2), 'kg → Effective', effectiveWeight2.toFixed(2), 'kg → Amount RM', totalAmount2.toFixed(2));
 
+      const deductionConfigJson = parent.deduction_config 
+        ? (typeof parent.deduction_config === 'string' ? parent.deduction_config : JSON.stringify(parent.deduction_config))
+        : null;
+      
       const insertParams1 = [
         splitReceipt1Number,
         parent.season_id,
@@ -625,6 +794,7 @@ async function createSplit(parentTransactionId, splitWeightKg, userId = 1) {
         parent.moisture_penalty * (splitNetWeightKg / parent.net_weight_kg), // Proportional penalty
         parent.foreign_matter_penalty * (splitNetWeightKg / parent.net_weight_kg), // Proportional penalty
         parent.bonus_amount * (splitNetWeightKg / parent.net_weight_kg), // Proportional bonus
+        deductionConfigJson, // Copy parent's deduction config
         parent.final_price_per_kg,
         totalAmount1,
         parent.vehicle_number,
@@ -634,7 +804,7 @@ async function createSplit(parentTransactionId, splitWeightKg, userId = 1) {
         parentTransactionId,
         userId,
         userId,
-        `Split child 1 (to buyer) from ${parent.receipt_number}. Net: ${splitNetWeightKg.toFixed(2)} kg. Note: Gross = Net, Tare = 0 (paddy quantity only).`
+        `Split child 1 (to buyer) from ${parent.receipt_number}. Net: ${splitNetWeightKg.toFixed(2)} kg. Effective: ${effectiveWeight1.toFixed(2)} kg (with ${totalDeductionRate.toFixed(2)}% deduction). Note: Gross = Net, Tare = 0 (paddy quantity only).`
       ];
 
       const [insertResult1] = await connection.execute(insertSql, insertParams1);
@@ -672,6 +842,7 @@ async function createSplit(parentTransactionId, splitWeightKg, userId = 1) {
         parent.moisture_penalty * (remainingNetWeightKg / parent.net_weight_kg), // Proportional penalty
         parent.foreign_matter_penalty * (remainingNetWeightKg / parent.net_weight_kg), // Proportional penalty
         parent.bonus_amount * (remainingNetWeightKg / parent.net_weight_kg), // Proportional bonus
+        deductionConfigJson, // Copy parent's deduction config
         parent.final_price_per_kg,
         totalAmount2,
         parent.vehicle_number,
@@ -681,7 +852,7 @@ async function createSplit(parentTransactionId, splitWeightKg, userId = 1) {
         parentTransactionId,
         userId,
         userId,
-        `Split child 2 (remaining, available for future sales) from ${parent.receipt_number}. Net: ${remainingNetWeightKg.toFixed(2)} kg. Note: Gross = Net, Tare = 0 (paddy quantity only).`
+        `Split child 2 (remaining, available for future sales) from ${parent.receipt_number}. Net: ${remainingNetWeightKg.toFixed(2)} kg. Effective: ${effectiveWeight2.toFixed(2)} kg (with ${totalDeductionRate.toFixed(2)}% deduction). Note: Gross = Net, Tare = 0 (paddy quantity only).`
       ];
 
       const [insertResult2] = await connection.execute(insertSql, insertParams2);

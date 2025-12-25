@@ -3,10 +3,12 @@ import { Card, Form, Input, InputNumber, Button, Space, Row, Col, message, Modal
 import { PlusOutlined, ClockCircleOutlined, TruckOutlined, SearchOutlined, SaveOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import SalesWeighOutWizard from './SalesWeighOutWizard';
+import { useI18n } from '../../i18n/I18nProvider';
 
 const STORAGE_KEY = 'paddy_sales_weight_in_sessions';
 
 const Sales = () => {
+  const { t } = useI18n();
   // Load pending sessions from localStorage on mount
   const [pendingSessions, setPendingSessions] = useState(() => {
     try {
@@ -78,7 +80,7 @@ const Sales = () => {
       console.log('💾 Saved', pendingSessions.length, 'pending sales sessions to storage');
     } catch (error) {
       console.error('Failed to save pending sales sessions:', error);
-      message.error('Failed to save weight-in records to storage');
+      message.error(t('salesWeighIn.messages.saveToStorageFailed'));
     }
   }, [pendingSessions]);
 
@@ -105,7 +107,7 @@ const Sales = () => {
         setActiveSeason(result.data);
         console.log('✅ Active season loaded for sales:', result.data);
       } else {
-        message.warning('No active season found. Please activate a season in Settings.');
+        message.warning(t('salesWeighIn.messages.noActiveSeasonFound'));
       }
     } catch (error) {
       console.error('Failed to load active season:', error);
@@ -152,7 +154,7 @@ const Sales = () => {
       manufacturer_display: `${manufacturer.company_name} (${manufacturer.manufacturer_code})`
     });
     setManufacturerSearchModal(false);
-    message.success(`Selected: ${manufacturer.company_name}`);
+    message.success(`${t('salesWeighIn.messages.selectedPrefix')} ${manufacturer.company_name}`);
   };
 
   const startNewSale = () => {
@@ -169,7 +171,7 @@ const Sales = () => {
 
   const handleWeightIn = (values) => {
     if (!activeSeason) {
-      message.error('No active season! Please activate a season in Settings.');
+      message.error(t('salesWeighIn.messages.noActiveSeasonActivateInSettings'));
       return;
     }
     
@@ -182,9 +184,9 @@ const Sales = () => {
     setPendingSessions([...pendingSessions, session]);
     message.success(
       <span>
-        ✅ Weigh-in (tare) recorded for <strong>{currentContainer}</strong>: {values.tare_weight} kg
+        {t('salesWeighIn.messages.weighInRecordedPrefix')} <strong>{currentContainer}</strong>: {values.tare_weight} {t('salesWeighIn.misc.kg')}
         <br />
-        <small>💾 Container ready for loading - data saved</small>
+        <small>{t('salesWeighIn.messages.dataSavedSafeFromRefresh')}</small>
       </span>, 5
     );
     setWeightInMode(false);
@@ -199,7 +201,7 @@ const Sales = () => {
 
   const showRecallModal = () => {
     if (seasonPendingSessions.length === 0) {
-      message.warning('No pending containers to recall for this season');
+      message.warning(t('salesWeighIn.messages.noPendingContainersForSeason'));
       return;
     }
     setRecallModalOpen(true);
@@ -213,7 +215,7 @@ const Sales = () => {
     finalForm.setFieldsValue({ price_per_kg: 3.00 });
     
     // Load available receipts before showing wizard
-    message.loading('Loading available receipts...', 0);
+    message.loading(t('salesWeighIn.messages.loadingAvailableReceipts'), 0);
     await loadAvailableReceipts();
     message.destroy();
     
@@ -223,7 +225,7 @@ const Sales = () => {
   const loadAvailableReceipts = async () => {
     if (!activeSeason) {
       console.error('❌ No active season found');
-      message.warning('No active season found');
+      message.warning(t('salesWeighIn.messages.noActiveSeasonFoundSimple'));
       return;
     }
     
@@ -239,11 +241,11 @@ const Sales = () => {
         console.log('📋 Receipt details:', result.data);
       } else {
         console.error('❌ Failed to load receipts:', result?.error);
-        message.error('Failed to load available receipts: ' + (result?.error || 'Unknown error'));
+        message.error(`${t('salesWeighIn.messages.failedToLoadAvailableReceiptsPrefix')}${result?.error || t('salesWeighIn.messages.unknownError')}`);
       }
     } catch (error) {
       console.error('❌ Exception loading receipts:', error);
-      message.error('Failed to load available receipts');
+      message.error(t('salesWeighIn.messages.failedToLoadAvailableReceipts'));
     } finally {
       setLoading(false);
     }
@@ -252,11 +254,11 @@ const Sales = () => {
   const openReceiptSelectionModal = async () => {
     const grossWeight = finalForm.getFieldValue('gross_weight');
     if (!grossWeight || grossWeight <= 0) {
-      message.warning('Please enter gross weight first');
+      message.warning(t('salesWeighIn.messages.pleaseEnterGrossWeightFirst'));
       return;
     }
     if (!activeSession) {
-      message.warning('No active session');
+      message.warning(t('salesWeighIn.messages.noActiveSession'));
       return;
     }
     
@@ -297,7 +299,10 @@ const Sales = () => {
       
       if (remainingCapacity <= 0) {
         // Container is already full, don't add more
-        message.warning(`Container is full (${containerNetWeight.toFixed(2)} kg). Cannot add more receipts.`);
+        message.warning(
+          t('salesWeighIn.messages.containerFullCannotAddMoreReceipts', `Container is full (${containerNetWeight.toFixed(2)} kg). Cannot add more receipts.`)
+            .replace('{weight}', containerNetWeight.toFixed(2))
+        );
         break;
       }
       
@@ -325,9 +330,9 @@ const Sales = () => {
         
         message.info(
           <span>
-            🔪 Auto-split: <strong>{newReceipt.receipt_number}</strong><br/>
-            → To buyer: <strong>{splitWeight} kg</strong><br/>
-            → Remaining: <strong>{remainingWeight} kg</strong> (stays available)
+            {t('salesWeighIn.messages.autoSplitPrefix')} <strong>{newReceipt.receipt_number}</strong><br/>
+            {t('salesWeighIn.messages.autoSplitToBuyerLabel')} <strong>{splitWeight} {t('salesWeighIn.misc.kg')}</strong><br/>
+            {t('salesWeighIn.messages.autoSplitRemainingLabel')} <strong>{remainingWeight} {t('salesWeighIn.misc.kg')}</strong> {t('salesWeighIn.messages.autoSplitRemainingSuffix')}
           </span>,
           5
         );
@@ -342,7 +347,7 @@ const Sales = () => {
 
   const confirmReceiptSelection = () => {
     if (selectedReceipts.length === 0) {
-      message.warning('Please select at least one receipt');
+      message.warning(t('salesWeighIn.messages.pleaseSelectAtLeastOneReceipt'));
       return;
     }
     
@@ -354,15 +359,29 @@ const Sales = () => {
     setReceiptSelectionModal(false);
     
     if (Math.abs(totalWeight - containerNetWeight) < 0.01) {
-      message.success(`✅ Perfect match! Selected ${selectedReceipts.length} receipt(s) totaling ${totalWeight.toFixed(2)} kg`);
+      message.success(
+        t(
+          'salesWeighIn.messages.perfectMatchSelectedReceipts',
+          `✅ Perfect match! Selected ${selectedReceipts.length} receipt(s) totaling ${totalWeight.toFixed(2)} kg`
+        )
+          .replace('{count}', selectedReceipts.length)
+          .replace('{weight}', totalWeight.toFixed(2))
+      );
     } else {
-      message.success(`Selected ${selectedReceipts.length} receipt(s) totaling ${totalWeight.toFixed(2)} kg`);
+      message.success(
+        t(
+          'salesWeighIn.messages.selectedReceiptsTotaling',
+          `Selected ${selectedReceipts.length} receipt(s) totaling ${totalWeight.toFixed(2)} kg`
+        )
+          .replace('{count}', selectedReceipts.length)
+          .replace('{weight}', totalWeight.toFixed(2))
+      );
     }
   };
 
   const removeSelectedReceipt = (receipt) => {
     setSelectedReceipts(selectedReceipts.filter(r => r !== receipt));
-    message.info('Receipt removed from selection');
+    message.info(t('salesWeighIn.messages.receiptRemovedFromSelection'));
   };
 
   const openSplitModal = (receipt) => {
@@ -425,7 +444,7 @@ const Sales = () => {
 
   const confirmSplitReceipt = (values) => {
     if (values.split_weight <= 0 || values.split_weight >= receiptToSplit.net_weight_kg) {
-      message.error('Split weight must be greater than 0 and less than original weight');
+      message.error(t('salesWeighIn.messages.splitWeightInvalid'));
       return;
     }
 
@@ -459,8 +478,8 @@ const Sales = () => {
       );
       message.success(
         <span>
-          Receipt split! Keeping <strong>{values.split_weight} kg</strong> in sale, 
-          removed <strong>{values.remaining_weight} kg</strong> excess
+          {t('salesWeighIn.messages.receiptSplitKeepingInSalePrefix')} <strong>{values.split_weight} {t('salesWeighIn.misc.kg')}</strong> {t('salesWeighIn.messages.receiptSplitKeepingInSaleMiddle')}
+          <strong>{values.remaining_weight} {t('salesWeighIn.misc.kg')}</strong> {t('salesWeighIn.messages.receiptSplitRemovedExcessSuffix')}
         </span>
       );
     } else {
@@ -471,8 +490,8 @@ const Sales = () => {
       updatedSelected.push(splitReceipt);
       message.success(
         <span>
-          Receipt split! Added <strong>{values.split_weight} kg</strong> to sale, 
-          <strong>{values.remaining_weight} kg</strong> stays in original
+          {t('salesWeighIn.messages.receiptSplitAddedToSalePrefix')} <strong>{values.split_weight} {t('salesWeighIn.misc.kg')}</strong> {t('salesWeighIn.messages.receiptSplitAddedToSaleMiddle')}
+          <strong>{values.remaining_weight} {t('salesWeighIn.misc.kg')}</strong> {t('salesWeighIn.messages.receiptSplitStaysInOriginalSuffix')}
         </span>
       );
     }
@@ -486,7 +505,7 @@ const Sales = () => {
   // Handler for wizard completion
   const handleWizardComplete = async (wizardData) => {
     if (!activeSession || !activeSeason) {
-      message.error('Invalid session or season');
+      message.error(t('salesWeighIn.messages.invalidSessionOrSeason'));
       return;
     }
 
@@ -532,9 +551,9 @@ const Sales = () => {
       if (result?.success) {
         message.success(
           <span>
-            ✅ Sale completed! Receipt: <strong>{result.data.receipt_number}</strong>
+            {t('salesWeighIn.messages.saleCompletedReceiptPrefix')} <strong>{result.data.receipt_number}</strong>
             <br />
-            <small>🗑️ Weight-in record removed from storage</small>
+            <small>{t('salesWeighIn.messages.weightInRecordRemovedFromStorage')}</small>
           </span>, 5
         );
         
@@ -546,9 +565,9 @@ const Sales = () => {
             if (printResult.mode === 'pdf') {
               message.success(
                 <span>
-                  📄 Sales receipt saved as PDF: <strong>{printResult.filename}</strong>
+                  {t('salesWeighIn.messages.salesReceiptSavedAsPdfPrefix')} <strong>{printResult.filename}</strong>
                   <br />
-                  <small>Location: {printResult.path}</small>
+                  <small>{t('salesWeighIn.messages.locationPrefix')} {printResult.path}</small>
                 </span>,
                 6
               );
@@ -558,11 +577,11 @@ const Sales = () => {
             }
           } else {
             console.error('Print failed:', printResult?.error);
-            message.warning('Sale completed but printing failed. You can reprint from history.');
+            message.warning(t('salesWeighIn.messages.saleCompletedButPrintingFailed'));
           }
         } catch (printError) {
           console.error('Print error:', printError);
-          message.warning('Sale completed but printing failed. You can reprint from history.');
+          message.warning(t('salesWeighIn.messages.saleCompletedButPrintingFailed'));
         }
         
         setPendingSessions(pendingSessions.filter(s => s.vehicle_number !== activeSession.vehicle_number));
@@ -575,10 +594,10 @@ const Sales = () => {
         console.log('✅ Sale completed, dispatching transaction-completed event');
         window.dispatchEvent(new Event('transaction-completed'));
       } else {
-        message.error('Failed to save sale: ' + (result?.error || 'Unknown error'));
+        message.error(`${t('salesWeighIn.messages.failedToSaveSalePrefix')}${result?.error || t('salesWeighIn.messages.unknownError')}`);
       }
     } catch (error) {
-      message.error('Failed to complete sale');
+      message.error(t('salesWeighIn.messages.failedToCompleteSale'));
       console.error(error);
     } finally {
       setLoading(false);
@@ -594,24 +613,24 @@ const Sales = () => {
 
   const receiptColumns = [
     {
-      title: 'Receipt',
+      title: t('salesWeighIn.receiptsTable.receipt'),
       dataIndex: 'receipt_number',
       key: 'receipt_number',
       render: (text) => <Tag color="blue">{text}</Tag>
     },
     {
-      title: 'Date',
+      title: t('salesWeighIn.receiptsTable.date'),
       dataIndex: 'transaction_date',
       key: 'transaction_date',
       render: (text) => text ? dayjs(text).format('DD/MM/YYYY') : '-'
     },
     {
-      title: 'Farmer',
+      title: t('salesWeighIn.receiptsTable.farmer'),
       dataIndex: 'farmer_name',
       key: 'farmer_name',
     },
     {
-      title: 'Net Weight (kg)',
+      title: t('salesWeighIn.receiptsTable.netWeightKg'),
       dataIndex: 'net_weight_kg',
       key: 'net_weight_kg',
       align: 'right',
@@ -627,8 +646,8 @@ const Sales = () => {
             <Statistic
               title={
                 <span>
-                  Pending Containers (Waiting for Weigh-Out)
-                  <Tag color="green" style={{ marginLeft: 8, fontSize: '10px' }}>💾 Auto-Save</Tag>
+                  {t('salesWeighIn.quickStats.pendingContainersTitle')}
+                  <Tag color="green" style={{ marginLeft: 8, fontSize: '10px' }}>{t('salesWeighIn.quickStats.autoSaveTag')}</Tag>
                 </span>
               }
               value={seasonPendingSessions.length}
@@ -636,15 +655,15 @@ const Sales = () => {
               valueStyle={{ color: '#fa8c16' }}
             />
             <div style={{ marginTop: 8, fontSize: '12px', color: '#8c8c8c' }}>
-              Records safe from page refresh
+              {t('salesWeighIn.quickStats.recordsSafeHint')}
             </div>
           </Card>
         </Col>
         <Col span={12}>
           <Card>
             <Statistic
-              title="Active Session"
-              value={activeSession ? `${activeSession.vehicle_number}` : 'None'}
+              title={t('salesWeighIn.quickStats.activeSessionTitle')}
+              value={activeSession ? `${activeSession.vehicle_number}` : t('salesWeighIn.quickStats.noneValue')}
               valueStyle={{ color: activeSession ? '#52c41a' : '#d9d9d9' }}
             />
           </Card>
@@ -654,8 +673,8 @@ const Sales = () => {
       {weightInMode && (
         <Card style={{ marginBottom: 16, background: '#fffbe6', borderColor: '#faad14' }}>
           <Alert
-            message={`Weigh In (Tare): ${currentContainer}`}
-            description="Enter the EMPTY container weight (before loading)"
+            message={`${t('salesWeighIn.weightInPanel.titlePrefix')} ${currentContainer}`}
+            description={t('salesWeighIn.weightInPanel.description')}
             type="warning"
             showIcon
             style={{ marginBottom: 16 }}
@@ -663,15 +682,26 @@ const Sales = () => {
           <Form form={weightForm} layout="vertical" onFinish={handleWeightIn}>
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item name="tare_weight" label="Tare Weight - Empty Container (KG)" rules={[{ required: true, message: 'Please enter tare weight' }]}>
-                  <InputNumber min={0} step={0.01} style={{ width: '100%', fontSize: '24px' }} placeholder="Enter empty container weight" size="large" autoFocus />
+                <Form.Item
+                  name="tare_weight"
+                  label={t('salesWeighIn.weightInPanel.fields.tareWeightLabel')}
+                  rules={[{ required: true, message: t('salesWeighIn.weightInPanel.validations.tareWeightRequired') }]}
+                >
+                  <InputNumber
+                    min={0}
+                    step={0.01}
+                    style={{ width: '100%', fontSize: '24px' }}
+                    placeholder={t('salesWeighIn.weightInPanel.placeholders.tareWeight')}
+                    size="large"
+                    autoFocus
+                  />
                 </Form.Item>
               </Col>
             </Row>
             <Form.Item>
               <Space>
-                <Button size="large" onClick={cancelWeightIn}>Cancel</Button>
-                <Button type="primary" size="large" htmlType="submit" icon={<SaveOutlined />}>Save Tare Weight</Button>
+                <Button size="large" onClick={cancelWeightIn}>{t('salesWeighIn.actions.cancel')}</Button>
+                <Button type="primary" size="large" htmlType="submit" icon={<SaveOutlined />}>{t('salesWeighIn.actions.saveTareWeight')}</Button>
               </Space>
             </Form.Item>
           </Form>
@@ -694,16 +724,41 @@ const Sales = () => {
         <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
           <Col>
             <Space>
-              <Button type="primary" size="large" icon={<PlusOutlined />} onClick={startNewSale} disabled={weightInMode || activeSession} title="Press F3 to start">New Sale (Weigh-In Tare) <kbd style={{ marginLeft: '8px', fontSize: '11px', padding: '2px 6px', background: '#f0f0f0', border: '1px solid #d9d9d9', borderRadius: '3px' }}>F3</kbd></Button>
-              <Button size="large" icon={<ClockCircleOutlined />} onClick={showRecallModal} disabled={seasonPendingSessions.length === 0 || weightInMode || activeSession} title="Press F2 to open">Recall Container ({seasonPendingSessions.length}) <kbd style={{ marginLeft: '8px', fontSize: '11px', padding: '2px 6px', background: '#f0f0f0', border: '1px solid #d9d9d9', borderRadius: '3px' }}>F2</kbd></Button>
+              <Button
+                type="primary"
+                size="large"
+                icon={<PlusOutlined />}
+                onClick={startNewSale}
+                disabled={weightInMode || activeSession}
+                title={t('salesWeighIn.actions.pressF3ToStartTitle')}
+              >
+                {t('salesWeighIn.actions.newSaleWeighInTare')}
+                <kbd style={{ marginLeft: '8px', fontSize: '11px', padding: '2px 6px', background: '#f0f0f0', border: '1px solid #d9d9d9', borderRadius: '3px' }}>F3</kbd>
+              </Button>
+              <Button
+                size="large"
+                icon={<ClockCircleOutlined />}
+                onClick={showRecallModal}
+                disabled={seasonPendingSessions.length === 0 || weightInMode || activeSession}
+                title={t('salesWeighIn.actions.pressF2ToOpenTitle')}
+              >
+                {t('salesWeighIn.actions.recallContainer', `Recall Container (${seasonPendingSessions.length})`).replace('{count}', seasonPendingSessions.length)}
+                <kbd style={{ marginLeft: '8px', fontSize: '11px', padding: '2px 6px', background: '#f0f0f0', border: '1px solid #d9d9d9', borderRadius: '3px' }}>F2</kbd>
+              </Button>
             </Space>
           </Col>
         </Row>
-        <Alert type="info" message="Sales Workflow (Complete)" description="1. Press F3 or click 'New Sale' → 2. Enter container number → 3. Enter TARE weight (empty) → 4. After loading, press F2 → 5. Enter GROSS weight (weigh-out) → 6. Click 'Select Receipts' to choose purchase receipts → 7. Split receipts if needed to match net weight → 8. Select manufacturer → 9. Complete!" showIcon style={{ marginTop: 16 }} />
+        <Alert
+          type="info"
+          message={t('salesWeighIn.workflow.title')}
+          description={t('salesWeighIn.workflow.description')}
+          showIcon
+          style={{ marginTop: 16 }}
+        />
       </Card>
 
       <Modal 
-        title="New Sale - Enter Container/Lorry" 
+        title={t('salesWeighIn.containerModal.title')}
         open={containerModalOpen} 
         onCancel={() => setContainerModalOpen(false)} 
         footer={null} 
@@ -715,10 +770,15 @@ const Sales = () => {
         }}
       >
         <Form form={containerForm} layout="vertical" onFinish={handleContainerSubmit}>
-          <Form.Item name="vehicle_number" label="Container/Lorry Registration Number" rules={[{ required: true, message: 'Please enter vehicle registration' }]} normalize={(value) => value?.toUpperCase()}>
+          <Form.Item
+            name="vehicle_number"
+            label={t('salesWeighIn.containerModal.fields.vehicleRegistrationNumber')}
+            rules={[{ required: true, message: t('salesWeighIn.containerModal.validations.vehicleRegistrationRequired') }]}
+            normalize={(value) => value?.toUpperCase()}
+          >
             <Input 
               ref={containerInputRef}
-              placeholder="e.g., ABC 1234" 
+              placeholder={t('salesWeighIn.containerModal.placeholders.vehicleRegistrationExample')} 
               size="large" 
               autoFocus 
               style={{ fontSize: '20px', textTransform: 'uppercase' }} 
@@ -726,22 +786,39 @@ const Sales = () => {
           </Form.Item>
           <Form.Item>
             <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-              <Button onClick={() => setContainerModalOpen(false)}>Cancel</Button>
-              <Button type="primary" htmlType="submit" size="large">OK - Next: Weigh In (Tare)</Button>
+              <Button onClick={() => setContainerModalOpen(false)}>{t('salesWeighIn.actions.cancel')}</Button>
+              <Button type="primary" htmlType="submit" size="large">{t('salesWeighIn.containerModal.actions.okNextWeighInTare')}</Button>
             </Space>
           </Form.Item>
         </Form>
       </Modal>
 
-      <Modal title={<span>Recall Container for Weigh-Out <kbd style={{ marginLeft: '12px', fontSize: '11px', padding: '3px 8px', background: '#f0f0f0', border: '1px solid #d9d9d9', borderRadius: '3px' }}>F2</kbd></span>} open={recallModalOpen} onCancel={() => setRecallModalOpen(false)} footer={null} width={700}>
-        <Alert message="Select Container to Complete Weighing" description="Click on a container to complete the weigh-out process (after loading). Press F2 anytime to open this modal." type="info" showIcon style={{ marginBottom: 16 }} />
+      <Modal
+        title={
+          <span>
+            {t('salesWeighIn.recallModal.title')}
+            <kbd style={{ marginLeft: '12px', fontSize: '11px', padding: '3px 8px', background: '#f0f0f0', border: '1px solid #d9d9d9', borderRadius: '3px' }}>F2</kbd>
+          </span>
+        }
+        open={recallModalOpen}
+        onCancel={() => setRecallModalOpen(false)}
+        footer={null}
+        width={700}
+      >
+        <Alert
+          message={t('salesWeighIn.recallModal.alert.message')}
+          description={t('salesWeighIn.recallModal.alert.description')}
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
           {seasonPendingSessions.map((session, index) => (
             <Button key={index} size="large" style={{ height: '100px', display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center', padding: '16px', textAlign: 'left' }} onClick={() => recallContainer(session)}>
               <TruckOutlined style={{ fontSize: '32px', marginRight: '16px' }} />
               <div>
                 <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{session.vehicle_number}</div>
-                <div style={{ fontSize: '12px', color: '#666' }}>Tare: {session.tare_weight} kg</div>
+                <div style={{ fontSize: '12px', color: '#666' }}>{t('salesWeighIn.recallModal.containerCard.tareLabel')} {session.tare_weight} {t('salesWeighIn.misc.kg')}</div>
                 <div style={{ fontSize: '10px', color: '#999' }}>{dayjs(session.timestamp).format('HH:mm:ss')}</div>
               </div>
             </Button>

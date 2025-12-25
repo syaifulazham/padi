@@ -6,8 +6,10 @@ import {
   InboxOutlined,
   DollarOutlined,
 } from '@ant-design/icons';
+import { useI18n } from '../../i18n/I18nProvider';
 
 const Dashboard = () => {
+  const { t } = useI18n();
   const [stats, setStats] = useState({
     totalFarmers: 0,
     todayPurchases: 0,
@@ -56,34 +58,34 @@ const Dashboard = () => {
 
   const columns = [
     {
-      title: 'Receipt',
+      title: t('dashboard.receipt'),
       dataIndex: 'receipt_number',
       key: 'receipt_number',
     },
     {
-      title: 'Farmer',
+      title: t('dashboard.farmer'),
       dataIndex: 'farmer_name',
       key: 'farmer_name',
     },
     {
-      title: 'Grade',
-      dataIndex: 'grade_name',
-      key: 'grade_name',
+      title: t('dashboard.product'),
+      dataIndex: 'product_code',
+      key: 'product_code',
     },
     {
-      title: 'Weight (kg)',
+      title: t('dashboard.weightKg'),
       dataIndex: 'net_weight_kg',
       key: 'net_weight_kg',
       render: (val) => parseFloat(val).toFixed(2)
     },
     {
-      title: 'Amount (RM)',
+      title: t('dashboard.amountRm'),
       dataIndex: 'total_amount',
       key: 'total_amount',
       render: (val) => `RM ${parseFloat(val).toFixed(2)}`
     },
     {
-      title: 'Date',
+      title: t('dashboard.date'),
       dataIndex: 'transaction_date',
       key: 'transaction_date',
       render: (val) => {
@@ -104,7 +106,7 @@ const Dashboard = () => {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Total Farmers"
+              title={t('dashboard.totalFarmers')}
               value={stats.totalFarmers}
               prefix={<TeamOutlined />}
               valueStyle={{ color: '#3f8600' }}
@@ -114,7 +116,7 @@ const Dashboard = () => {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Today's Purchases"
+              title={t('dashboard.todaysPurchases')}
               value={stats.todayPurchases}
               prefix={<ShoppingCartOutlined />}
               valueStyle={{ color: '#1890ff' }}
@@ -124,7 +126,7 @@ const Dashboard = () => {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Current Stock (kg)"
+              title={t('dashboard.currentStockKg')}
               value={stats.currentStock}
               prefix={<InboxOutlined />}
               valueStyle={{ color: '#722ed1' }}
@@ -134,7 +136,7 @@ const Dashboard = () => {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Today's Amount"
+              title={t('dashboard.todaysAmount')}
               value={stats.totalAmount}
               prefix={<DollarOutlined />}
               precision={2}
@@ -145,7 +147,7 @@ const Dashboard = () => {
         </Col>
       </Row>
 
-      <Card title="Recent Purchases" style={{ marginTop: 24 }}>
+      <Card title={t('dashboard.recentPurchases')} style={{ marginTop: 24 }}>
         <Table
           columns={columns}
           dataSource={recentPurchases}

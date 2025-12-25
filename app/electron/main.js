@@ -16,6 +16,8 @@ const seasonService = require('./database/queries/seasons');
 const seasonPriceService = require('./database/queries/seasonPriceHistory');
 const weighbridgeService = require('./hardware/weighbridge');
 const settingsService = require('./services/settings');
+const backupService = require('./services/backup');
+const cleanupService = require('./services/cleanup');
 const { generatePurchaseReceipt, generateSalesReceipt } = require('./utils/receiptTemplate');
 
 let mainWindow;
@@ -482,6 +484,28 @@ ipcMain.handle('settings:selectFolder', async () => {
     console.error('Error selecting folder:', error);
     return { success: false, error: error.message };
   }
+});
+
+// Backup & Restore
+ipcMain.handle('backup:create', async (event, backupPath) => {
+  return await backupService.createBackup(backupPath);
+});
+
+ipcMain.handle('backup:restore', async (event, filepath) => {
+  return await backupService.restoreBackup(filepath);
+});
+
+ipcMain.handle('backup:selectFile', async () => {
+  return await backupService.selectBackupFile();
+});
+
+ipcMain.handle('backup:openFolder', async (event, folderPath) => {
+  return await backupService.openBackupFolder(folderPath);
+});
+
+// Database Cleanup
+ipcMain.handle('database:cleanup', async () => {
+  return await cleanupService.cleanupAllData();
 });
 
 // ===========================================

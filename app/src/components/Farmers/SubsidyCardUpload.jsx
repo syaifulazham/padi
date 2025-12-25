@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Upload, Button, Input, Image, Space, message, Card, Alert } from 'antd';
 import { UploadOutlined, DeleteOutlined, CameraOutlined, QrcodeOutlined, ScanOutlined } from '@ant-design/icons';
 import jsQR from 'jsqr';
+import { useI18n } from '../../i18n/I18nProvider';
 
 const SubsidyCardUpload = ({ farmerId, onUploadSuccess }) => {
+  const { t } = useI18n();
   const [loading, setLoading] = useState(false);
   const [subsidyCard, setSubsidyCard] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -39,14 +41,14 @@ const SubsidyCardUpload = ({ farmerId, onUploadSuccess }) => {
 
   const handleImageUpload = async (file) => {
     if (!farmerId) {
-      message.error('Please save the farmer first before uploading subsidy card');
+      message.error(t('farmers.subsidy.needSaveBeforeUpload'));
       return false;
     }
 
     // Validate file size (max 10MB)
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
-      message.error('Image file is too large. Maximum size is 10MB.');
+      message.error(t('farmers.subsidy.imageTooLarge'));
       return false;
     }
 
@@ -90,19 +92,19 @@ const SubsidyCardUpload = ({ farmerId, onUploadSuccess }) => {
             console.log('Create result:', createResult);
             
             if (createResult.success) {
-              message.success('Subsidy card uploaded successfully!');
+              message.success(t('farmers.subsidy.uploadSuccess'));
               setImagePreview(base64Image);
               await loadSubsidyCard();
               if (onUploadSuccess) onUploadSuccess();
             } else {
-              message.error('Failed to save document record: ' + createResult.error);
+              message.error(t('farmers.subsidy.saveDocFailed').replace('{error}', createResult.error));
             }
           } else {
-            message.error('Failed to upload image: ' + uploadResult.error);
+            message.error(t('farmers.subsidy.uploadFailed').replace('{error}', uploadResult.error));
           }
         } catch (error) {
           console.error('Upload error:', error);
-          message.error('Error processing image: ' + error.message);
+          message.error(t('farmers.subsidy.processImageError').replace('{error}', error.message));
         } finally {
           setLoading(false);
         }
@@ -110,14 +112,14 @@ const SubsidyCardUpload = ({ farmerId, onUploadSuccess }) => {
       
       reader.onerror = (error) => {
         console.error('FileReader error:', error);
-        message.error('Failed to read image file');
+        message.error(t('farmers.subsidy.readFileFailed'));
         setLoading(false);
       };
       
       reader.readAsDataURL(file);
     } catch (error) {
       console.error('Upload error:', error);
-      message.error('Error uploading subsidy card: ' + error.message);
+      message.error(t('farmers.subsidy.uploadError').replace('{error}', error.message));
       setLoading(false);
     }
     
@@ -126,7 +128,7 @@ const SubsidyCardUpload = ({ farmerId, onUploadSuccess }) => {
 
   const handleUpdateHashcode = async () => {
     if (!subsidyCard) {
-      message.error('No subsidy card found');
+      message.error(t('farmers.subsidy.noCardFound'));
       return;
     }
 
@@ -142,13 +144,13 @@ const SubsidyCardUpload = ({ farmerId, onUploadSuccess }) => {
       );
 
       if (result.success) {
-        message.success('QR hashcode updated successfully!');
+        message.success(t('farmers.subsidy.qrUpdated'));
         loadSubsidyCard();
       } else {
-        message.error('Failed to update: ' + result.error);
+        message.error(t('farmers.subsidy.updateFailed').replace('{error}', result.error));
       }
     } catch (error) {
-      message.error('Error updating hashcode: ' + error.message);
+      message.error(t('farmers.subsidy.updateError').replace('{error}', error.message));
     } finally {
       setLoading(false);
     }
@@ -162,15 +164,15 @@ const SubsidyCardUpload = ({ farmerId, onUploadSuccess }) => {
       const result = await window.electronAPI.farmerDocuments.delete(subsidyCard.document_id);
       
       if (result.success) {
-        message.success('Subsidy card deleted successfully!');
+        message.success(t('farmers.subsidy.deleted'));
         setSubsidyCard(null);
         setImagePreview(null);
         setQrHashcode('');
       } else {
-        message.error('Failed to delete: ' + result.error);
+        message.error(t('farmers.subsidy.deleteFailed').replace('{error}', result.error));
       }
     } catch (error) {
-      message.error('Error deleting subsidy card: ' + error.message);
+      message.error(t('farmers.subsidy.deleteError').replace('{error}', error.message));
     } finally {
       setLoading(false);
     }
@@ -178,7 +180,7 @@ const SubsidyCardUpload = ({ farmerId, onUploadSuccess }) => {
 
   const handleDetectQRCode = async () => {
     if (!imagePreview) {
-      message.error('No image to scan');
+      message.error(t('farmers.subsidy.noImageToScan'));
       return;
     }
 
@@ -222,14 +224,14 @@ const SubsidyCardUpload = ({ farmerId, onUploadSuccess }) => {
           if (code) {
             console.log('QR code detected:', code.data);
             setQrHashcode(code.data);
-            message.success(`QR code detected! ${code.data.length} characters`);
+            message.success(t('farmers.subsidy.qrDetected').replace('{count}', code.data.length));
           } else {
             console.log('No QR code found in image');
-            message.warning('No QR code detected. Ensure the image contains a clear, visible QR code.');
+            message.warning(t('farmers.subsidy.qrNotDetected'));
           }
         } catch (error) {
           console.error('Error processing image:', error);
-          message.error('Error processing image: ' + error.message);
+          message.error(t('farmers.subsidy.processImageError').replace('{error}', error.message));
         } finally {
           setDetecting(false);
         }
@@ -237,12 +239,12 @@ const SubsidyCardUpload = ({ farmerId, onUploadSuccess }) => {
       
       img.onerror = (error) => {
         console.error('Failed to load image:', error);
-        message.error('Failed to load image');
+        message.error(t('farmers.subsidy.failedToLoadImage'));
         setDetecting(false);
       };
     } catch (error) {
       console.error('Error detecting QR code:', error);
-      message.error('Error detecting QR code: ' + error.message);
+      message.error(t('farmers.subsidy.detectError').replace('{error}', error.message));
       setDetecting(false);
     }
   };
@@ -252,15 +254,15 @@ const SubsidyCardUpload = ({ farmerId, onUploadSuccess }) => {
       title={
         <Space>
           <QrcodeOutlined />
-          Subsidy Card
+          {t('farmers.subsidy.title')}
         </Space>
       }
       size="small"
     >
       {!farmerId && (
         <Alert
-          message="⚠️ Save Farmer First"
-          description="You must save the farmer information before you can upload a subsidy card. Click 'Add Farmer' or 'Update Farmer' button, then reopen this dialog to upload the card."
+          message={t('farmers.subsidy.saveFirstTitle')}
+          description={t('farmers.subsidy.saveFirstDesc')}
           type="warning"
           showIcon
           style={{ marginBottom: 16 }}
@@ -269,8 +271,8 @@ const SubsidyCardUpload = ({ farmerId, onUploadSuccess }) => {
 
       {loading && (
         <Alert
-          message="Uploading..."
-          description="Please wait while the subsidy card is being uploaded. This may take a few moments for larger images."
+          message={t('farmers.subsidy.uploadingTitle')}
+          description={t('farmers.subsidy.uploadingDesc')}
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
@@ -281,7 +283,7 @@ const SubsidyCardUpload = ({ farmerId, onUploadSuccess }) => {
         <div>
           <Image
             src={imagePreview}
-            alt="Subsidy Card"
+            alt={t('farmers.subsidy.alt')}
             style={{ 
               maxWidth: '100%', 
               maxHeight: 300, 
@@ -296,7 +298,7 @@ const SubsidyCardUpload = ({ farmerId, onUploadSuccess }) => {
             <Space.Compact style={{ width: '100%' }}>
               <Input
                 addonBefore={<QrcodeOutlined />}
-                placeholder="Enter QR hashcode from subsidy card (200+ chars)"
+                placeholder={t('farmers.subsidy.qrPlaceholderLong')}
                 value={qrHashcode}
                 onChange={(e) => setQrHashcode(e.target.value)}
                 maxLength={500}
@@ -305,9 +307,9 @@ const SubsidyCardUpload = ({ farmerId, onUploadSuccess }) => {
                 icon={<ScanOutlined />}
                 onClick={handleDetectQRCode}
                 loading={detecting}
-                title="Automatically detect QR code from image"
+                title={t('farmers.subsidy.detectTitle')}
               >
-                Detect
+                {t('farmers.subsidy.detect')}
               </Button>
             </Space.Compact>
             
@@ -318,7 +320,7 @@ const SubsidyCardUpload = ({ farmerId, onUploadSuccess }) => {
                 loading={loading}
                 disabled={!qrHashcode}
               >
-                Update QR Hashcode
+                {t('farmers.subsidy.updateQr')}
               </Button>
               
               <Button 
@@ -327,7 +329,7 @@ const SubsidyCardUpload = ({ farmerId, onUploadSuccess }) => {
                 onClick={handleDelete}
                 loading={loading}
               >
-                Delete Card
+                {t('farmers.subsidy.deleteCard')}
               </Button>
             </Space>
           </Space>
@@ -336,7 +338,7 @@ const SubsidyCardUpload = ({ farmerId, onUploadSuccess }) => {
         <div>
           <Input
             addonBefore={<QrcodeOutlined />}
-            placeholder="Enter QR hashcode (optional, can add later)"
+            placeholder={t('farmers.subsidy.qrPlaceholderOptional')}
             value={qrHashcode}
             onChange={(e) => setQrHashcode(e.target.value)}
             maxLength={500}
@@ -356,7 +358,7 @@ const SubsidyCardUpload = ({ farmerId, onUploadSuccess }) => {
               disabled={!farmerId}
               block
             >
-              Upload Subsidy Card Image
+              {t('farmers.subsidy.uploadImage')}
             </Button>
           </Upload>
         </div>
@@ -364,10 +366,10 @@ const SubsidyCardUpload = ({ farmerId, onUploadSuccess }) => {
 
       {subsidyCard && (
         <div style={{ marginTop: 12, fontSize: 12, color: '#666' }}>
-          Uploaded: {new Date(subsidyCard.upload_date).toLocaleString()}
+          {t('farmers.subsidy.uploadedAt').replace('{date}', new Date(subsidyCard.upload_date).toLocaleString())}
           {subsidyCard.qr_hashcode && (
             <div style={{ marginTop: 4 }}>
-              QR Code: {subsidyCard.qr_hashcode.substring(0, 50)}...
+              {t('farmers.subsidy.qrCodePrefix')} {subsidyCard.qr_hashcode.substring(0, 50)}...
             </div>
           )}
         </div>

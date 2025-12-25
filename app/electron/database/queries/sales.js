@@ -241,6 +241,10 @@ async function getAll(filters = {}) {
     const params = [];
     
     // Apply filters
+    if (filters.season_id) {
+      sql += ' AND st.season_id = ?';
+      params.push(filters.season_id);
+    }
     if (filters.startDate) {
       sql += ' AND DATE(st.sale_date) >= ?';
       params.push(filters.startDate);

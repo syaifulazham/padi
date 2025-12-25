@@ -13,6 +13,7 @@ import {
   AppstoreOutlined,
   SettingOutlined
 } from '@ant-design/icons';
+import { useI18n } from '../../i18n/I18nProvider';
 
 const WeighOutWizard = ({ 
   session, 
@@ -21,6 +22,8 @@ const WeighOutWizard = ({
   onCancel,
   activeSeason 
 }) => {
+  const { t } = useI18n();
+
   const [currentStep, setCurrentStep] = useState(0);
   const [visitedSteps, setVisitedSteps] = useState([0]); // Track visited steps
   const [wizardData, setWizardData] = useState({
@@ -148,9 +151,9 @@ const WeighOutWizard = ({
         message.warning({
           content: (
             <div>
-              <strong>No price set for this product</strong>
+              <strong>{t('purchasesWeighIn.weighOutWizard.messages.noPriceSetForProductTitle')}</strong>
               <br />
-              <small>Please set a price in Settings → Season & Prices</small>
+              <small>{t('purchasesWeighIn.weighOutWizard.messages.noPriceSetForProductHint')}</small>
             </div>
           ),
           duration: 5
@@ -158,7 +161,7 @@ const WeighOutWizard = ({
       }
     } catch (error) {
       console.error('❌ Error fetching price:', error);
-      message.error('Failed to load product price: ' + error.message);
+      message.error(`${t('purchasesWeighIn.weighOutWizard.messages.failedToLoadProductPricePrefix')}${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -173,7 +176,7 @@ const WeighOutWizard = ({
     deductionForm.setFieldsValue({ deductions: newDeductions });
     setPresetModalOpen(false);
     
-    message.success(`Switched to "${selectedPreset.preset_name}" preset`);
+    message.success(t('purchasesWeighIn.weighOutWizard.messages.switchedToPreset').replace('{preset}', selectedPreset.preset_name));
   };
 
   const openFarmerSearch = () => {
@@ -194,11 +197,11 @@ const WeighOutWizard = ({
 
   const handleTareWeightSubmit = (value) => {
     if (!value || value <= 0) {
-      message.error('Please enter valid tare weight');
+      message.error(t('purchasesWeighIn.weighOutWizard.messages.pleaseEnterValidTareWeight'));
       return;
     }
     if (value >= session.weight_with_load) {
-      message.error('Tare weight cannot be greater than or equal to gross weight');
+      message.error(t('purchasesWeighIn.weighOutWizard.messages.tareWeightCannotExceedGross'));
       return;
     }
     setWizardData({
@@ -214,7 +217,7 @@ const WeighOutWizard = ({
       await onComplete(wizardData);
     } catch (error) {
       console.error('Error completing purchase:', error);
-      message.error('Failed to complete purchase');
+      message.error(t('purchasesWeighIn.weighOutWizard.messages.failedToCompletePurchase'));
     } finally {
       setLoading(false);
     }
@@ -257,19 +260,19 @@ const WeighOutWizard = ({
     : 0;
 
   const steps = [
-    { title: 'Weight', icon: <span style={{ fontSize: 18 }}>⚖️</span> },
-    { title: 'Farmer', icon: <UserOutlined /> },
-    { title: 'Product', icon: <ProductOutlined /> },
-    { title: 'Deductions', icon: <PercentageOutlined /> },
-    { title: 'Review', icon: <FileTextOutlined /> }
+    { title: t('purchasesWeighIn.weighOutWizard.steps.weight'), icon: <span style={{ fontSize: 18 }}>⚖️</span> },
+    { title: t('purchasesWeighIn.weighOutWizard.steps.farmer'), icon: <UserOutlined /> },
+    { title: t('purchasesWeighIn.weighOutWizard.steps.product'), icon: <ProductOutlined /> },
+    { title: t('purchasesWeighIn.weighOutWizard.steps.deductions'), icon: <PercentageOutlined /> },
+    { title: t('purchasesWeighIn.weighOutWizard.steps.review'), icon: <FileTextOutlined /> }
   ];
 
   const stageTitles = [
-    'Enter Tare Weight',
-    'Select Farmer',
-    'Select Paddy Product Type',
-    'Adjust Deductions',
-    'Review & Confirm Purchase'
+    t('purchasesWeighIn.weighOutWizard.stageTitles.enterTareWeight'),
+    t('purchasesWeighIn.weighOutWizard.stageTitles.selectFarmer'),
+    t('purchasesWeighIn.weighOutWizard.stageTitles.selectPaddyProductType'),
+    t('purchasesWeighIn.weighOutWizard.stageTitles.adjustDeductions'),
+    t('purchasesWeighIn.weighOutWizard.stageTitles.reviewAndConfirmPurchase')
   ];
 
   const currentStageTitle = stageTitles[currentStep] || '';
@@ -287,22 +290,22 @@ const WeighOutWizard = ({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
           <div>
             <h2 style={{ margin: 0 }}>
-              🚛 Weighing Out: <Tag color="blue">{session.lorry_reg_no}</Tag>
+              🚛 {t('purchasesWeighIn.weighOutWizard.header.weighingOutLabel')} <Tag color="blue">{session.lorry_reg_no}</Tag>
             </h2>
             <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
-              Press <Tag>ESC</Tag> to go back • <Tag>TAB</Tag> to navigate
+              {t('purchasesWeighIn.weighOutWizard.header.hintPress')} <Tag>ESC</Tag> {t('purchasesWeighIn.weighOutWizard.header.hintToGoBack')} • <Tag>TAB</Tag> {t('purchasesWeighIn.weighOutWizard.header.hintToNavigate')}
             </div>
           </div>
 
           <div style={{ textAlign: 'right' }}>
             {currentStageTitle && (
               <div style={{ marginBottom: 8 }}>
-                <div style={{ fontSize: 11, color: '#999' }}>Current Stage</div>
+                <div style={{ fontSize: 11, color: '#999' }}>{t('purchasesWeighIn.weighOutWizard.header.currentStageLabel')}</div>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>{currentStageTitle}</div>
               </div>
             )}
             <Button onClick={onCancel} size="large">
-              Cancel (ESC)
+              {t('purchasesWeighIn.weighOutWizard.actions.cancelEsc')}
             </Button>
           </div>
         </div>
@@ -328,41 +331,41 @@ const WeighOutWizard = ({
           alignItems: 'center'
         }}>
           <div>
-            <div style={{ fontSize: 11, color: '#999', marginBottom: 4 }}>Weigh-In</div>
+            <div style={{ fontSize: 11, color: '#999', marginBottom: 4 }}>{t('purchasesWeighIn.weighOutWizard.infoBar.weighIn')}</div>
             <div style={{ fontSize: 16, fontWeight: 600, color: '#52c41a' }}>
-              {session.weight_with_load} kg
+              {session.weight_with_load} {t('purchasesWeighIn.misc.kg')}
             </div>
           </div>
           
           <div>
-            <div style={{ fontSize: 11, color: '#999', marginBottom: 4 }}>Product</div>
+            <div style={{ fontSize: 11, color: '#999', marginBottom: 4 }}>{t('purchasesWeighIn.weighOutWizard.infoBar.product')}</div>
             <div style={{ fontSize: 14, fontWeight: 500, color: wizardData.product ? '#1890ff' : '#bfbfbf' }}>
               {wizardData.product ? (
                 <>
                   {wizardData.product.product_type === 'BERAS' ? '🌾' : '🌱'} {wizardData.product.product_name}
                 </>
-              ) : '—'}
+              ) : t('purchasesWeighIn.weighOutWizard.misc.dash')}
             </div>
           </div>
           
           <div>
-            <div style={{ fontSize: 11, color: '#999', marginBottom: 4 }}>Farmer</div>
+            <div style={{ fontSize: 11, color: '#999', marginBottom: 4 }}>{t('purchasesWeighIn.weighOutWizard.infoBar.farmer')}</div>
             <div style={{ fontSize: 14, fontWeight: 500, color: wizardData.farmer_name ? '#1890ff' : '#bfbfbf' }}>
-              {wizardData.farmer_name || '—'}
+              {wizardData.farmer_name || t('purchasesWeighIn.weighOutWizard.misc.dash')}
             </div>
           </div>
           
           <div>
-            <div style={{ fontSize: 11, color: '#999', marginBottom: 4 }}>Net Weight</div>
+            <div style={{ fontSize: 11, color: '#999', marginBottom: 4 }}>{t('purchasesWeighIn.weighOutWizard.infoBar.netWeight')}</div>
             <div style={{ fontSize: 16, fontWeight: 600, color: netWeight > 0 ? '#1890ff' : '#bfbfbf' }}>
-              {netWeight > 0 ? `${netWeight} kg` : '—'}
+              {netWeight > 0 ? `${netWeight} ${t('purchasesWeighIn.misc.kg')}` : t('purchasesWeighIn.weighOutWizard.misc.dash')}
             </div>
           </div>
           
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 11, color: '#999', marginBottom: 4 }}>Total Amount</div>
+            <div style={{ fontSize: 11, color: '#999', marginBottom: 4 }}>{t('purchasesWeighIn.weighOutWizard.infoBar.totalAmount')}</div>
             <div style={{ fontSize: 16, fontWeight: 600, color: totalAmount > 0 ? '#f5222d' : '#bfbfbf' }}>
-              {totalAmount > 0 ? `RM ${parseFloat(totalAmount).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
+              {totalAmount > 0 ? `${t('purchasesWeighIn.weighOutWizard.misc.rm')} ${parseFloat(totalAmount).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : t('purchasesWeighIn.weighOutWizard.misc.dash')}
             </div>
           </div>
         </div>
@@ -385,16 +388,16 @@ const WeighOutWizard = ({
               }}>
                 <div style={{ background: '#fff', padding: 20, borderRadius: 8 }}>
                   <div style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>
-                    Gross Weight
+                    {t('purchasesWeighIn.weighOutWizard.weightStage.grossWeight')}
                   </div>
                   <div style={{ fontSize: 28, fontWeight: 'bold', color: '#52c41a' }}>
-                    {session.weight_with_load} kg
+                    {session.weight_with_load} {t('purchasesWeighIn.misc.kg')}
                   </div>
                 </div>
                 
                 <div style={{ background: '#fff', padding: 20, borderRadius: 8, border: '2px solid #1890ff' }}>
                   <div style={{ fontSize: 12, color: '#999', marginBottom: 12 }}>
-                    Tare Weight
+                    {t('purchasesWeighIn.weighOutWizard.weightStage.tareWeight')}
                   </div>
                   <InputNumber
                     ref={tareWeightRef}
@@ -402,8 +405,8 @@ const WeighOutWizard = ({
                     max={session.weight_with_load - 1}
                     step={10}
                     style={{ width: '100%', fontSize: 24 }}
-                    placeholder="0.00"
-                    suffix="kg"
+                    placeholder={t('purchasesWeighIn.weighOutWizard.weightStage.tareWeightPlaceholder')}
+                    suffix={t('purchasesWeighIn.misc.kg')}
                     size="large"
                     value={wizardData.weight_without_load}
                     onChange={(value) => setWizardData({ ...wizardData, weight_without_load: value })}
@@ -414,10 +417,10 @@ const WeighOutWizard = ({
 
                 <div style={{ background: '#fff', padding: 20, borderRadius: 8 }}>
                   <div style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>
-                    Net Weight
+                    {t('purchasesWeighIn.weighOutWizard.weightStage.netWeight')}
                   </div>
                   <div style={{ fontSize: 28, fontWeight: 'bold', color: '#1890ff' }}>
-                    {netWeight} kg
+                    {netWeight} {t('purchasesWeighIn.misc.kg')}
                   </div>
                 </div>
               </div>
@@ -430,7 +433,7 @@ const WeighOutWizard = ({
                 onClick={() => handleTareWeightSubmit(wizardData.weight_without_load)}
                 disabled={!wizardData.weight_without_load || wizardData.weight_without_load <= 0}
               >
-                Continue <ArrowRightOutlined />
+                {t('purchasesWeighIn.weighOutWizard.actions.continue')} <ArrowRightOutlined />
               </Button>
             </Space>
           </div>
@@ -456,17 +459,17 @@ const WeighOutWizard = ({
                 <div>
                   <Space>
                     <Button onClick={() => setCurrentStep(0)}>
-                      <ArrowLeftOutlined /> Back to Weight
+                      <ArrowLeftOutlined /> {t('purchasesWeighIn.weighOutWizard.actions.backToWeight')}
                     </Button>
                     <Button onClick={openFarmerSearch}>
-                      Change Farmer
+                      {t('purchasesWeighIn.weighOutWizard.actions.changeFarmer')}
                     </Button>
                     <Button 
                       type="primary" 
                       size="large"
                       onClick={() => moveToStep(2)}
                     >
-                      Continue <ArrowRightOutlined />
+                      {t('purchasesWeighIn.weighOutWizard.actions.continue')} <ArrowRightOutlined />
                     </Button>
                   </Space>
                 </div>
@@ -480,11 +483,11 @@ const WeighOutWizard = ({
                   onClick={openFarmerSearch}
                   autoFocus
                 >
-                  Search Farmer
+                  {t('purchasesWeighIn.weighOutWizard.actions.searchFarmer')}
                 </Button>
                 <div style={{ marginTop: 24 }}>
                   <Button onClick={() => setCurrentStep(0)}>
-                    <ArrowLeftOutlined /> Back to Weight
+                    <ArrowLeftOutlined /> {t('purchasesWeighIn.weighOutWizard.actions.backToWeight')}
                   </Button>
                 </div>
               </div>
@@ -534,7 +537,7 @@ const WeighOutWizard = ({
             </div>
             <div style={{ marginTop: 24, textAlign: 'center' }}>
               <Button size="large" onClick={() => setCurrentStep(1)}>
-                <ArrowLeftOutlined /> Back to Farmer
+                <ArrowLeftOutlined /> {t('purchasesWeighIn.weighOutWizard.actions.backToFarmer')}
               </Button>
             </div>
           </div>
@@ -546,10 +549,10 @@ const WeighOutWizard = ({
             {/* Compact preset selector */}
             <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8 }}>
               <Tag color="blue" style={{ margin: 0, fontSize: 13 }}>
-                <SettingOutlined /> {deductionPresets[selectedPresetIndex]?.preset_name || 'Standard'}
+                <SettingOutlined /> {deductionPresets[selectedPresetIndex]?.preset_name || t('purchasesWeighIn.weighOutWizard.misc.standard')}
               </Tag>
               {deductionPresets.length > 1 && (
-                <Tooltip title="Change preset">
+                <Tooltip title={t('purchasesWeighIn.weighOutWizard.actions.changePresetTooltip')}>
                   <Button
                     size="small"
                     icon={<AppstoreOutlined />}
@@ -601,7 +604,7 @@ const WeighOutWizard = ({
                               color: '#595959',
                               minWidth: 80
                             }}>
-                              {deductionItem?.deduction || 'Deduction'}
+                              {deductionItem?.deduction || t('purchasesWeighIn.weighOutWizard.misc.deduction')}
                             </span>
                             
                             <Form.Item
@@ -617,20 +620,20 @@ const WeighOutWizard = ({
                               name={[field.name, 'value']}
                               fieldKey={[field.fieldKey, 'value']}
                               rules={[
-                                { required: true, message: 'Required' },
-                                { type: 'number', min: 0, max: 100, message: '0-100%' }
+                                { required: true, message: t('purchasesWeighIn.weighOutWizard.validations.required') },
+                                { type: 'number', min: 0, max: 100, message: t('purchasesWeighIn.weighOutWizard.validations.zeroToHundredPercent') }
                               ]}
                               style={{ marginBottom: 0 }}
                             >
                               <InputNumber
-                                placeholder="0"
+                                placeholder={t('purchasesWeighIn.weighOutWizard.placeholders.zero')}
                                 precision={2}
                                 min={0}
                                 max={100}
                                 step={0.5}
                                 size="middle"
                                 style={{ width: 80 }}
-                                addonAfter="%"
+                                addonAfter={t('purchasesWeighIn.weighOutWizard.misc.percent')}
                                 autoFocus={index === 0}
                               />
                             </Form.Item>
@@ -660,14 +663,14 @@ const WeighOutWizard = ({
                   fontSize: 13
                 }}>
                   <span style={{ color: '#8c8c8c' }}>
-                    {netWeight} kg
+                    {netWeight} {t('purchasesWeighIn.misc.kg')}
                   </span>
                   <span style={{ color: '#ff4d4f', fontWeight: 600 }}>
                     -{totalDeduction.toFixed(2)}%
                   </span>
                   <span style={{ fontSize: 16, fontWeight: 600 }}>→</span>
                   <span style={{ color: '#52c41a', fontWeight: 600, fontSize: 15 }}>
-                    {effectiveWeight.toFixed(2)} kg
+                    {effectiveWeight.toFixed(2)} {t('purchasesWeighIn.misc.kg')}
                   </span>
                 </div>
               ) : null;
@@ -676,14 +679,14 @@ const WeighOutWizard = ({
             <div style={{ marginTop: 24, textAlign: 'center' }}>
               <Space size="large">
                 <Button size="large" onClick={() => setCurrentStep(2)}>
-                  <ArrowLeftOutlined /> Back to Product
+                  <ArrowLeftOutlined /> {t('purchasesWeighIn.weighOutWizard.actions.backToProduct')}
                 </Button>
                 <Button 
                   type="primary" 
                   size="large"
                   onClick={() => moveToStep(4)}
                 >
-                  Continue to Review <ArrowRightOutlined />
+                  {t('purchasesWeighIn.weighOutWizard.actions.continueToReview')} <ArrowRightOutlined />
                 </Button>
               </Space>
             </div>
@@ -717,12 +720,12 @@ const WeighOutWizard = ({
                   }}
                 >
                   <div style={{ marginBottom: 12 }}>
-                    <div style={{ color: '#999', fontSize: 12 }}>Lorry</div>
+                    <div style={{ color: '#999', fontSize: 12 }}>{t('purchasesWeighIn.weighOutWizard.review.labels.lorry')}</div>
                     <div style={{ fontWeight: 600 }}>{session.lorry_reg_no}</div>
                   </div>
 
                   <div style={{ marginBottom: 12 }}>
-                    <div style={{ color: '#999', fontSize: 12 }}>Product</div>
+                    <div style={{ color: '#999', fontSize: 12 }}>{t('purchasesWeighIn.weighOutWizard.review.labels.product')}</div>
                     <div style={{ fontWeight: 600 }}>
                       {wizardData.product?.product_name}
                       <Tag color="blue" style={{ marginLeft: 8 }}>
@@ -732,7 +735,7 @@ const WeighOutWizard = ({
                   </div>
 
                   <div>
-                    <div style={{ color: '#999', fontSize: 12 }}>Farmer</div>
+                    <div style={{ color: '#999', fontSize: 12 }}>{t('purchasesWeighIn.weighOutWizard.review.labels.farmer')}</div>
                     <div style={{ fontWeight: 600 }}>{wizardData.farmer_name}</div>
                   </div>
                 </div>
@@ -745,26 +748,26 @@ const WeighOutWizard = ({
                   }}
                 >
                   <div style={{ marginBottom: 10 }}>
-                    <div style={{ color: '#999', fontSize: 12 }}>Gross Weight</div>
-                    <div>{session.weight_with_load} kg</div>
+                    <div style={{ color: '#999', fontSize: 12 }}>{t('purchasesWeighIn.weighOutWizard.review.labels.grossWeight')}</div>
+                    <div>{session.weight_with_load} {t('purchasesWeighIn.misc.kg')}</div>
                   </div>
 
                   <div style={{ marginBottom: 10 }}>
-                    <div style={{ color: '#999', fontSize: 12 }}>Tare Weight</div>
-                    <div>{wizardData.weight_without_load} kg</div>
+                    <div style={{ color: '#999', fontSize: 12 }}>{t('purchasesWeighIn.weighOutWizard.review.labels.tareWeight')}</div>
+                    <div>{wizardData.weight_without_load} {t('purchasesWeighIn.misc.kg')}</div>
                   </div>
 
                   <div style={{ marginBottom: 10 }}>
-                    <div style={{ color: '#999', fontSize: 12 }}>Net Weight</div>
-                    <div style={{ color: '#1890ff', fontSize: 14 }}>{netWeight} kg</div>
+                    <div style={{ color: '#999', fontSize: 12 }}>{t('purchasesWeighIn.weighOutWizard.review.labels.netWeight')}</div>
+                    <div style={{ color: '#1890ff', fontSize: 14 }}>{netWeight} {t('purchasesWeighIn.misc.kg')}</div>
                   </div>
 
                   <div style={{ marginBottom: 4 }}>
                     <div style={{ color: '#999', fontSize: 12, fontWeight: 600 }}>
-                      Effective Weight (after deduction)
+                      {t('purchasesWeighIn.weighOutWizard.review.labels.effectiveWeightAfterDeduction')}
                     </div>
                     <div style={{ fontWeight: 700, color: '#52c41a', fontSize: 20 }}>
-                      {effectiveWeight.toFixed(2)} kg
+                      {effectiveWeight.toFixed(2)} {t('purchasesWeighIn.misc.kg')}
                     </div>
                   </div>
 
@@ -776,15 +779,15 @@ const WeighOutWizard = ({
                 {/* Column 3: Pricing */}
                 <div>
                   <div style={{ marginBottom: 12 }}>
-                    <div style={{ color: '#999', fontSize: 12 }}>Price per KG</div>
-                    <div>RM {wizardData.price_per_kg?.toFixed(2)}</div>
+                    <div style={{ color: '#999', fontSize: 12 }}>{t('purchasesWeighIn.weighOutWizard.review.labels.pricePerKg')}</div>
+                    <div>{t('purchasesWeighIn.weighOutWizard.misc.rm')} {wizardData.price_per_kg?.toFixed(2)}</div>
                   </div>
 
                   {totalDeductionRate > 0 && (
                     <div>
-                      <div style={{ color: '#999', fontSize: 12, fontWeight: 600 }}>Total Amount</div>
+                      <div style={{ color: '#999', fontSize: 12, fontWeight: 600 }}>{t('purchasesWeighIn.weighOutWizard.review.labels.totalAmount')}</div>
                       <div style={{ fontWeight: 600, color: '#52c41a', fontSize: 24 }}>
-                        RM {totalAmount}
+                        {t('purchasesWeighIn.weighOutWizard.misc.rm')} {totalAmount}
                       </div>
                     </div>
                   )}
@@ -798,7 +801,7 @@ const WeighOutWizard = ({
                   size="large"
                   onClick={() => setCurrentStep(3)}
                 >
-                  <ArrowLeftOutlined /> Edit Deductions
+                  <ArrowLeftOutlined /> {t('purchasesWeighIn.weighOutWizard.actions.editDeductions')}
                 </Button>
                 <Button 
                   type="primary" 
@@ -808,7 +811,7 @@ const WeighOutWizard = ({
                   loading={loading}
                   autoFocus
                 >
-                  Complete Purchase (Enter)
+                  {t('purchasesWeighIn.weighOutWizard.actions.completePurchaseEnter')}
                 </Button>
               </Space>
             </div>
@@ -821,7 +824,7 @@ const WeighOutWizard = ({
         title={
           <Space>
             <AppstoreOutlined />
-            Select Deduction Preset
+            {t('purchasesWeighIn.weighOutWizard.presetModal.title')}
           </Space>
         }
         open={presetModalOpen}
@@ -831,7 +834,7 @@ const WeighOutWizard = ({
       >
         <div style={{ marginBottom: 16 }}>
           <p style={{ color: '#666', marginBottom: 16 }}>
-            Choose the appropriate deduction preset based on paddy quality:
+            {t('purchasesWeighIn.weighOutWizard.presetModal.description')}
           </p>
           <Radio.Group 
             value={selectedPresetIndex} 

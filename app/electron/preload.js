@@ -161,5 +161,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // System
   system: {
     getInfo: () => ipcRenderer.invoke('system:getInfo')
+  },
+
+  // Backup & Restore
+  backup: {
+    create: (backupPath) => ipcRenderer.invoke('backup:create', backupPath),
+    restore: (filepath) => ipcRenderer.invoke('backup:restore', filepath),
+    selectFile: () => ipcRenderer.invoke('backup:selectFile'),
+    openFolder: (folderPath) => ipcRenderer.invoke('backup:openFolder', folderPath)
+  },
+
+  // Database
+  database: {
+    cleanup: () => ipcRenderer.invoke('database:cleanup')
   }
 });

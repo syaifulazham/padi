@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Tabs, Card, Form, Input, InputNumber, Select, Button, Switch, message, Space, Divider, Descriptions, Tag } from 'antd';
 import { SaveOutlined, ReloadOutlined, DatabaseOutlined, PrinterOutlined, HddOutlined, SettingOutlined, ShopOutlined } from '@ant-design/icons';
+import { useI18n } from '../../i18n/I18nProvider';
 
 const { TabPane } = Tabs;
 const { Option } = Select;
 const { TextArea } = Input;
 
 const Settings = () => {
+  const { t } = useI18n();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [settings, setSettings] = useState({});
@@ -130,9 +132,13 @@ const Settings = () => {
         message.warning('Settings saved locally (backend not implemented yet)');
         setSettings(values);
       }
+
+      window.dispatchEvent(new Event('language-changed'));
     } catch (error) {
       message.warning('Settings updated locally');
       setSettings(values);
+
+      window.dispatchEvent(new Event('language-changed'));
     } finally {
       setLoading(false);
     }
@@ -148,12 +154,12 @@ const Settings = () => {
     try {
       const result = await window.electronAPI.testConnection();
       if (result.success) {
-        message.success('Database connection successful!');
+        message.success(t('settings.database.messages.connectionSuccess'));
       } else {
-        message.error('Database connection failed: ' + result.message);
+        message.error(`${t('settings.database.messages.connectionFailed')}: ${result.message}`);
       }
     } catch (error) {
-      message.error('Connection test failed');
+      message.error(t('settings.database.messages.connectionTestFailed'));
     } finally {
       setLoading(false);
     }
@@ -164,12 +170,12 @@ const Settings = () => {
     try {
       const result = await window.electronAPI.weighbridge?.connect();
       if (result?.success) {
-        message.success('Weighbridge connected successfully!');
+        message.success(t('settings.hardware.messages.weighbridgeConnected'));
       } else {
-        message.warning('Weighbridge connection not implemented yet');
+        message.warning(t('settings.hardware.messages.weighbridgeNotImplemented'));
       }
     } catch (error) {
-      message.warning('Weighbridge test not available');
+      message.warning(t('settings.hardware.messages.weighbridgeTestNotAvailable'));
     } finally {
       setLoading(false);
     }
@@ -180,10 +186,10 @@ const Settings = () => {
       <Tabs defaultActiveKey="company" type="card">
         {/* Company Details */}
         <TabPane 
-          tab={<span><ShopOutlined /> Company</span>} 
+          tab={<span><ShopOutlined /> {t('settings.company.tab')}</span>} 
           key="company"
         >
-          <Card title="Company Details">
+          <Card title={t('settings.company.cardTitle')}>
             <Form
               form={form}
               layout="vertical"
@@ -191,49 +197,49 @@ const Settings = () => {
             >
               <Form.Item
                 name="company_name"
-                label="Company Name"
-                rules={[{ required: true, message: 'Please enter company name' }]}
-                extra="This will appear on receipts and permits"
+                label={t('settings.company.fields.companyName')}
+                rules={[{ required: true, message: t('settings.company.validations.companyNameRequired') }]}
+                extra={t('settings.company.extras.companyName')}
               >
-                <Input placeholder="e.g., Kilang Beras Sdn Bhd" />
+                <Input placeholder={t('settings.company.placeholders.companyName')} />
               </Form.Item>
 
               <Form.Item
                 name="company_address"
-                label="Company Address"
-                rules={[{ required: true, message: 'Please enter company address' }]}
-                extra="Full address for receipts and official documents"
+                label={t('settings.company.fields.companyAddress')}
+                rules={[{ required: true, message: t('settings.company.validations.companyAddressRequired') }]}
+                extra={t('settings.company.extras.companyAddress')}
               >
                 <TextArea 
                   rows={3} 
-                  placeholder="e.g., No. 123, Jalan Paddy,&#10;Taman Industri,&#10;12345 Sungai Besar, Selangor"
+                  placeholder={t('settings.company.placeholders.companyAddress')}
                 />
               </Form.Item>
 
               <Form.Item
                 name="company_registration_no"
-                label="Company Registration No."
-                rules={[{ required: true, message: 'Please enter company registration number' }]}
-                extra="SSM registration number (e.g., ROC123456-A)"
+                label={t('settings.company.fields.companyRegistrationNo')}
+                rules={[{ required: true, message: t('settings.company.validations.companyRegistrationNoRequired') }]}
+                extra={t('settings.company.extras.companyRegistrationNo')}
               >
-                <Input placeholder="e.g., ROC123456-A" />
+                <Input placeholder={t('settings.company.placeholders.companyRegistrationNo')} />
               </Form.Item>
 
               <Form.Item
                 name="paddy_purchasing_licence_no"
-                label="Paddy Purchasing Licence No."
-                rules={[{ required: true, message: 'Please enter paddy purchasing licence number' }]}
-                extra="Government-issued licence for paddy purchasing"
+                label={t('settings.company.fields.paddyPurchasingLicenceNo')}
+                rules={[{ required: true, message: t('settings.company.validations.paddyPurchasingLicenceNoRequired') }]}
+                extra={t('settings.company.extras.paddyPurchasingLicenceNo')}
               >
-                <Input placeholder="e.g., LKP-01-2024-001" />
+                <Input placeholder={t('settings.company.placeholders.paddyPurchasingLicenceNo')} />
               </Form.Item>
 
               <Space style={{ marginTop: 16 }}>
                 <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={loading}>
-                  Save Settings
+                  {t('settings.company.actions.save')}
                 </Button>
                 <Button onClick={handleReset} icon={<ReloadOutlined />}>
-                  Reset
+                  {t('settings.company.actions.reset')}
                 </Button>
               </Space>
             </Form>
@@ -242,7 +248,7 @@ const Settings = () => {
 
         {/* General Settings */}
         <TabPane 
-          tab={<span><SettingOutlined /> General</span>} 
+          tab={<span><SettingOutlined /> {t('settings.general.tab')}</span>} 
           key="general"
         >
           <Card>
@@ -251,58 +257,58 @@ const Settings = () => {
               layout="vertical"
               onFinish={handleSave}
             >
-              <Divider orientation="left">Application</Divider>
+              <Divider orientation="left">{t('settings.general.sections.application')}</Divider>
               <Form.Item
                 name="app_name"
-                label="Application Name"
+                label={t('settings.general.fields.applicationName')}
               >
-                <Input placeholder="Paddy Collection Center" />
+                <Input placeholder={t('settings.general.placeholders.applicationName')} />
               </Form.Item>
 
               <Form.Item
                 name="language"
-                label="Language"
+                label={t('settings.general.fields.language')}
               >
                 <Select>
-                  <Option value="en">English</Option>
-                  <Option value="ms">Bahasa Malaysia</Option>
+                  <Option value="en">{t('settings.general.languageOptions.en')}</Option>
+                  <Option value="ms">{t('settings.general.languageOptions.ms')}</Option>
                 </Select>
               </Form.Item>
 
               <Form.Item
                 name="currency"
-                label="Currency"
+                label={t('settings.general.fields.currency')}
               >
                 <Select>
-                  <Option value="MYR">Malaysian Ringgit (MYR)</Option>
-                  <Option value="USD">US Dollar (USD)</Option>
+                  <Option value="MYR">{t('settings.general.currencyOptions.myr')}</Option>
+                  <Option value="USD">{t('settings.general.currencyOptions.usd')}</Option>
                 </Select>
               </Form.Item>
 
               <Form.Item
                 name="date_format"
-                label="Date Format"
+                label={t('settings.general.fields.dateFormat')}
               >
                 <Select>
-                  <Option value="YYYY-MM-DD">YYYY-MM-DD (2024-11-07)</Option>
-                  <Option value="DD/MM/YYYY">DD/MM/YYYY (07/11/2024)</Option>
-                  <Option value="MM/DD/YYYY">MM/DD/YYYY (11/07/2024)</Option>
+                  <Option value="YYYY-MM-DD">{t('settings.general.dateFormatOptions.yyyyMmDd')}</Option>
+                  <Option value="DD/MM/YYYY">{t('settings.general.dateFormatOptions.ddMmYyyy')}</Option>
+                  <Option value="MM/DD/YYYY">{t('settings.general.dateFormatOptions.mmDdYyyy')}</Option>
                 </Select>
               </Form.Item>
 
-              <Divider orientation="left">Printer</Divider>
+              <Divider orientation="left">{t('settings.general.sections.printer')}</Divider>
               
               <Form.Item
                 name="default_printer"
-                label="Default Printer"
-                extra="Select the printer for receipts and documents"
+                label={t('settings.general.fields.defaultPrinter')}
+                extra={t('settings.general.extras.defaultPrinter')}
               >
                 <Select
-                  placeholder="Select a printer"
+                  placeholder={t('settings.general.placeholders.selectPrinter')}
                   loading={loadingPrinters}
                   showSearch
                   optionFilterProp="children"
-                  notFoundContent={loadingPrinters ? 'Loading...' : 'No printers found'}
+                  notFoundContent={loadingPrinters ? t('settings.general.printerDropdown.loading') : t('settings.general.printerDropdown.noPrintersFound')}
                   dropdownRender={(menu) => (
                     <>
                       {menu}
@@ -314,7 +320,7 @@ const Settings = () => {
                           onClick={() => loadPrinters()}
                           loading={loadingPrinters}
                         >
-                          Refresh Printers
+                          {t('settings.general.actions.refreshPrinters')}
                         </Button>
                       </Space>
                     </>
@@ -322,7 +328,7 @@ const Settings = () => {
                 >
                   {printers.map((printer) => (
                     <Option key={printer.name} value={printer.name}>
-                      {printer.name} {printer.isDefault ? '(Default)' : ''}
+                      {printer.name} {printer.isDefault ? t('settings.general.printerDropdown.defaultSuffix') : ''}
                     </Option>
                   ))}
                 </Select>
@@ -330,7 +336,7 @@ const Settings = () => {
 
               <Form.Item
                 name="auto_print"
-                label="Auto Print After Transaction"
+                label={t('settings.general.fields.autoPrintAfterTransaction')}
                 valuePropName="checked"
               >
                 <Switch />
@@ -338,17 +344,17 @@ const Settings = () => {
 
               <Form.Item
                 name="print_copies"
-                label="Number of Copies"
+                label={t('settings.general.fields.numberOfCopies')}
               >
                 <InputNumber min={1} max={5} style={{ width: '100%' }} />
               </Form.Item>
 
               <Space style={{ marginTop: 16 }}>
                 <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={loading}>
-                  Save Settings
+                  {t('settings.general.actions.save')}
                 </Button>
                 <Button onClick={handleReset} icon={<ReloadOutlined />}>
-                  Reset
+                  {t('settings.general.actions.reset')}
                 </Button>
               </Space>
             </Form>
@@ -357,7 +363,7 @@ const Settings = () => {
 
         {/* Database Settings */}
         <TabPane 
-          tab={<span><DatabaseOutlined /> Database</span>} 
+          tab={<span><DatabaseOutlined /> {t('settings.database.tab')}</span>} 
           key="database"
         >
           <Card>
@@ -366,45 +372,45 @@ const Settings = () => {
               layout="vertical"
               onFinish={handleSave}
             >
-              <Divider orientation="left">Connection</Divider>
+              <Divider orientation="left">{t('settings.database.sections.connection')}</Divider>
               
               <Form.Item
                 name="db_host"
-                label="Database Host"
+                label={t('settings.database.fields.host')}
               >
-                <Input placeholder="localhost" />
+                <Input placeholder={t('settings.database.placeholders.host')} />
               </Form.Item>
 
               <Form.Item
                 name="db_port"
-                label="Database Port"
+                label={t('settings.database.fields.port')}
               >
                 <InputNumber min={1} max={65535} style={{ width: '100%' }} />
               </Form.Item>
 
               <Form.Item
                 name="db_name"
-                label="Database Name"
+                label={t('settings.database.fields.name')}
               >
-                <Input placeholder="paddy_collection_db" />
+                <Input placeholder={t('settings.database.placeholders.name')} />
               </Form.Item>
 
-              <Divider orientation="left">Connection Pool</Divider>
+              <Divider orientation="left">{t('settings.database.sections.connectionPool')}</Divider>
 
               <Form.Item
                 name="db_connection_limit"
-                label="Connection Limit"
-                extra="Maximum number of connections in the pool"
+                label={t('settings.database.fields.connectionLimit')}
+                extra={t('settings.database.extras.connectionLimit')}
               >
                 <InputNumber min={1} max={100} style={{ width: '100%' }} />
               </Form.Item>
 
               <Space style={{ marginTop: 16 }}>
                 <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={loading}>
-                  Save Settings
+                  {t('settings.database.actions.save')}
                 </Button>
                 <Button onClick={testConnection} loading={loading}>
-                  Test Connection
+                  {t('settings.database.actions.testConnection')}
                 </Button>
               </Space>
             </Form>
@@ -413,7 +419,7 @@ const Settings = () => {
 
         {/* Hardware Settings */}
         <TabPane 
-          tab={<span><HddOutlined /> Hardware</span>} 
+          tab={<span><HddOutlined /> {t('settings.hardware.tab')}</span>} 
           key="hardware"
         >
           <Card>
@@ -422,19 +428,19 @@ const Settings = () => {
               layout="vertical"
               onFinish={handleSave}
             >
-              <Divider orientation="left">Weighbridge</Divider>
+              <Divider orientation="left">{t('settings.hardware.sections.weighbridge')}</Divider>
               
               <Form.Item
                 name="weighbridge_port"
-                label="Serial Port"
-                extra="COM port for weighbridge (Windows: COM3, Linux: /dev/ttyUSB0)"
+                label={t('settings.hardware.fields.serialPort')}
+                extra={t('settings.hardware.extras.serialPort')}
               >
-                <Input placeholder="COM3" />
+                <Input placeholder={t('settings.hardware.placeholders.serialPort')} />
               </Form.Item>
 
               <Form.Item
                 name="weighbridge_baud_rate"
-                label="Baud Rate"
+                label={t('settings.hardware.fields.baudRate')}
               >
                 <Select>
                   <Option value={1200}>1200</Option>
@@ -450,7 +456,7 @@ const Settings = () => {
 
               <Form.Item
                 name="weighbridge_auto_connect"
-                label="Auto Connect"
+                label={t('settings.hardware.fields.autoConnect')}
                 valuePropName="checked"
               >
                 <Switch />
@@ -458,10 +464,10 @@ const Settings = () => {
 
               <Space style={{ marginTop: 16 }}>
                 <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={loading}>
-                  Save Settings
+                  {t('settings.hardware.actions.save')}
                 </Button>
                 <Button onClick={testWeighbridge} loading={loading}>
-                  Test Weighbridge
+                  {t('settings.hardware.actions.testWeighbridge')}
                 </Button>
               </Space>
             </Form>
@@ -470,7 +476,7 @@ const Settings = () => {
 
         {/* Printer Settings */}
         <TabPane 
-          tab={<span><PrinterOutlined /> Printer</span>} 
+          tab={<span><PrinterOutlined /> {t('settings.printer.tab')}</span>} 
           key="printer"
         >
           <Card>
@@ -479,49 +485,49 @@ const Settings = () => {
               layout="vertical"
               onFinish={handleSave}
             >
-              <Divider orientation="left">Receipt Printing</Divider>
+              <Divider orientation="left">{t('settings.printer.sections.receiptPrinting')}</Divider>
               
               <Form.Item
                 name="default_printer"
-                label="Default Printer"
+                label={t('settings.printer.fields.defaultPrinter')}
               >
-                <Input placeholder="Epson LQ-310" />
+                <Input placeholder={t('settings.printer.placeholders.defaultPrinter')} />
               </Form.Item>
 
               <Form.Item
                 name="print_copies"
-                label="Number of Copies"
+                label={t('settings.printer.fields.numberOfCopies')}
               >
                 <InputNumber min={1} max={5} style={{ width: '100%' }} />
               </Form.Item>
 
               <Form.Item
                 name="paper_size"
-                label="Paper Size"
-                extra="Select paper size for receipts"
+                label={t('settings.printer.fields.paperSize')}
+                extra={t('settings.printer.extras.paperSize')}
               >
                 <Select>
-                  <Option value="80mm">80mm Thermal (Default)</Option>
-                  <Option value="a4_portrait">A4 Portrait</Option>
-                  <Option value="a5_landscape">A5 Landscape</Option>
+                  <Option value="80mm">{t('settings.printer.paperSizeOptions.thermal80mm')}</Option>
+                  <Option value="a4_portrait">{t('settings.printer.paperSizeOptions.a4Portrait')}</Option>
+                  <Option value="a5_landscape">{t('settings.printer.paperSizeOptions.a5Landscape')}</Option>
                 </Select>
               </Form.Item>
 
               <Form.Item
                 name="auto_print"
-                label="Auto Print After Transaction"
+                label={t('settings.printer.fields.autoPrintAfterTransaction')}
                 valuePropName="checked"
               >
                 <Switch />
               </Form.Item>
 
-              <Divider orientation="left">PDF Options</Divider>
+              <Divider orientation="left">{t('settings.printer.sections.pdfOptions')}</Divider>
               
               <Form.Item
                 name="print_to_pdf"
-                label="Save Receipts as PDF"
+                label={t('settings.printer.fields.saveReceiptsAsPdf')}
                 valuePropName="checked"
-                extra="Automatically save receipts as PDF files instead of printing"
+                extra={t('settings.printer.extras.saveReceiptsAsPdf')}
               >
                 <Switch />
               </Form.Item>
@@ -534,12 +540,12 @@ const Settings = () => {
                   getFieldValue('print_to_pdf') ? (
                     <Form.Item
                       name="pdf_save_path"
-                      label="PDF Save Location"
-                      extra="Folder where PDF receipts will be saved"
-                      rules={[{ required: getFieldValue('print_to_pdf'), message: 'Please specify PDF save location' }]}
+                      label={t('settings.printer.fields.pdfSaveLocation')}
+                      extra={t('settings.printer.extras.pdfSaveLocation')}
+                      rules={[{ required: getFieldValue('print_to_pdf'), message: t('settings.printer.validations.pdfSaveLocationRequired') }]}
                     >
                       <Input 
-                        placeholder="e.g., C:\Documents\Receipts or ~/Documents/Receipts" 
+                        placeholder={t('settings.printer.placeholders.pdfSaveLocation')} 
                         addonAfter={
                           <Button 
                             size="small" 
@@ -550,11 +556,11 @@ const Settings = () => {
                                   form.setFieldsValue({ pdf_save_path: result.path });
                                 }
                               } catch (error) {
-                                message.error('Failed to select folder');
+                                message.error(t('settings.printer.messages.failedToSelectFolder'));
                               }
                             }}
                           >
-                            Browse
+                            {t('settings.printer.actions.browse')}
                           </Button>
                         }
                       />
@@ -565,32 +571,32 @@ const Settings = () => {
 
               <Form.Item
                 name="pdf_auto_open"
-                label="Auto Open PDF After Save"
+                label={t('settings.printer.fields.autoOpenPdfAfterSave')}
                 valuePropName="checked"
-                extra="Automatically open PDF file after saving"
+                extra={t('settings.printer.extras.autoOpenPdfAfterSave')}
               >
                 <Switch />
               </Form.Item>
 
-              <Divider orientation="left">Receipt Template</Divider>
+              <Divider orientation="left">{t('settings.printer.sections.receiptTemplate')}</Divider>
               
               <Form.Item
                 name="receipt_header"
-                label="Receipt Header"
+                label={t('settings.printer.fields.receiptHeader')}
               >
-                <TextArea rows={3} placeholder="Company name and address" />
+                <TextArea rows={3} placeholder={t('settings.printer.placeholders.receiptHeader')} />
               </Form.Item>
 
               <Form.Item
                 name="receipt_footer"
-                label="Receipt Footer"
+                label={t('settings.printer.fields.receiptFooter')}
               >
-                <TextArea rows={2} placeholder="Thank you message" />
+                <TextArea rows={2} placeholder={t('settings.printer.placeholders.receiptFooter')} />
               </Form.Item>
 
               <Space style={{ marginTop: 16 }}>
                 <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={loading}>
-                  Save Settings
+                  {t('settings.printer.actions.save')}
                 </Button>
               </Space>
             </Form>
@@ -599,7 +605,7 @@ const Settings = () => {
 
         {/* Backup Settings */}
         <TabPane 
-          tab={<span><HddOutlined /> Backup</span>} 
+          tab={<span><HddOutlined /> {t('settings.backup.tab')}</span>} 
           key="backup"
         >
           <Card>
@@ -608,11 +614,11 @@ const Settings = () => {
               layout="vertical"
               onFinish={handleSave}
             >
-              <Divider orientation="left">Automatic Backup</Divider>
+              <Divider orientation="left">{t('settings.backup.sections.automaticBackup')}</Divider>
               
               <Form.Item
                 name="auto_backup"
-                label="Enable Auto Backup"
+                label={t('settings.backup.fields.enableAutoBackup')}
                 valuePropName="checked"
               >
                 <Switch />
@@ -620,37 +626,57 @@ const Settings = () => {
 
               <Form.Item
                 name="backup_frequency"
-                label="Backup Frequency"
+                label={t('settings.backup.fields.backupFrequency')}
               >
                 <Select>
-                  <Option value="hourly">Every Hour</Option>
-                  <Option value="daily">Daily</Option>
-                  <Option value="weekly">Weekly</Option>
-                  <Option value="monthly">Monthly</Option>
+                  <Option value="hourly">{t('settings.backup.frequencyOptions.hourly')}</Option>
+                  <Option value="daily">{t('settings.backup.frequencyOptions.daily')}</Option>
+                  <Option value="weekly">{t('settings.backup.frequencyOptions.weekly')}</Option>
+                  <Option value="monthly">{t('settings.backup.frequencyOptions.monthly')}</Option>
                 </Select>
               </Form.Item>
 
               <Form.Item
                 name="backup_retention_days"
-                label="Retention Period (Days)"
-                extra="Number of days to keep backup files"
+                label={t('settings.backup.fields.retentionPeriodDays')}
+                extra={t('settings.backup.extras.retentionPeriodDays')}
               >
                 <InputNumber min={1} max={365} style={{ width: '100%' }} />
               </Form.Item>
 
               <Form.Item
                 name="backup_path"
-                label="Backup Directory"
+                label={t('settings.backup.fields.backupDirectory')}
+                extra={t('settings.backup.extras.backupDirectory')}
               >
-                <Input placeholder="./backups" />
+                <Input 
+                  placeholder={t('settings.backup.placeholders.backupDirectory')} 
+                  addonAfter={
+                    <Button 
+                      size="small" 
+                      onClick={async () => {
+                        try {
+                          const result = await window.electronAPI.settings?.selectFolder();
+                          if (result?.success && result.path) {
+                            form.setFieldsValue({ backup_path: result.path });
+                          }
+                        } catch (error) {
+                          message.error(t('settings.backup.messages.failedToSelectFolder'));
+                        }
+                      }}
+                    >
+                      {t('settings.backup.actions.browse')}
+                    </Button>
+                  }
+                />
               </Form.Item>
 
               <Space style={{ marginTop: 16 }}>
                 <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={loading}>
-                  Save Settings
+                  {t('settings.backup.actions.save')}
                 </Button>
-                <Button type="default" onClick={() => message.info('Backup now feature coming soon')}>
-                  Backup Now
+                <Button type="default" onClick={() => message.info(t('settings.backup.messages.backupNowComingSoon'))}>
+                  {t('settings.backup.actions.backupNow')}
                 </Button>
               </Space>
             </Form>
@@ -659,31 +685,31 @@ const Settings = () => {
 
         {/* System Info */}
         <TabPane 
-          tab={<span><SettingOutlined /> System Info</span>} 
+          tab={<span><SettingOutlined /> {t('settings.systemInfo.tab')}</span>} 
           key="system"
         >
-          <Card title="System Information">
+          <Card title={t('settings.systemInfo.cardTitle')}>
             <Descriptions bordered column={1}>
-              <Descriptions.Item label="Application Version">
-                <Tag color="blue">{systemInfo.version || '1.0.0'}</Tag>
+              <Descriptions.Item label={t('settings.systemInfo.fields.applicationVersion')}>
+                <Tag color="blue">{systemInfo.version || t('settings.systemInfo.fallbacks.appVersion')}</Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="Electron Version">
-                {systemInfo.electron_version || '27.1.3'}
+              <Descriptions.Item label={t('settings.systemInfo.fields.electronVersion')}>
+                {systemInfo.electron_version || t('settings.systemInfo.fallbacks.electronVersion')}
               </Descriptions.Item>
-              <Descriptions.Item label="Node.js Version">
-                {systemInfo.node_version || 'N/A'}
+              <Descriptions.Item label={t('settings.systemInfo.fields.nodeVersion')}>
+                {systemInfo.node_version || t('settings.systemInfo.fallbacks.nodeVersion')}
               </Descriptions.Item>
-              <Descriptions.Item label="Platform">
-                {systemInfo.platform || 'darwin'}
+              <Descriptions.Item label={t('settings.systemInfo.fields.platform')}>
+                {systemInfo.platform || t('settings.systemInfo.fallbacks.platform')}
               </Descriptions.Item>
-              <Descriptions.Item label="Database Status">
-                <Tag color="green">{systemInfo.database_status || 'Connected'}</Tag>
+              <Descriptions.Item label={t('settings.systemInfo.fields.databaseStatus')}>
+                <Tag color="green">{systemInfo.database_status || t('settings.systemInfo.fallbacks.databaseStatus')}</Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="Database Version">
-                {systemInfo.database_version || '8.0'}
+              <Descriptions.Item label={t('settings.systemInfo.fields.databaseVersion')}>
+                {systemInfo.database_version || t('settings.systemInfo.fallbacks.databaseVersion')}
               </Descriptions.Item>
-              <Descriptions.Item label="Database Name">
-                {settings.db_name || 'paddy_collection_db'}
+              <Descriptions.Item label={t('settings.systemInfo.fields.databaseName')}>
+                {settings.db_name || t('settings.systemInfo.fallbacks.databaseName')}
               </Descriptions.Item>
             </Descriptions>
 
@@ -691,10 +717,10 @@ const Settings = () => {
 
             <Space>
               <Button onClick={loadSystemInfo} icon={<ReloadOutlined />}>
-                Refresh
+                {t('settings.systemInfo.actions.refresh')}
               </Button>
-              <Button type="primary" onClick={() => message.info('Export logs feature coming soon')}>
-                Export Logs
+              <Button type="primary" onClick={() => message.info(t('settings.systemInfo.messages.exportLogsComingSoon'))}>
+                {t('settings.systemInfo.actions.exportLogs')}
               </Button>
             </Space>
           </Card>

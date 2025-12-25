@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { Table, Button, Space, Input, message, Tag } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
 import AddManufacturerModal from './AddManufacturerModal';
+import { useI18n } from '../../i18n/I18nProvider';
 
 const Manufacturers = () => {
+  const { t } = useI18n();
   const [manufacturers, setManufacturers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -21,10 +23,10 @@ const Manufacturers = () => {
       if (result.success) {
         setManufacturers(result.data);
       } else {
-        message.error('Failed to load manufacturers');
+        message.error(t('manufacturers.loadFailed'));
       }
     } catch (error) {
-      message.error('Error loading manufacturers');
+      message.error(t('manufacturers.loadError'));
       console.error(error);
     } finally {
       setLoading(false);
@@ -46,7 +48,7 @@ const Manufacturers = () => {
       );
       setManufacturers(filtered);
     } catch (error) {
-      message.error('Search failed');
+      message.error(t('manufacturers.searchFailed'));
     } finally {
       setLoading(false);
     }
@@ -64,50 +66,50 @@ const Manufacturers = () => {
 
   const columns = [
     {
-      title: 'Company Name',
+      title: t('manufacturers.columns.companyName'),
       dataIndex: 'company_name',
       key: 'company_name',
       width: 200,
       render: (text) => <strong>{text}</strong>
     },
     {
-      title: 'Registration No.',
+      title: t('manufacturers.columns.registrationNo'),
       dataIndex: 'registration_number',
       key: 'registration_number',
       width: 150,
     },
     {
-      title: 'Contact Person',
+      title: t('manufacturers.columns.contactPerson'),
       dataIndex: 'contact_person',
       key: 'contact_person',
       width: 150,
     },
     {
-      title: 'Phone',
+      title: t('manufacturers.columns.phone'),
       dataIndex: 'phone',
       key: 'phone',
       width: 130,
     },
     {
-      title: 'Email',
+      title: t('manufacturers.columns.email'),
       dataIndex: 'email',
       key: 'email',
       width: 200,
     },
     {
-      title: 'City',
+      title: t('manufacturers.columns.city'),
       dataIndex: 'city',
       key: 'city',
       width: 120,
     },
     {
-      title: 'Code',
+      title: t('manufacturers.columns.code'),
       dataIndex: 'manufacturer_code',
       key: 'manufacturer_code',
       width: 100,
     },
     {
-      title: 'Status',
+      title: t('manufacturers.columns.status'),
       dataIndex: 'status',
       key: 'status',
       width: 100,
@@ -118,7 +120,7 @@ const Manufacturers = () => {
       )
     },
     {
-      title: 'Actions',
+      title: t('manufacturers.columns.actions'),
       key: 'actions',
       width: 150,
       fixed: 'right',
@@ -129,15 +131,15 @@ const Manufacturers = () => {
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
           >
-            Edit
+            {t('manufacturers.actions.edit')}
           </Button>
           <Button 
             type="link" 
             danger 
             icon={<DeleteOutlined />}
-            onClick={() => message.info('Delete feature coming soon')}
+            onClick={() => message.info(t('manufacturers.actions.deleteComingSoon'))}
           >
-            Delete
+            {t('manufacturers.actions.delete')}
           </Button>
         </Space>
       ),
@@ -148,7 +150,7 @@ const Manufacturers = () => {
     <div>
       <Space style={{ marginBottom: 16 }}>
         <Input
-          placeholder="Search manufacturers..."
+          placeholder={t('manufacturers.searchPlaceholder')}
           prefix={<SearchOutlined />}
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
@@ -156,14 +158,14 @@ const Manufacturers = () => {
           style={{ width: 300 }}
         />
         <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
-          Search
+          {t('manufacturers.search')}
         </Button>
         <Button 
           type="primary" 
           icon={<PlusOutlined />}
           onClick={() => setAddModalOpen(true)}
         >
-          Add Manufacturer
+          {t('manufacturers.addManufacturer')}
         </Button>
       </Space>
 
@@ -175,7 +177,7 @@ const Manufacturers = () => {
         scroll={{ x: 1200 }}
         pagination={{
           pageSize: 20,
-          showTotal: (total) => `Total ${total} manufacturers`,
+          showTotal: (total) => t('manufacturers.paginationTotal').replace('{total}', total),
           showSizeChanger: true,
           pageSizeOptions: ['10', '20', '50', '100']
         }}

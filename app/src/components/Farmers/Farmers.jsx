@@ -4,8 +4,10 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, UploadOutli
 import AddFarmerModal from './AddFarmerModal';
 import BulkUploadModal from './BulkUploadModal';
 import QRScannerModal from './QRScannerModal';
+import { useI18n } from '../../i18n/I18nProvider';
 
 const Farmers = () => {
+  const { t } = useI18n();
   const [farmers, setFarmers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -25,10 +27,10 @@ const Farmers = () => {
       if (result.success) {
         setFarmers(result.data);
       } else {
-        message.error('Failed to load farmers');
+        message.error(t('farmers.loadFailed'));
       }
     } catch (error) {
-      message.error('Error loading farmers');
+      message.error(t('farmers.loadError'));
       console.error(error);
     } finally {
       setLoading(false);
@@ -48,7 +50,7 @@ const Farmers = () => {
         setFarmers(result.data);
       }
     } catch (error) {
-      message.error('Search failed');
+      message.error(t('farmers.searchFailed'));
     } finally {
       setLoading(false);
     }
@@ -63,7 +65,11 @@ const Farmers = () => {
       const result = await window.electronAPI.farmerDocuments.findByHashcode(qrCode);
       
       if (result.success) {
-        message.success(`Found: ${result.data.full_name} (${result.data.farmer_code})`);
+        message.success(
+          t('farmers.found')
+            .replace('{fullName}', result.data.full_name)
+            .replace('{farmerCode}', result.data.farmer_code)
+        );
         
         // Get the full farmer details
         const farmerResult = await window.electronAPI.farmers.getById(result.data.farmer_id);
@@ -73,15 +79,15 @@ const Farmers = () => {
           setFarmers([farmerResult.data]);
           setSearchText(result.data.farmer_code);
         } else {
-          message.warning('Could not load farmer details');
+          message.warning(t('farmers.couldNotLoadDetails'));
           loadFarmers();
         }
       } else {
-        message.warning('No farmer found with this QR code');
+        message.warning(t('farmers.notFoundQr'));
       }
     } catch (error) {
       console.error('Error searching by QR code:', error);
-      message.error('Failed to search by QR code: ' + error.message);
+      message.error(t('farmers.searchByQrFailed').replace('{error}', error.message));
     } finally {
       setLoading(false);
     }
@@ -99,43 +105,43 @@ const Farmers = () => {
 
   const columns = [
     {
-      title: 'Subsidy No.',
+      title: t('farmers.columns.subsidyNo'),
       dataIndex: 'farmer_code',
       key: 'farmer_code',
       width: 150,
     },
     {
-      title: 'IC Number',
+      title: t('farmers.columns.icNumber'),
       dataIndex: 'ic_number',
       key: 'ic_number',
       width: 150,
     },
     {
-      title: 'Full Name',
+      title: t('farmers.columns.fullName'),
       dataIndex: 'full_name',
       key: 'full_name',
     },
     {
-      title: 'Phone',
+      title: t('farmers.columns.phone'),
       dataIndex: 'phone',
       key: 'phone',
       width: 130,
     },
     {
-      title: 'City',
+      title: t('farmers.columns.city'),
       dataIndex: 'city',
       key: 'city',
       width: 120,
     },
     {
-      title: 'Farm Size (acres)',
+      title: t('farmers.columns.farmSizeAcres'),
       dataIndex: 'farm_size_acres',
       key: 'farm_size_acres',
       width: 120,
       render: (val) => val ? parseFloat(val).toFixed(2) : '-'
     },
     {
-      title: 'Status',
+      title: t('farmers.columns.status'),
       dataIndex: 'status',
       key: 'status',
       width: 100,
@@ -149,7 +155,7 @@ const Farmers = () => {
       )
     },
     {
-      title: 'Actions',
+      title: t('farmers.columns.actions'),
       key: 'actions',
       width: 150,
       render: (_, record) => (
@@ -159,15 +165,15 @@ const Farmers = () => {
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
           >
-            Edit
+            {t('farmers.actions.edit')}
           </Button>
           <Button 
             type="link" 
             danger 
             icon={<DeleteOutlined />}
-            onClick={() => message.info('Delete feature coming soon')}
+            onClick={() => message.info(t('farmers.actions.deleteComingSoon'))}
           >
-            Delete
+            {t('farmers.actions.delete')}
           </Button>
         </Space>
       ),
@@ -186,7 +192,7 @@ const Farmers = () => {
       }}>
         <Space>
           <Input
-            placeholder="Search farmers..."
+            placeholder={t('farmers.searchPlaceholder')}
             prefix={<SearchOutlined />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
@@ -194,14 +200,14 @@ const Farmers = () => {
             style={{ width: 300 }}
           />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
-            Search
+            {t('farmers.search')}
           </Button>
           <Button 
             icon={<ScanOutlined />} 
             onClick={() => setScannerOpen(true)}
-            title="Scan QR code to search farmer"
+            title={t('farmers.scanQrTitle')}
           >
-            Scan QR
+            {t('farmers.scanQr')}
           </Button>
         </Space>
         
@@ -211,13 +217,13 @@ const Farmers = () => {
             icon={<PlusOutlined />}
             onClick={() => setAddModalOpen(true)}
           >
-            Add Farmer
+            {t('farmers.addFarmer')}
           </Button>
           <Button 
             icon={<UploadOutlined />}
             onClick={() => setBulkUploadOpen(true)}
           >
-            Bulk Upload
+            {t('farmers.bulkUpload')}
           </Button>
         </Space>
       </div>
@@ -229,7 +235,7 @@ const Farmers = () => {
         loading={loading}
         pagination={{
           pageSize: 20,
-          showTotal: (total) => `Total ${total} farmers`,
+          showTotal: (total) => t('farmers.paginationTotal').replace('{total}', total),
         }}
       />
 

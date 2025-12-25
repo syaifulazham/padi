@@ -16,13 +16,19 @@ import Reports from './components/Reports/Reports';
 import Settings from './components/Settings/Settings';
 import SeasonConfig from './components/Settings/SeasonConfig';
 import ProductConfig from './components/Settings/ProductConfig';
+import BackupRestore from './components/Settings/BackupRestore';
 import AppLayout from './components/Layout/AppLayout';
+import Home from './components/Home/Home';
+import HomeSetupGuide from './components/Home/HomeSetupGuide';
+import HomeMenuGuide from './components/Home/HomeMenuGuide';
+import { useI18n } from './i18n/I18nProvider';
 
 const { Content } = Layout;
 
 function App() {
   const [dbConnected, setDbConnected] = useState(false);
   const [loading, setLoading] = useState(true);
+  const { t } = useI18n();
 
   useEffect(() => {
     // Test database connection on startup
@@ -55,7 +61,7 @@ function App() {
         height: '100vh',
         fontSize: '18px'
       }}>
-        Loading...
+        {t('app.loading')}
       </div>
     );
   }
@@ -70,8 +76,8 @@ function App() {
         height: '100vh',
         padding: '20px'
       }}>
-        <h2 style={{ color: '#ff4d4f' }}>❌ Database Connection Failed</h2>
-        <p>Please check your database configuration and ensure MySQL is running.</p>
+        <h2 style={{ color: '#ff4d4f' }}>{t('app.dbConnectionFailedTitle')}</h2>
+        <p>{t('app.dbConnectionFailedBody')}</p>
         <button 
           onClick={testConnection}
           style={{
@@ -81,7 +87,7 @@ function App() {
             cursor: 'pointer'
           }}
         >
-          Retry Connection
+          {t('app.retryConnection')}
         </button>
       </div>
     );
@@ -100,6 +106,9 @@ function App() {
       <AntApp message={{ bottom: 50, top: undefined, duration: 3, maxCount: 3 }}>
         <AppLayout>
           <Routes>
+            <Route path="/home" element={<Home />} />
+            <Route path="/home/setup" element={<HomeSetupGuide />} />
+            <Route path="/home/menus" element={<HomeMenuGuide />} />
             <Route path="/" element={<Dashboard />} />
             <Route path="/farmers" element={<Farmers />} />
             <Route path="/manufacturers" element={<Manufacturers />} />
@@ -111,10 +120,11 @@ function App() {
             <Route path="/stockpiles" element={<Stockpiles />} />
             <Route path="/stockpiles/movements" element={<StockMovements />} />
             <Route path="/inventory" element={<Inventory />} />
-            <Route path="/reports" element={<Reports />} />
+            <Route path="/reports/*" element={<Reports />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/settings/seasons" element={<SeasonConfig />} />
             <Route path="/settings/products" element={<ProductConfig />} />
+            <Route path="/settings/backup" element={<BackupRestore />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AppLayout>

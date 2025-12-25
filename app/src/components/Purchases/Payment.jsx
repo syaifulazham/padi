@@ -1,26 +1,45 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Statistic, Row, Col, Button, Space, Tag, DatePicker, message, Modal, Input, Form, InputNumber, Divider, Alert } from 'antd';
+import { Card, Table, Statistic, Row, Col, Button, Space, Tag, DatePicker, message, Modal, Input, Form, InputNumber, Divider, Alert, Radio } from 'antd';
 import { ReloadOutlined, DollarOutlined, CheckCircleOutlined, ClockCircleOutlined, PlusOutlined, MinusCircleOutlined, PrinterOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { useI18n } from '../../i18n/I18nProvider';
 
 const { RangePicker } = DatePicker;
 
 // Payment Modal Content Component with Deduction Editing
-const PaymentModalContent = ({ transaction, form }) => {
+const PaymentModalContent = ({ transaction, form, seasonDeductionConfig }) => {
+  const { t } = useI18n();
   const [previewAmount, setPreviewAmount] = useState(null);
+  const [presetModalOpen, setPresetModalOpen] = useState(false);
+  const [deductionPresets, setDeductionPresets] = useState([]);
+  const [selectedPresetIndex, setSelectedPresetIndex] = useState(0);
 
   useEffect(() => {
     calculatePreview(form.getFieldValue('deductions') || []);
-  }, []);
+  }, [transaction]);
+
+  useEffect(() => {
+    const raw = seasonDeductionConfig || [];
+    const isNewFormat = Array.isArray(raw) && raw.length > 0 && raw[0]?.preset_name !== undefined;
+    const presets = isNewFormat
+      ? raw
+      : (Array.isArray(raw) && raw.length > 0
+        ? [{ preset_name: t('purchasesPayment.presets.standard'), deductions: raw }]
+        : []);
+
+    setDeductionPresets(presets);
+    setSelectedPresetIndex(0);
+  }, [seasonDeductionConfig]);
 
   const calculatePreview = (deductions) => {
     if (!deductions || !transaction) return;
     
     const netWeight = parseFloat(transaction.net_weight_kg);
     const basePrice = parseFloat(transaction.base_price_per_kg);
+    const finalPrice = parseFloat(transaction.final_price_per_kg) || basePrice;
     const totalDeduction = deductions.reduce((sum, d) => sum + parseFloat(d.value || 0), 0);
     const effectiveWeight = netWeight * (1 - totalDeduction / 100);
-    const totalAmount = effectiveWeight * basePrice;
+    const totalAmount = effectiveWeight * finalPrice;
     
     setPreviewAmount({
       totalDeduction: totalDeduction.toFixed(2),
@@ -39,6 +58,12 @@ const PaymentModalContent = ({ transaction, form }) => {
     }
   };
 
+  const applyPreset = (preset) => {
+    const deductions = preset?.deductions || [];
+    form.setFieldsValue({ deductions });
+    calculatePreview(deductions);
+  };
+
   return (
     <Space direction="vertical" style={{ width: '100%' }} size="middle">
       <div style={{
@@ -47,7 +72,7 @@ const PaymentModalContent = ({ transaction, form }) => {
         borderRadius: 4,
         fontSize: 12
       }}>
-        <strong>💡 Tip:</strong> Adjust deductions below. Amount recalculates automatically.
+        <strong>{t('purchasesPayment.modal.tipTitle')}</strong> {t('purchasesPayment.modal.tipBody')}
       </div>
 
       <div style={{ 
@@ -58,20 +83,20 @@ const PaymentModalContent = ({ transaction, form }) => {
       }}>
         <Row gutter={[8, 8]}>
           <Col span={12}>
-            <div style={{ color: '#999' }}>Receipt</div>
+            <div style={{ color: '#999' }}>{t('purchasesPayment.modal.info.receipt')}</div>
             <Tag color="blue" style={{ margin: 0 }}>{transaction.receipt_number}</Tag>
           </Col>
           <Col span={12}>
-            <div style={{ color: '#999' }}>Farmer</div>
+            <div style={{ color: '#999' }}>{t('purchasesPayment.modal.info.farmer')}</div>
             <div style={{ fontWeight: 500, fontSize: 13 }}>{transaction.farmer_name}</div>
           </Col>
           <Col span={12}>
-            <div style={{ color: '#999' }}>Net Weight</div>
-            <strong>{parseFloat(transaction.net_weight_kg).toFixed(2)} kg</strong>
+            <div style={{ color: '#999' }}>{t('purchasesPayment.modal.info.netWeight')}</div>
+            <strong>{parseFloat(transaction.net_weight_kg).toFixed(2)} {t('purchasesPayment.misc.kg')}</strong>
           </Col>
           <Col span={12}>
-            <div style={{ color: '#999' }}>Price/ton</div>
-            <strong>RM {(parseFloat(transaction.base_price_per_kg) * 1000).toFixed(2)}</strong>
+            <div style={{ color: '#999' }}>{t('purchasesPayment.modal.info.pricePerTon')}</div>
+            <strong>{t('purchasesPayment.misc.rm')} {(parseFloat(transaction.base_price_per_kg) * 1000).toFixed(2)}</strong>
           </Col>
         </Row>
       </div>
@@ -81,42 +106,50 @@ const PaymentModalContent = ({ transaction, form }) => {
         layout="vertical"
         onValuesChange={handleValuesChange}
       >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 600 }}>{t('purchasesPayment.modal.deductions.title')}</div>
+          <Button
+            size="small"
+            onClick={() => setPresetModalOpen(true)}
+            disabled={!deductionPresets || deductionPresets.length === 0}
+          >
+            {t('purchasesPayment.modal.deductions.selectPreset')}
+          </Button>
+        </div>
+
         <Form.List name="deductions">
           {(fields, { add, remove }) => (
             <>
-              <div style={{ marginBottom: 8, fontSize: 13, fontWeight: 600 }}>
-                Deductions:
-              </div>
               {fields.map((field, index) => (
                 <Space key={field.key} style={{ display: 'flex', marginBottom: 6 }} align="baseline" size="small">
                   <Form.Item
                     {...field}
-                    label={index === 0 ? "Type" : ""}
+                    label={index === 0 ? t('purchasesPayment.modal.deductions.typeLabel') : ''}
                     name={[field.name, 'deduction']}
-                    rules={[{ required: true, message: 'Required' }]}
+                    rules={[{ required: true, message: t('purchasesPayment.validations.required') }]}
                     style={{ width: 180, marginBottom: 0 }}
                   >
-                    <Input placeholder="e.g., Moisture" size="small" />
+                    <Input placeholder={t('purchasesPayment.modal.deductions.typePlaceholder')} size="small" />
                   </Form.Item>
                   <Form.Item
                     {...field}
-                    label={index === 0 ? "Rate (%)" : ""}
+                    label={index === 0 ? t('purchasesPayment.modal.deductions.rateLabel') : ''}
                     name={[field.name, 'value']}
                     rules={[
-                      { required: true, message: 'Required' },
-                      { type: 'number', min: 0, max: 100, message: '0-100%' }
+                      { required: true, message: t('purchasesPayment.validations.required') },
+                      { type: 'number', min: 0, max: 100, message: t('purchasesPayment.validations.zeroToHundredPercent') }
                     ]}
                     style={{ width: 100, marginBottom: 0 }}
                   >
                     <InputNumber
-                      placeholder="0.00"
+                      placeholder={t('purchasesPayment.modal.deductions.ratePlaceholder')}
                       precision={2}
                       min={0}
                       max={100}
                       step={0.5}
                       size="small"
                       style={{ width: '100%' }}
-                      addonAfter="%"
+                      addonAfter={t('purchasesPayment.misc.percent')}
                     />
                   </Form.Item>
                   {fields.length > 0 && (
@@ -135,12 +168,50 @@ const PaymentModalContent = ({ transaction, form }) => {
                   block
                   icon={<PlusOutlined />}
                 >
-                  Add Deduction
+                  {t('purchasesPayment.modal.deductions.addDeduction')}
                 </Button>
               </Form.Item>
             </>
           )}
         </Form.List>
+
+        <Modal
+          title={t('purchasesPayment.presetModal.title')}
+          open={presetModalOpen}
+          onCancel={() => setPresetModalOpen(false)}
+          onOk={() => {
+            const preset = deductionPresets?.[selectedPresetIndex];
+            applyPreset(preset);
+            setPresetModalOpen(false);
+          }}
+          okText={t('purchasesPayment.presetModal.apply')}
+          cancelText={t('purchasesPayment.presetModal.cancel')}
+          width={420}
+          centered
+          destroyOnClose
+        >
+          {(!deductionPresets || deductionPresets.length === 0) ? (
+            <Alert
+              type="warning"
+              message={t('purchasesPayment.presetModal.noPresets')}
+              showIcon
+            />
+          ) : (
+            <Radio.Group
+              style={{ width: '100%' }}
+              value={selectedPresetIndex}
+              onChange={(e) => setSelectedPresetIndex(e.target.value)}
+            >
+              <Space direction="vertical" style={{ width: '100%' }}>
+                {deductionPresets.map((p, idx) => (
+                  <Radio key={idx} value={idx}>
+                    {p?.preset_name || t('purchasesPayment.presetModal.presetN').replace('{n}', idx + 1)}
+                  </Radio>
+                ))}
+              </Space>
+            </Radio.Group>
+          )}
+        </Modal>
 
         {previewAmount && (
           <>
@@ -152,24 +223,24 @@ const PaymentModalContent = ({ transaction, form }) => {
               borderRadius: 4,
               fontSize: 12
             }}>
-              <div style={{ fontWeight: 600, marginBottom: 6, fontSize: 13 }}>💰 Payment Summary</div>
+              <div style={{ fontWeight: 600, marginBottom: 6, fontSize: 13 }}>{t('purchasesPayment.modal.summary.title')}</div>
               <Row gutter={[8, 4]}>
-                <Col span={12} style={{ color: '#666' }}>Net Weight:</Col>
+                <Col span={12} style={{ color: '#666' }}>{t('purchasesPayment.modal.summary.netWeight')}</Col>
                 <Col span={12} style={{ textAlign: 'right', fontWeight: 500 }}>
-                  {parseFloat(transaction.net_weight_kg).toFixed(2)} kg
+                  {parseFloat(transaction.net_weight_kg).toFixed(2)} {t('purchasesPayment.misc.kg')}
                 </Col>
-                <Col span={12} style={{ color: '#ff4d4f' }}>Deduction:</Col>
+                <Col span={12} style={{ color: '#ff4d4f' }}>{t('purchasesPayment.modal.summary.deduction')}</Col>
                 <Col span={12} style={{ textAlign: 'right', fontWeight: 500, color: '#ff4d4f' }}>
-                  -{previewAmount.totalDeduction}% (-{previewAmount.deductedWeight} kg)
+                  -{previewAmount.totalDeduction}{t('purchasesPayment.misc.percent')} (-{previewAmount.deductedWeight} {t('purchasesPayment.misc.kg')})
                 </Col>
-                <Col span={12} style={{ color: '#1890ff' }}>Effective Weight:</Col>
+                <Col span={12} style={{ color: '#1890ff' }}>{t('purchasesPayment.modal.summary.effectiveWeight')}</Col>
                 <Col span={12} style={{ textAlign: 'right', fontWeight: 600, color: '#1890ff' }}>
-                  {previewAmount.effectiveWeight} kg
+                  {previewAmount.effectiveWeight} {t('purchasesPayment.misc.kg')}
                 </Col>
                 <Col span={24}><Divider style={{ margin: '4px 0' }} /></Col>
-                <Col span={12} style={{ fontWeight: 600, fontSize: 14 }}>Total Amount:</Col>
+                <Col span={12} style={{ fontWeight: 600, fontSize: 14 }}>{t('purchasesPayment.modal.summary.totalAmount')}</Col>
                 <Col span={12} style={{ textAlign: 'right', fontWeight: 700, color: '#52c41a', fontSize: 16 }}>
-                  RM {previewAmount.totalAmount}
+                  {t('purchasesPayment.misc.rm')} {previewAmount.totalAmount}
                 </Col>
               </Row>
             </div>
@@ -185,6 +256,7 @@ const PaymentModalContent = ({ transaction, form }) => {
 };
 
 const Payment = () => {
+  const { t } = useI18n();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [dateRange, setDateRange] = useState([dayjs().startOf('month'), dayjs().endOf('day')]);
@@ -269,7 +341,7 @@ const Payment = () => {
     try {
       const values = await form.validateFields();
       
-      message.loading({ content: 'Processing payment...', key: 'payment' });
+      message.loading({ content: t('purchasesPayment.messages.processingPayment'), key: 'payment' });
       
       // Update deductions and recalculate amount
       const result = await window.electronAPI.purchases?.updatePayment({
@@ -279,7 +351,7 @@ const Payment = () => {
       });
       
       if (result?.success) {
-        message.success({ content: 'Payment recorded successfully', key: 'payment' });
+        message.success({ content: t('purchasesPayment.messages.paymentRecordedSuccessfully'), key: 'payment' });
         
         // Regenerate receipt with updated deductions
         try {
@@ -289,30 +361,38 @@ const Payment = () => {
               message.success({
                 content: (
                   <div>
-                    <div>📄 Receipt regenerated: {printResult.filename}</div>
-                    <div style={{ fontSize: '12px', marginTop: 4 }}>Location: {printResult.path}</div>
+                    <div>
+                      {t('purchasesPayment.messages.receiptRegeneratedPrefix')}
+                      {' '}
+                      {printResult.filename}
+                    </div>
+                    <div style={{ fontSize: '12px', marginTop: 4 }}>
+                      {t('purchasesPayment.messages.locationPrefix')}
+                      {' '}
+                      {printResult.path}
+                    </div>
                   </div>
                 ),
                 duration: 5
               });
             } else {
-              message.success('Receipt printed successfully');
+              message.success(t('purchasesPayment.messages.receiptPrintedSuccessfully'));
             }
           }
         } catch (printError) {
           console.error('Print error:', printError);
-          message.warning('Payment recorded but receipt printing failed');
+          message.warning(t('purchasesPayment.messages.paymentRecordedButReceiptPrintingFailed'));
         }
         
         setPaymentModalOpen(false);
         form.resetFields();
         loadTransactions();
       } else {
-        message.error({ content: result?.error || 'Failed to record payment', key: 'payment' });
+        message.error({ content: result?.error || t('purchasesPayment.messages.failedToRecordPayment'), key: 'payment' });
       }
     } catch (error) {
       console.error('Payment failed:', error);
-      message.error({ content: 'Failed to record payment', key: 'payment' });
+      message.error({ content: t('purchasesPayment.messages.failedToRecordPayment'), key: 'payment' });
     }
   };
 
@@ -331,21 +411,21 @@ const Payment = () => {
 
   const columns = [
     {
-      title: 'Receipt',
+      title: t('purchasesPayment.table.receipt'),
       dataIndex: 'receipt_number',
       key: 'receipt_number',
       width: 150,
       render: (text) => <Tag color="blue">{text}</Tag>
     },
     {
-      title: 'Date',
+      title: t('purchasesPayment.table.date'),
       dataIndex: 'transaction_date',
       key: 'transaction_date',
       width: 120,
-      render: (text) => text ? dayjs(text).format('DD/MM/YYYY') : '-'
+      render: (text) => text ? dayjs(text).format('DD/MM/YYYY') : t('purchasesPayment.misc.dash')
     },
     {
-      title: 'Farmer',
+      title: t('purchasesPayment.table.farmer'),
       dataIndex: 'farmer_name',
       key: 'farmer_name',
       width: 200,
@@ -357,42 +437,42 @@ const Payment = () => {
       )
     },
     {
-      title: 'Product',
+      title: t('purchasesPayment.table.product'),
       dataIndex: 'product_name',
       key: 'product_name',
       width: 180,
-      render: (text) => text ? <Tag color="green">{text}</Tag> : <Tag>-</Tag>
+      render: (text) => text ? <Tag color="green">{text}</Tag> : <Tag>{t('purchasesPayment.misc.dash')}</Tag>
     },
     {
-      title: 'Net Weight (kg)',
+      title: t('purchasesPayment.table.netWeightKg'),
       dataIndex: 'net_weight_kg',
       key: 'net_weight_kg',
       width: 120,
       align: 'right',
       render: (weight) => (
-        <strong>{weight ? parseFloat(weight).toFixed(2) : '-'}</strong>
+        <strong>{weight ? parseFloat(weight).toFixed(2) : t('purchasesPayment.misc.dash')}</strong>
       )
     },
     {
-      title: 'Amount',
+      title: t('purchasesPayment.table.amount'),
       dataIndex: 'total_amount',
       key: 'total_amount',
       width: 120,
       align: 'right',
       render: (amount) => (
         <strong style={{ color: '#52c41a', fontSize: 15 }}>
-          {amount ? `RM ${parseFloat(amount).toFixed(2)}` : '-'}
+          {amount ? `${t('purchasesPayment.misc.rm')} ${parseFloat(amount).toFixed(2)}` : t('purchasesPayment.misc.dash')}
         </strong>
       )
     },
     {
-      title: 'Payment Status',
+      title: t('purchasesPayment.table.paymentStatus'),
       dataIndex: 'payment_status',
       key: 'payment_status',
       width: 120,
       filters: [
-        { text: 'Unpaid', value: 'unpaid' },
-        { text: 'Paid', value: 'paid' }
+        { text: t('purchasesPayment.statuses.unpaid'), value: 'unpaid' },
+        { text: t('purchasesPayment.statuses.paid'), value: 'paid' }
       ],
       onFilter: (value, record) => record.payment_status === value,
       render: (status) => (
@@ -400,12 +480,12 @@ const Payment = () => {
           color={status === 'paid' ? 'green' : 'orange'}
           icon={status === 'paid' ? <CheckCircleOutlined /> : <ClockCircleOutlined />}
         >
-          {status?.toUpperCase()}
+          {status ? (t(`purchasesPayment.statuses.${status}`) || status.toUpperCase()) : t('purchasesPayment.statuses.unknown')}
         </Tag>
       )
     },
     {
-      title: 'Actions',
+      title: t('purchasesPayment.table.actions'),
       key: 'actions',
       width: 120,
       fixed: 'right',
@@ -417,7 +497,7 @@ const Payment = () => {
           disabled={record.payment_status === 'paid'}
           onClick={() => handlePayment(record)}
         >
-          {record.payment_status === 'paid' ? 'Paid' : 'Pay'}
+          {record.payment_status === 'paid' ? t('purchasesPayment.actions.paid') : t('purchasesPayment.actions.pay')}
         </Button>
       )
     }
@@ -430,10 +510,10 @@ const Payment = () => {
         <Row justify="space-between" align="middle">
           <Col>
             <h2 style={{ margin: 0 }}>
-              💰 Payment Management
+              {t('purchasesPayment.title')}
               {activeSeason && (
                 <Tag color="blue" style={{ marginLeft: 12, fontSize: 14 }}>
-                  🌾 {activeSeason.season_name || `Season ${activeSeason.season_number}/${activeSeason.year}`}
+                  🌾 {activeSeason.season_name || t('purchasesPayment.seasonLabel').replace('{season_number}', activeSeason.season_number).replace('{year}', activeSeason.year)}
                 </Tag>
               )}
             </h2>
@@ -450,7 +530,7 @@ const Payment = () => {
                 onClick={loadTransactions}
                 loading={loading}
               >
-                Refresh
+                {t('purchasesPayment.actions.refresh')}
               </Button>
             </Space>
           </Col>
@@ -461,16 +541,16 @@ const Payment = () => {
           <Col span={6}>
             <Card>
               <Statistic
-                title="Total Transactions"
+                title={t('purchasesPayment.stats.totalTransactions')}
                 value={stats.total}
-                suffix="transactions"
+                suffix={t('purchasesPayment.stats.transactionsSuffix')}
               />
             </Card>
           </Col>
           <Col span={6}>
             <Card>
               <Statistic
-                title="Unpaid"
+                title={t('purchasesPayment.stats.unpaid')}
                 value={stats.unpaid}
                 valueStyle={{ color: '#ff4d4f' }}
                 prefix={<ClockCircleOutlined />}
@@ -480,9 +560,9 @@ const Payment = () => {
           <Col span={6}>
             <Card>
               <Statistic
-                title="Unpaid Amount"
+                title={t('purchasesPayment.stats.unpaidAmount')}
                 value={stats.totalUnpaidAmount}
-                prefix="RM"
+                prefix={t('purchasesPayment.misc.rm')}
                 precision={2}
                 valueStyle={{ color: '#ff4d4f' }}
               />
@@ -491,9 +571,9 @@ const Payment = () => {
           <Col span={6}>
             <Card>
               <Statistic
-                title="Paid Amount"
+                title={t('purchasesPayment.stats.paidAmount')}
                 value={stats.totalPaidAmount}
-                prefix="RM"
+                prefix={t('purchasesPayment.misc.rm')}
                 precision={2}
                 valueStyle={{ color: '#52c41a' }}
               />
@@ -509,7 +589,7 @@ const Payment = () => {
           loading={loading}
           pagination={{
             pageSize: 20,
-            showTotal: (total) => `Total ${total} transactions`,
+            showTotal: (total) => t('purchasesPayment.pagination.totalTransactions').replace('{total}', total),
             showSizeChanger: true,
             pageSizeOptions: ['10', '20', '50', '100']
           }}
@@ -522,7 +602,7 @@ const Payment = () => {
         title={
           <div style={{ fontSize: 14 }}>
             <DollarOutlined style={{ color: '#52c41a', marginRight: 6 }} />
-            Record Payment
+            {t('purchasesPayment.modal.title')}
           </div>
         }
         open={paymentModalOpen}
@@ -531,16 +611,18 @@ const Payment = () => {
           setPaymentModalOpen(false);
           form.resetFields();
         }}
-        okText="Confirm Payment"
+        okText={t('purchasesPayment.modal.confirmPayment')}
         okButtonProps={{ icon: <CheckCircleOutlined />, size: 'middle' }}
         cancelButtonProps={{ size: 'middle' }}
         width={500}
         centered
+        destroyOnClose
       >
         {selectedTransaction && (
           <PaymentModalContent 
             transaction={selectedTransaction}
             form={form}
+            seasonDeductionConfig={activeSeason?.deduction_config || []}
           />
         )}
       </Modal>

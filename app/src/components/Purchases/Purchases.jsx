@@ -3,6 +3,7 @@ import { Card, Form, Input, InputNumber, Button, Space, Row, Col, message, Modal
 import { PlusOutlined, ClockCircleOutlined, TruckOutlined, SearchOutlined, SaveOutlined, ScanOutlined, QrcodeOutlined, CameraOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import jsQR from 'jsqr';
+import { useI18n } from '../../i18n/I18nProvider';
 import DeductionConfirmModal from './DeductionConfirmModal';
 import SetCurrentPriceModal from './SetCurrentPriceModal';
 import WeighOutWizard from './WeighOutWizard';
@@ -10,6 +11,8 @@ import WeighOutWizard from './WeighOutWizard';
 const STORAGE_KEY = 'paddy_weight_in_sessions';
 
 const Purchases = () => {
+  const { t } = useI18n();
+
   // Load pending sessions from localStorage on mount
   const [pendingSessions, setPendingSessions] = useState(() => {
     try {
@@ -110,7 +113,7 @@ const Purchases = () => {
       console.log('💾 Saved', pendingSessions.length, 'pending sessions to storage');
     } catch (error) {
       console.error('Failed to save pending sessions:', error);
-      message.error('Failed to save weight-in records to storage');
+      message.error(t('purchasesWeighIn.messages.saveToStorageFailed'));
     }
   }, [pendingSessions]);
 
@@ -198,28 +201,20 @@ const Purchases = () => {
     if (!activeSeason || !productId) return;
     
     try {
-      setSelectedProduct(productId);
-      
-      // Fetch product price for current season
-      const priceResult = await window.electronAPI.seasonProductPrices.getProductPrice(
-        activeSeason.season_id,
-        productId
-      );
-      
-      if (priceResult?.success && priceResult.data?.current_price_per_ton) {
-        const pricePerKg = priceResult.data.current_price_per_ton / 1000;
+      const result = await window.electronAPI.seasonProductPrices?.getProductPrice(activeSeason.season_id, productId);
+      if (result?.success && result.data?.price_per_kg) {
         finalForm.setFieldsValue({
-          price_per_kg: pricePerKg
+          price_per_kg: result.data.price_per_kg
         });
       } else {
-        message.warning('No price set for this product in current season');
+        message.warning(t('purchasesWeighIn.messages.noPriceSetForProductInSeason'));
         finalForm.setFieldsValue({
           price_per_kg: 0
         });
       }
     } catch (error) {
       console.error('Failed to fetch product price:', error);
-      message.error('Failed to load product price');
+      message.error(t('purchasesWeighIn.messages.failedToLoadProductPrice'));
     }
   };
 
@@ -283,7 +278,7 @@ const Purchases = () => {
       setCameraActive(true);
 
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Camera not supported in this browser');
+        throw new Error(t('purchasesWeighIn.messages.cameraNotSupported'));
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -302,7 +297,7 @@ const Purchases = () => {
       }
     } catch (err) {
       console.error('Camera access error:', err);
-      setCameraError(`Camera access denied or not available: ${err.message}`);
+      setCameraError(`${t('purchasesWeighIn.messages.cameraAccessDeniedOrNotAvailable')}: ${err.message}`);
       setCameraActive(false);
     }
   };
@@ -370,22 +365,22 @@ const Purchases = () => {
       console.log('Searching farmer by QR code:', qrCode);
       const result = await window.electronAPI.farmerDocuments.findByHashcode(qrCode);
       
-      if (result.success) {
-        // Get the full farmer details
+      if (result.data?.farmer_id) {
+        // Get full farmer details
         const farmerResult = await window.electronAPI.farmers.getById(result.data.farmer_id);
         
         if (farmerResult.success) {
-          message.success(`Found: ${result.data.full_name} (${result.data.farmer_code})`);
+          message.success(`${t('purchasesWeighIn.messages.foundPrefix')} ${result.data.full_name} (${result.data.farmer_code})`);
           selectFarmer(farmerResult.data);
         } else {
-          message.warning('Could not load farmer details');
+          message.warning(t('purchasesWeighIn.messages.couldNotLoadFarmerDetails'));
         }
       } else {
-        message.warning('No farmer found with this QR code');
+        message.warning(t('purchasesWeighIn.messages.noFarmerFoundWithThisQrCode'));
       }
     } catch (error) {
       console.error('Error searching by QR code:', error);
-      message.error('Failed to search by QR code: ' + error.message);
+      message.error(`${t('purchasesWeighIn.messages.searchByQrFailedPrefix')}${error.message}`);
     }
   };
 
@@ -411,18 +406,16 @@ const Purchases = () => {
     }
     
     setFarmerSearchModal(false);
-    message.success(`Selected: ${farmer.full_name}`);
+    message.success(`${t('purchasesWeighIn.messages.selectedPrefix')} ${farmer.full_name}`);
   };
 
 
   // Handle current price set confirmation
-  const handlePriceSet = async (pricePerTon) => {
-    setSetPriceModalOpen(false);
-    
+  const handlePriceSet = async () => {
     // Reload active season to get updated price
     await loadActiveSeason();
     
-    message.success('Current price set! You can now proceed with purchases.');
+    message.success(t('purchasesWeighIn.messages.currentPriceSetProceed'));
     
     // Continue to lorry registration
     lorryForm.resetFields();
@@ -437,14 +430,14 @@ const Purchases = () => {
   const startNewPurchase = () => {
     // Check if season is still loading
     if (seasonLoading) {
-      message.loading({ content: 'Loading active season...', key: 'season', duration: 1 });
+      message.loading({ content: t('purchasesWeighIn.messages.loadingActiveSeason'), key: 'season', duration: 1 });
       return;
     }
     
     // Check if active season exists
     if (!activeSeason) {
       message.error({
-        content: 'No active season found. Please activate a season in Settings.',
+        content: t('purchasesWeighIn.messages.noActiveSeasonFound'),
         duration: 5
       });
       return;
@@ -452,7 +445,7 @@ const Purchases = () => {
 
     // Check if current price is set for the season
     if (!activeSeason.current_price_per_ton) {
-      message.warning('Current price not set for this season');
+      message.warning(t('purchasesWeighIn.messages.currentPriceNotSetForSeason'));
       setSetPriceModalOpen(true);
       return;
     }
@@ -472,7 +465,7 @@ const Purchases = () => {
   // Step 3: Save weight-in, add to pending sessions
   const handleWeightIn = (values) => {
     if (!activeSeason) {
-      message.error('No active season! Please activate a season in Settings.');
+      message.error(t('purchasesWeighIn.messages.noActiveSeasonActivateInSettings'));
       return;
     }
     
@@ -486,10 +479,10 @@ const Purchases = () => {
     setPendingSessions([...pendingSessions, session]);
     message.success(
       <span>
-        ✅ Weigh-in recorded for <strong>{currentLorry}</strong>: {values.weight_with_load} kg
+        {t('purchasesWeighIn.messages.weighInRecordedPrefix')} <strong>{currentLorry}</strong>: {values.weight_with_load} {t('purchasesWeighIn.misc.kg')}
         <br />
-        <small>💾 Data saved - safe from page refresh</small>
-      </span>, 
+        <small>{t('purchasesWeighIn.messages.dataSavedSafeFromRefresh')}</small>
+      </span>,
       5
     );
     setWeightInMode(false);
@@ -505,7 +498,7 @@ const Purchases = () => {
   // Step 4: Recall lorry for weigh-out (right-click or shortcut)
   const showRecallModal = () => {
     if (seasonPendingSessions.length === 0) {
-      message.warning('No pending lorries to recall for this season');
+      message.warning(t('purchasesWeighIn.messages.noPendingLorriesForSeason'));
       return;
     }
     setRecallModalOpen(true);
@@ -549,7 +542,7 @@ const Purchases = () => {
   // Handler for wizard completion
   const handleWizardComplete = async (wizardData) => {
     if (!activeSession || !activeSeason) {
-      message.error('Invalid session or season');
+      message.error(t('purchasesWeighIn.messages.invalidSessionOrSeason'));
       return;
     }
 
@@ -579,7 +572,6 @@ const Purchases = () => {
         season_id: activeSeason.season_id,
         farmer_id: wizardData.farmer_id,
         product_id: wizardData.product_id,
-        grade_id: 1,
         gross_weight_kg: parseFloat(activeSession.weight_with_load),
         tare_weight_kg: parseFloat(wizardData.weight_without_load),
         net_weight_kg: parseFloat(netWeight), // Actual net weight (gross - tare)
@@ -639,11 +631,11 @@ const Purchases = () => {
             }
           } else {
             console.error('Print failed:', printResult?.error);
-            message.warning('Receipt created but printing failed. You can reprint from history.');
+            message.warning(t('purchasesWeighIn.messages.receiptCreatedButPrintingFailed'));
           }
         } catch (printError) {
           console.error('Print error:', printError);
-          message.warning('Receipt created but printing failed. You can reprint from history.');
+          message.warning(t('purchasesWeighIn.messages.receiptCreatedButPrintingFailed'));
         }
         
         // Remove only the completed lorry from pending sessions
@@ -665,11 +657,11 @@ const Purchases = () => {
         // Reload purchase history
         // (could trigger a refresh event here)
       } else {
-        message.error(result.error || 'Failed to complete purchase');
+        message.error(result.error || t('purchasesWeighIn.messages.failedToCompletePurchase'));
       }
     } catch (error) {
       console.error('Error completing purchase:', error);
-      message.error('Failed to complete purchase');
+      message.error(t('purchasesWeighIn.messages.failedToCompletePurchase'));
     } finally {
       setLoading(false);
     }
@@ -683,32 +675,32 @@ const Purchases = () => {
     // Validate required fields
     if (!values.farmer_id) {
       console.error('Validation failed: farmer_id is missing', values);
-      message.error('Please select a farmer');
+      message.error(t('purchasesWeighIn.messages.pleaseSelectFarmer'));
       return;
     }
     
     if (!values.weight_without_load || values.weight_without_load <= 0) {
-      message.error('Please enter valid tare weight');
+      message.error(t('purchasesWeighIn.messages.pleaseEnterValidTareWeight'));
       return;
     }
     
     if (!values.product_id) {
-      message.error('Please select a product');
+      message.error(t('purchasesWeighIn.messages.pleaseSelectProduct'));
       return;
     }
     
     if (!values.price_per_kg || values.price_per_kg <= 0) {
-      message.error('Please enter valid price per kg');
+      message.error(t('purchasesWeighIn.messages.pleaseEnterValidPricePerKg'));
       return;
     }
 
     if (!activeSession) {
-      message.error('No active weighing session');
+      message.error(t('purchasesWeighIn.messages.noActiveWeighingSession'));
       return;
     }
 
     if (!activeSeason) {
-      message.error('No active season found');
+      message.error(t('purchasesWeighIn.messages.noActiveSeasonFoundSimple'));
       return;
     }
 
@@ -720,7 +712,6 @@ const Purchases = () => {
       season_id: activeSeason.season_id,
       farmer_id: values.farmer_id,
       product_id: values.product_id,
-      grade_id: 1, // Default grade
       gross_weight_kg: parseFloat(activeSession.weight_with_load),
       tare_weight_kg: parseFloat(values.weight_without_load),
       net_weight_kg: parseFloat(netWeight),
@@ -786,11 +777,11 @@ const Purchases = () => {
             }
           } else {
             console.error('Print failed:', printResult?.error);
-            message.warning('Receipt created but printing failed. You can reprint from history.');
+            message.warning(t('purchasesWeighIn.messages.receiptCreatedButPrintingFailed'));
           }
         } catch (printError) {
           console.error('Print error:', printError);
-          message.warning('Receipt created but printing failed. You can reprint from history.');
+          message.warning(t('purchasesWeighIn.messages.receiptCreatedButPrintingFailed'));
         }
         
         // Remove from pending sessions (will auto-save to localStorage)
@@ -803,10 +794,10 @@ const Purchases = () => {
         console.log('✅ Purchase completed, dispatching transaction-completed event');
         window.dispatchEvent(new Event('transaction-completed'));
       } else {
-        message.error('Failed to save purchase: ' + (result?.error || 'Unknown error'));
+        message.error(`${t('purchasesWeighIn.messages.failedToSavePurchasePrefix')}${result?.error || t('purchasesWeighIn.messages.unknownError')}`);
       }
     } catch (error) {
-      message.error('Failed to complete purchase');
+      message.error(t('purchasesWeighIn.messages.failedToCompletePurchase'));
       console.error(error);
     } finally {
       setLoading(false);
@@ -841,24 +832,24 @@ const Purchases = () => {
             <Space size="large">
               <div>
                 <ClockCircleOutlined style={{ color: '#faad14', marginRight: 6, fontSize: 16 }} />
-                <span style={{ fontSize: 13, color: '#8c8c8c', marginRight: 8 }}>Pending:</span>
+                <span style={{ fontSize: 13, color: '#8c8c8c', marginRight: 8 }}>{t('purchasesWeighIn.quickStats.pendingLabel')}</span>
                 <span style={{ fontSize: 18, fontWeight: 600, color: '#faad14' }}>
                   {seasonPendingSessions.length}
                 </span>
-                <Tag color="green" style={{ marginLeft: 8, fontSize: 10 }}>💾 Auto-Save</Tag>
+                <Tag color="green" style={{ marginLeft: 8, fontSize: 10 }}>{t('purchasesWeighIn.quickStats.autoSaveTag')}</Tag>
               </div>
               
               <Divider type="vertical" style={{ height: 24, margin: '0 8px' }} />
               
               <div>
                 <TruckOutlined style={{ color: activeSession ? '#1890ff' : '#d9d9d9', marginRight: 6, fontSize: 16 }} />
-                <span style={{ fontSize: 13, color: '#8c8c8c', marginRight: 8 }}>Active:</span>
+                <span style={{ fontSize: 13, color: '#8c8c8c', marginRight: 8 }}>{t('purchasesWeighIn.quickStats.activeLabel')}</span>
                 <span style={{ 
                   fontSize: 16, 
                   fontWeight: 600, 
                   color: activeSession ? '#1890ff' : '#d9d9d9' 
                 }}>
-                  {activeSession ? activeSession.lorry_reg_no : 'None'}
+                  {activeSession ? activeSession.lorry_reg_no : t('purchasesWeighIn.quickStats.noneValue')}
                 </span>
               </div>
             </Space>
@@ -870,8 +861,8 @@ const Purchases = () => {
       {weightInMode && (
         <Card style={{ marginBottom: 16, background: '#f6ffed', borderColor: '#52c41a' }}>
           <Alert
-            message={`Weigh In: ${currentLorry}`}
-            description="Enter the weight with load"
+            message={`${t('purchasesWeighIn.weighInPanel.titlePrefix')} ${currentLorry}`}
+            description={t('purchasesWeighIn.weighInPanel.description')}
             type="success"
             showIcon
             style={{ marginBottom: 16 }}
@@ -886,14 +877,14 @@ const Purchases = () => {
               <Col span={12}>
                 <Form.Item
                   name="weight_with_load"
-                  label="Weight with Load (KG)"
-                  rules={[{ required: true, message: 'Please enter weight' }]}
+                  label={t('purchasesWeighIn.weighInPanel.fields.weightWithLoadLabel')}
+                  rules={[{ required: true, message: t('purchasesWeighIn.weighInPanel.validations.weightRequired') }]}
                 >
                   <InputNumber
                     min={0}
                     step={0.01}
                     style={{ width: '100%', fontSize: '24px' }}
-                    placeholder="Enter weight with load"
+                    placeholder={t('purchasesWeighIn.weighInPanel.placeholders.weightWithLoad')}
                     size="large"
                     autoFocus
                   />
@@ -904,7 +895,7 @@ const Purchases = () => {
             <Form.Item>
               <Space>
                 <Button size="large" onClick={cancelWeightIn}>
-                  Cancel
+                  {t('purchasesWeighIn.actions.cancel')}
                 </Button>
                 <Button
                   type="primary"
@@ -912,7 +903,7 @@ const Purchases = () => {
                   htmlType="submit"
                   icon={<SaveOutlined />}
                 >
-                  Save Weigh-In
+                  {t('purchasesWeighIn.actions.saveWeighIn')}
                 </Button>
               </Space>
             </Form.Item>
@@ -943,25 +934,25 @@ const Purchases = () => {
                 onClick={startNewPurchase}
                 disabled={weightInMode || activeSession || seasonLoading}
                 loading={seasonLoading}
-                title={seasonLoading ? "Loading season..." : "Press F3 to start"}
+                title={seasonLoading ? t('purchasesWeighIn.actions.loadingSeasonTitle') : t('purchasesWeighIn.actions.pressF3ToStartTitle')}
               >
-                New Purchase (Weigh-In) <kbd style={{ marginLeft: '8px', fontSize: '11px', padding: '2px 6px', background: '#f0f0f0', border: '1px solid #d9d9d9', borderRadius: '3px' }}>F3</kbd>
+                {t('purchasesWeighIn.actions.newPurchaseWeighIn')} <kbd style={{ marginLeft: '8px', fontSize: '11px', padding: '2px 6px', background: '#f0f0f0', border: '1px solid #d9d9d9', borderRadius: '3px' }}>F3</kbd>
               </Button>
               <Button
                 size="large"
                 icon={<ClockCircleOutlined />}
                 onClick={showRecallModal}
                 disabled={seasonPendingSessions.length === 0 || weightInMode || activeSession}
-                title="Press F2 to open"
+                title={t('purchasesWeighIn.actions.pressF2ToOpenTitle')}
               >
-                Recall Lorry ({seasonPendingSessions.length}) <kbd style={{ marginLeft: '8px', fontSize: '11px', padding: '2px 6px', background: '#f0f0f0', border: '1px solid #d9d9d9', borderRadius: '3px' }}>F2</kbd>
+                {t('purchasesWeighIn.actions.recallLorry', `Recall Lorry (${seasonPendingSessions.length})`).replace('{count}', seasonPendingSessions.length)} <kbd style={{ marginLeft: '8px', fontSize: '11px', padding: '2px 6px', background: '#f0f0f0', border: '1px solid #d9d9d9', borderRadius: '3px' }}>F2</kbd>
               </Button>
             </Space>
           </Col>
           <Col>
             {seasonLoading ? (
               <Tag icon={<ClockCircleOutlined spin />} color="processing">
-                Loading season...
+                {t('purchasesWeighIn.status.loadingSeason')}
               </Tag>
             ) : activeSeason ? (
               <Tag color="green">
@@ -969,7 +960,7 @@ const Purchases = () => {
               </Tag>
             ) : (
               <Tag color="error">
-                ⚠️ No active season
+                {t('purchasesWeighIn.status.noActiveSeason')}
               </Tag>
             )}
           </Col>
@@ -978,7 +969,7 @@ const Purchases = () => {
 
       {/* Step 1: Lorry Registration Modal */}
       <Modal
-        title="New Purchase - Enter Lorry"
+        title={t('purchasesWeighIn.lorryModal.title')}
         open={lorryModalOpen}
         onCancel={() => setLorryModalOpen(false)}
         footer={null}
@@ -996,13 +987,13 @@ const Purchases = () => {
         >
           <Form.Item
             name="lorry_reg_no"
-            label="Lorry Registration Number"
-            rules={[{ required: true, message: 'Please enter lorry registration' }]}
+            label={t('purchasesWeighIn.lorryModal.fields.lorryRegistrationNumber')}
+            rules={[{ required: true, message: t('purchasesWeighIn.lorryModal.validations.lorryRegistrationRequired') }]}
             normalize={(value) => value?.toUpperCase()}
           >
             <Input 
               ref={lorryInputRef}
-              placeholder="e.g., ABC 1234" 
+              placeholder={t('purchasesWeighIn.lorryModal.placeholders.lorryRegistrationExample')} 
               size="large"
               autoFocus
               style={{ fontSize: '20px', textTransform: 'uppercase' }}
@@ -1012,14 +1003,14 @@ const Purchases = () => {
           <Form.Item>
             <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
               <Button onClick={() => setLorryModalOpen(false)}>
-                Cancel
+                {t('purchasesWeighIn.actions.cancel')}
               </Button>
               <Button
                 type="primary"
                 htmlType="submit"
                 size="large"
               >
-                OK - Next: Weigh In
+                {t('purchasesWeighIn.lorryModal.actions.okNextWeighIn')}
               </Button>
             </Space>
           </Form.Item>
@@ -1030,7 +1021,7 @@ const Purchases = () => {
       <Modal
         title={
           <span>
-            Recall Lorry for Weigh-Out 
+            {t('purchasesWeighIn.recallModal.title')} 
             <kbd style={{ marginLeft: '12px', fontSize: '11px', padding: '3px 8px', background: '#f0f0f0', border: '1px solid #d9d9d9', borderRadius: '3px' }}>F2</kbd>
           </span>
         }
@@ -1040,8 +1031,8 @@ const Purchases = () => {
         width={700}
       >
         <Alert
-          message="Select Lorry to Complete Weighing"
-          description="Click on a lorry to complete the weigh-out process. Press F2 anytime to open this modal."
+          message={t('purchasesWeighIn.recallModal.alert.message')}
+          description={t('purchasesWeighIn.recallModal.alert.description')}
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
@@ -1069,7 +1060,7 @@ const Purchases = () => {
                   {session.lorry_reg_no}
                 </div>
                 <div style={{ fontSize: '12px', color: '#666' }}>
-                  Weigh-in: {session.weight_with_load} kg
+                  {t('purchasesWeighIn.recallModal.lorryCard.weighInLabel')} {session.weight_with_load} {t('purchasesWeighIn.misc.kg')}
                 </div>
                 <div style={{ fontSize: '10px', color: '#999' }}>
                   {dayjs(session.timestamp).format('HH:mm:ss')}
@@ -1085,7 +1076,7 @@ const Purchases = () => {
         title={
           <Space>
             <SearchOutlined />
-            Search Farmer - Multiple Methods
+            {t('purchasesWeighIn.farmerSearchModal.title')}
           </Space>
         }
         open={farmerSearchModal}
@@ -1101,8 +1092,8 @@ const Purchases = () => {
       >
         <Space direction="vertical" style={{ width: '100%' }} size="large">
           <Alert
-            message="Choose your search method"
-            description="Select your preferred QR scan method below, or use manual search"
+            message={t('purchasesWeighIn.farmerSearchModal.chooseMethodAlert.message')}
+            description={t('purchasesWeighIn.farmerSearchModal.chooseMethodAlert.description')}
             type="info"
             showIcon
           />
@@ -1110,7 +1101,7 @@ const Purchases = () => {
           {/* QR Scan Method Toggle */}
           <div>
             <div style={{ marginBottom: 8, fontWeight: 500 }}>
-              QR Code Scan Method
+              {t('purchasesWeighIn.farmerSearchModal.qrScanMethodLabel')}
             </div>
             <Segmented
               value={scanMethod}
@@ -1119,7 +1110,7 @@ const Purchases = () => {
                 {
                   label: (
                     <span>
-                      <QrcodeOutlined /> QR Scanner Device
+                      <QrcodeOutlined /> {t('purchasesWeighIn.farmerSearchModal.scanMethodOptions.device')}
                     </span>
                   ),
                   value: 'device',
@@ -1127,7 +1118,7 @@ const Purchases = () => {
                 {
                   label: (
                     <span>
-                      <ScanOutlined /> Camera Scan
+                      <ScanOutlined /> {t('purchasesWeighIn.farmerSearchModal.scanMethodOptions.camera')}
                     </span>
                   ),
                   value: 'camera',
@@ -1144,7 +1135,7 @@ const Purchases = () => {
               <Input
                 ref={qrInputRef}
                 size="large"
-                placeholder="Focus here and scan with QR scanner device..."
+                placeholder={t('purchasesWeighIn.farmerSearchModal.deviceScan.placeholder')}
                 prefix={<QrcodeOutlined />}
                 onChange={handleQRInput}
                 onPressEnter={(e) => {
@@ -1154,14 +1145,14 @@ const Purchases = () => {
                 autoFocus
               />
               <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
-                📱 Hardware QR scanners will input here automatically
+                {t('purchasesWeighIn.farmerSearchModal.deviceScan.helperText')}
               </div>
             </div>
           ) : (
             <div>
               {cameraError && (
                 <Alert
-                  message="Camera Error"
+                  message={t('purchasesWeighIn.farmerSearchModal.camera.errorTitle')}
                   description={cameraError}
                   type="error"
                   showIcon
@@ -1173,8 +1164,8 @@ const Purchases = () => {
 
               {!cameraError && (
                 <Alert
-                  message="Position QR code in front of camera"
-                  description="The QR code will be scanned automatically when detected"
+                  message={t('purchasesWeighIn.farmerSearchModal.camera.positionTitle')}
+                  description={t('purchasesWeighIn.farmerSearchModal.camera.positionDescription')}
                   type="info"
                   showIcon
                   style={{ marginBottom: 16 }}
@@ -1203,7 +1194,7 @@ const Purchases = () => {
                     color: 'white'
                   }}>
                     <Spin size="large" />
-                    <div style={{ marginTop: 16 }}>Starting camera...</div>
+                    <div style={{ marginTop: 16 }}>{t('purchasesWeighIn.farmerSearchModal.camera.starting')}</div>
                   </div>
                 )}
 
@@ -1229,29 +1220,29 @@ const Purchases = () => {
                     textAlign: 'center'
                   }}>
                     <CameraOutlined style={{ fontSize: 48, marginBottom: 16 }} />
-                    <div>Camera not available or access denied</div>
+                    <div>{t('purchasesWeighIn.farmerSearchModal.camera.notAvailable')}</div>
                   </div>
                 )}
               </div>
 
               {cameraActive && (
                 <div style={{ textAlign: 'center', fontSize: 12, color: '#888', marginTop: 8 }}>
-                  📸 Camera active - Point at QR code
+                  {t('purchasesWeighIn.farmerSearchModal.camera.activeHint')}
                 </div>
               )}
             </div>
           )}
 
-          <Divider>OR</Divider>
+          <Divider>{t('purchasesWeighIn.farmerSearchModal.orDivider')}</Divider>
 
           {/* Manual Text Search */}
           <div>
             <div style={{ marginBottom: 8, fontWeight: 500 }}>
-              <SearchOutlined /> Manual Search
+              <SearchOutlined /> {t('purchasesWeighIn.farmerSearchModal.manualSearch.title')}
             </div>
             <Input
               size="large"
-              placeholder="Search by name, subsidy no., or IC number..."
+              placeholder={t('purchasesWeighIn.farmerSearchModal.manualSearch.placeholder')}
               prefix={<SearchOutlined />}
               value={farmerSearchText}
               onChange={(e) => {
@@ -1264,7 +1255,7 @@ const Purchases = () => {
 
           {farmerSearchText.length > 0 && farmerSearchText.length < 2 && (
             <Alert
-              message="Type at least 2 characters to search"
+              message={t('purchasesWeighIn.farmerSearchModal.manualSearch.minChars')}
               type="info"
               showIcon
             />
@@ -1272,8 +1263,8 @@ const Purchases = () => {
 
           {farmerSearchText.length >= 2 && farmerOptions.length === 0 && (
             <Alert
-              message="No farmers found"
-              description="Try different search terms"
+              message={t('purchasesWeighIn.farmerSearchModal.manualSearch.noFarmersFound')}
+              description={t('purchasesWeighIn.farmerSearchModal.manualSearch.tryDifferentTerms')}
               type="warning"
               showIcon
             />
@@ -1282,7 +1273,7 @@ const Purchases = () => {
           {farmerOptions.length > 0 && (
             <>
               <Alert
-                message={`Found ${farmerOptions.length} farmer(s)`}
+                message={t('purchasesWeighIn.farmerSearchModal.results.foundCount').replace('{count}', farmerOptions.length)}
                 type="success"
                 showIcon
               />
@@ -1299,32 +1290,32 @@ const Purchases = () => {
                 })}
                 columns={[
                   {
-                    title: 'Subsidy No.',
+                    title: t('purchasesWeighIn.farmerSearchModal.results.columns.subsidyNo'),
                     dataIndex: 'farmer_code',
                     key: 'farmer_code',
                     width: 150,
                     render: (text) => <Tag color="blue">{text}</Tag>
                   },
                   {
-                    title: 'Name',
+                    title: t('purchasesWeighIn.farmerSearchModal.results.columns.name'),
                     dataIndex: 'full_name',
                     key: 'full_name',
                     render: (text) => <strong>{text}</strong>
                   },
                   {
-                    title: 'IC Number',
+                    title: t('purchasesWeighIn.farmerSearchModal.results.columns.icNumber'),
                     dataIndex: 'ic_number',
                     key: 'ic_number',
                     width: 150
                   },
                   {
-                    title: 'Phone',
+                    title: t('purchasesWeighIn.farmerSearchModal.results.columns.phone'),
                     dataIndex: 'phone_number',
                     key: 'phone_number',
                     width: 130
                   },
                   {
-                    title: 'Action',
+                    title: t('purchasesWeighIn.farmerSearchModal.results.columns.action'),
                     key: 'action',
                     width: 100,
                     render: (_, record) => (
@@ -1333,7 +1324,7 @@ const Purchases = () => {
                         size="small"
                         onClick={() => selectFarmer(record)}
                       >
-                        Select
+                        {t('purchasesWeighIn.farmerSearchModal.results.actions.select')}
                       </Button>
                     )
                   }
