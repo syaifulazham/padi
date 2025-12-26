@@ -1,11 +1,13 @@
 import React from 'react';
 import { Card, Typography, Row, Col, Divider, Tag, Button, Space } from 'antd';
 import { useNavigate } from 'react-router-dom';
+import { useI18n } from '../../i18n/I18nProvider';
 
 const { Title, Paragraph, Text } = Typography;
 
 const HomeSetupGuide = () => {
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto' }}>
@@ -13,9 +15,9 @@ const HomeSetupGuide = () => {
         background: 'rgba(255, 255, 255, 0.92)',
         backdropFilter: 'blur(4px)',
       }}>
-        <Title level={2} style={{ marginTop: 0 }}>Getting Started</Title>
+        <Title level={2} style={{ marginTop: 0 }}>{t('homeSetupGuide.title')}</Title>
         <Paragraph style={{ marginBottom: 0 }}>
-          Before starting daily operations, make sure these configurations are completed.
+          {t('homeSetupGuide.description')}
         </Paragraph>
       </Card>
 
@@ -23,74 +25,74 @@ const HomeSetupGuide = () => {
 
       <Row gutter={[16, 16]}>
         <Col xs={24} md={12}>
-          <Card title="1) Company Details" style={{ background: 'rgba(255, 255, 255, 0.92)', backdropFilter: 'blur(4px)' }}>
+          <Card title={t('homeSetupGuide.cards.companyDetails.title')} style={{ background: 'rgba(255, 255, 255, 0.92)', backdropFilter: 'blur(4px)' }}>
             <Paragraph>
-              Ensure your company name, address and license numbers are correct.
+              {t('homeSetupGuide.cards.companyDetails.description')}
             </Paragraph>
             <Space size={8} wrap>
-              <Text type="secondary">Menu: Settings → Company</Text>
-              <Button type="link" onClick={() => navigate('/settings')}>Open</Button>
+              <Text type="secondary">{t('homeSetupGuide.cards.companyDetails.hint')}</Text>
+              <Button type="link" onClick={() => navigate('/settings')}>{t('homeSetupGuide.cards.openButton')}</Button>
             </Space>
           </Card>
         </Col>
         <Col xs={24} md={12}>
-          <Card title="2) Hardware & Printer" style={{ background: 'rgba(255, 255, 255, 0.92)', backdropFilter: 'blur(4px)' }}>
+          <Card title={t('homeSetupGuide.cards.hardwarePrinter.title')} style={{ background: 'rgba(255, 255, 255, 0.92)', backdropFilter: 'blur(4px)' }}>
             <Paragraph>
-              Configure weighbridge / device settings and ensure printing works.
+              {t('homeSetupGuide.cards.hardwarePrinter.description')}
             </Paragraph>
             <Space size={8} wrap>
-              <Text type="secondary">Menu: Settings → Hardware / Printer</Text>
-              <Button type="link" onClick={() => navigate('/settings')}>Open</Button>
-            </Space>
-          </Card>
-        </Col>
-
-        <Col xs={24} md={12}>
-          <Card title="3) Seasons & Prices" style={{ background: 'rgba(255, 255, 255, 0.92)', backdropFilter: 'blur(4px)' }}>
-            <Paragraph>
-              Activate the correct season and set product prices so weighing workflows can calculate totals.
-            </Paragraph>
-            <Space size={8} wrap>
-              <Text type="secondary">Menu: Settings → Seasons</Text>
-              <Button type="link" onClick={() => navigate('/settings/seasons')}>Open</Button>
-            </Space>
-          </Card>
-        </Col>
-        <Col xs={24} md={12}>
-          <Card title="4) Products" style={{ background: 'rgba(255, 255, 255, 0.92)', backdropFilter: 'blur(4px)' }}>
-            <Paragraph>
-              Confirm paddy/rice product types exist and match your receipts and reports.
-            </Paragraph>
-            <Space size={8} wrap>
-              <Text type="secondary">Menu: Settings → Products</Text>
-              <Button type="link" onClick={() => navigate('/settings/products')}>Open</Button>
+              <Text type="secondary">{t('homeSetupGuide.cards.hardwarePrinter.hint')}</Text>
+              <Button type="link" onClick={() => navigate('/settings')}>{t('homeSetupGuide.cards.openButton')}</Button>
             </Space>
           </Card>
         </Col>
 
         <Col xs={24} md={12}>
-          <Card title="5) Master Data" style={{ background: 'rgba(255, 255, 255, 0.92)', backdropFilter: 'blur(4px)' }}>
+          <Card title={t('homeSetupGuide.cards.seasonsPrices.title')} style={{ background: 'rgba(255, 255, 255, 0.92)', backdropFilter: 'blur(4px)' }}>
             <Paragraph>
-              Ensure Farmers and Manufacturers lists are ready before transactions begin.
+              {t('homeSetupGuide.cards.seasonsPrices.description')}
+            </Paragraph>
+            <Space size={8} wrap>
+              <Text type="secondary">{t('homeSetupGuide.cards.seasonsPrices.hint')}</Text>
+              <Button type="link" onClick={() => navigate('/settings/seasons')}>{t('homeSetupGuide.cards.openButton')}</Button>
+            </Space>
+          </Card>
+        </Col>
+        <Col xs={24} md={12}>
+          <Card title={t('homeSetupGuide.cards.products.title')} style={{ background: 'rgba(255, 255, 255, 0.92)', backdropFilter: 'blur(4px)' }}>
+            <Paragraph>
+              {t('homeSetupGuide.cards.products.description')}
+            </Paragraph>
+            <Space size={8} wrap>
+              <Text type="secondary">{t('homeSetupGuide.cards.products.hint')}</Text>
+              <Button type="link" onClick={() => navigate('/settings/products')}>{t('homeSetupGuide.cards.openButton')}</Button>
+            </Space>
+          </Card>
+        </Col>
+
+        <Col xs={24} md={12}>
+          <Card title={t('homeSetupGuide.cards.masterData.title')} style={{ background: 'rgba(255, 255, 255, 0.92)', backdropFilter: 'blur(4px)' }}>
+            <Paragraph>
+              {t('homeSetupGuide.cards.masterData.description')}
             </Paragraph>
             <div>
-              <Tag>Farmers</Tag>
-              <Tag>Manufacturers</Tag>
+              <Tag>{t('homeSetupGuide.cards.masterData.tags.farmers')}</Tag>
+              <Tag>{t('homeSetupGuide.cards.masterData.tags.manufacturers')}</Tag>
             </div>
             <Space size={8} wrap style={{ marginTop: 8 }}>
-              <Button type="link" onClick={() => navigate('/farmers')}>Open Farmers</Button>
-              <Button type="link" onClick={() => navigate('/manufacturers')}>Open Manufacturers</Button>
+              <Button type="link" onClick={() => navigate('/farmers')}>{t('homeSetupGuide.cards.masterData.openFarmers')}</Button>
+              <Button type="link" onClick={() => navigate('/manufacturers')}>{t('homeSetupGuide.cards.masterData.openManufacturers')}</Button>
             </Space>
           </Card>
         </Col>
         <Col xs={24} md={12}>
-          <Card title="6) Backup" style={{ background: 'rgba(255, 255, 255, 0.92)', backdropFilter: 'blur(4px)' }}>
+          <Card title={t('homeSetupGuide.cards.backup.title')} style={{ background: 'rgba(255, 255, 255, 0.92)', backdropFilter: 'blur(4px)' }}>
             <Paragraph>
-              Set up backups early. It’s easier to prevent data loss than recover it.
+              {t('homeSetupGuide.cards.backup.description')}
             </Paragraph>
             <Space size={8} wrap>
-              <Text type="secondary">Menu: Settings → Backup</Text>
-              <Button type="link" onClick={() => navigate('/settings/backup')}>Open</Button>
+              <Text type="secondary">{t('homeSetupGuide.cards.backup.hint')}</Text>
+              <Button type="link" onClick={() => navigate('/settings/backup')}>{t('homeSetupGuide.cards.openButton')}</Button>
             </Space>
           </Card>
         </Col>

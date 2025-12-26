@@ -1232,6 +1232,144 @@ const DICTS = {
         }
       }
     },
+    homeSetupGuide: {
+      title: 'Getting Started',
+      description: 'Before starting daily operations, make sure these configurations are completed.',
+      cards: {
+        openButton: 'Open',
+        companyDetails: {
+          title: '1) Company Details',
+          description: 'Ensure your company name, address and license numbers are correct.',
+          hint: 'Menu: Settings → Company'
+        },
+        hardwarePrinter: {
+          title: '2) Hardware & Printer',
+          description: 'Configure weighbridge / device settings and ensure printing works.',
+          hint: 'Menu: Settings → Hardware / Printer'
+        },
+        seasonsPrices: {
+          title: '3) Seasons & Prices',
+          description: 'Activate the correct season and set product prices so weighing workflows can calculate totals.',
+          hint: 'Menu: Settings → Seasons'
+        },
+        products: {
+          title: '4) Products',
+          description: 'Confirm paddy/rice product types exist and match your receipts and reports.',
+          hint: 'Menu: Settings → Products'
+        },
+        masterData: {
+          title: '5) Master Data',
+          description: 'Ensure Farmers and Manufacturers lists are ready before transactions begin.',
+          tags: {
+            farmers: 'Farmers',
+            manufacturers: 'Manufacturers'
+          },
+          openFarmers: 'Open Farmers',
+          openManufacturers: 'Open Manufacturers'
+        },
+        backup: {
+          title: '6) Backup',
+          description: "Set up backups early. It's easier to prevent data loss than recover it.",
+          hint: 'Menu: Settings → Backup'
+        }
+      }
+    },
+    backupRestore: {
+      pageTitle: 'Backup & Database Management',
+      backupCard: {
+        title: 'Backup & Restore',
+        description: 'Create backups of your database to protect against data loss. Backups include all transactions, farmers, manufacturers, seasons, products, and settings.',
+        backupLocationLabel: 'Backup Location',
+        noBackupPathLabel: 'No Backup Path Set',
+        configureBackupPath: 'Configure backup path in Settings → General → Backup first.',
+        createBackupButton: 'Create Backup Now',
+        restoreButton: 'Restore from Backup',
+        openFolderButton: 'Open Backup Folder',
+        backupFormatLabel: 'Backup Format',
+        backupFormatValue: 'MySQL dump (.sql) with timestamp',
+        namingLabel: 'Naming',
+        namingValue: 'padi_backup_YYYYMMDD_HHMMSS.sql',
+        contentsLabel: 'Contents',
+        contentsValue: 'All transactions, farmers, manufacturers, seasons, and products'
+      },
+      cleanupCard: {
+        title: 'Database Cleanup',
+        description: 'Remove all data from the database to start fresh. This is useful for testing or resetting the system. User accounts will be preserved.',
+        dangerZoneLabel: '⚠️ Danger Zone',
+        dangerZoneDesc: 'This action permanently deletes all data and cannot be undone. Always create a backup first!',
+        willDeleteLabel: 'What will be deleted',
+        deleteItems: {
+          purchases: 'All purchase transactions',
+          sales: 'All sales transactions',
+          farmersAndDocs: 'All farmers and documents',
+          manufacturers: 'All manufacturers',
+          seasonsAndPrices: 'All seasons and price history',
+          productsAndGrades: 'All products and grades'
+        },
+        willKeepLabel: 'What will be kept',
+        keepItems: {
+          userAccounts: 'User accounts and credentials',
+          appSettings: 'Application settings'
+        },
+        recommendedStepsLabel: '💡 Recommended Steps',
+        steps: {
+          createBackup: 'Create a backup first',
+          verifyBackup: 'Verify backup file is created',
+          proceedCleanup: 'Proceed with cleanup'
+        },
+        cleanButton: 'Clean All Database Data'
+      },
+      restoreModal: {
+        title: 'Restore Database from Backup?',
+        selectedFile: 'Selected file',
+        warning: '⚠️ This will replace all current data with the backup data.',
+        makeBackupFirst: 'Make sure to create a backup of current data first if needed.',
+        restoreButton: 'Restore',
+        cancelButton: 'Cancel'
+      },
+      cleanupModal: {
+        title: 'Clean All Database Data?',
+        warningCannotUndo: '⚠️ WARNING: This action cannot be undone!',
+        willDeleteLabel: 'This will permanently delete',
+        deleteItems: {
+          purchases: 'All purchase transactions',
+          sales: 'All sales transactions',
+          farmers: 'All farmers',
+          manufacturers: 'All manufacturers',
+          seasons: 'All seasons',
+          products: 'All products and grades',
+          documents: 'All documents'
+        },
+        accountsPreserved: 'User accounts will be preserved.',
+        tipCreateBackup: '💡 Tip: Create a backup before cleaning the database.',
+        enterVerificationCodes: 'To proceed, please enter the following verification codes',
+        verificationCode1: 'Verification Code 1',
+        verificationCode2: 'Verification Code 2',
+        enterCode1: 'Enter code 1',
+        enterCode2: 'Enter code 2',
+        confirmDeleteButton: 'Confirm & Delete All Data',
+        cancelButton: 'Cancel'
+      },
+      messages: {
+        setBackupPathFirst: 'Please set backup path in General Settings first',
+        backupCreatedSuccess: 'Backup created successfully',
+        backupFailed: 'Backup failed',
+        failedToCreateBackup: 'Failed to create backup',
+        restoringDatabase: 'Restoring database... please wait',
+        restoreSuccessTitle: 'Database Restored Successfully',
+        restoreSuccessDesc: 'Database has been restored from backup.',
+        restartRequired: 'Please restart the application to see the restored data.',
+        restoreFailed: 'Restore failed',
+        failedToRestoreBackup: 'Failed to restore backup',
+        failedToSelectFile: 'Failed to select backup file',
+        failedToOpenFolder: 'Failed to open folder',
+        failedToOpenBackupFolder: 'Failed to open backup folder',
+        verificationFailed: 'Verification codes do not match. Database cleanup cancelled.',
+        cleanupSuccess: 'Database cleaned successfully. All data removed except users.',
+        cleanupFailed: 'Cleanup failed',
+        failedToCleanDatabase: 'Failed to clean database'
+      }
+    },
     menu: {
       home: 'Home',
       dashboard: 'Dashboard',
@@ -1961,6 +2099,144 @@ const DICTS = {
           description: 'Lihat ringkasan dan eksport laporan untuk belian, jualan dan pergerakan lori.',
           hint: 'Menu: Laporan'
         }
+      }
+    },
+    homeSetupGuide: {
+      title: 'Panduan Permulaan',
+      description: 'Sebelum memulakan operasi harian, pastikan konfigurasi ini dilengkapkan.',
+      cards: {
+        openButton: 'Buka',
+        companyDetails: {
+          title: '1) Maklumat Syarikat',
+          description: 'Pastikan nama syarikat, alamat dan nombor lesen anda adalah betul.',
+          hint: 'Menu: Tetapan → Syarikat'
+        },
+        hardwarePrinter: {
+          title: '2) Perkakasan & Pencetak',
+          description: 'Konfigurasikan tetapan jambatan timbang / peranti dan pastikan pencetakan berfungsi.',
+          hint: 'Menu: Tetapan → Perkakasan / Pencetak'
+        },
+        seasonsPrices: {
+          title: '3) Musim & Harga',
+          description: 'Aktifkan musim yang betul dan tetapkan harga produk supaya aliran kerja penimbangan dapat mengira jumlah.',
+          hint: 'Menu: Tetapan → Musim'
+        },
+        products: {
+          title: '4) Produk',
+          description: 'Sahkan jenis produk padi/beras wujud dan sepadan dengan resit dan laporan anda.',
+          hint: 'Menu: Tetapan → Produk'
+        },
+        masterData: {
+          title: '5) Data Induk',
+          description: 'Pastikan senarai Pesawah dan Pengilang bersedia sebelum transaksi bermula.',
+          tags: {
+            farmers: 'Pesawah',
+            manufacturers: 'Pengilang'
+          },
+          openFarmers: 'Buka Pesawah',
+          openManufacturers: 'Buka Pengilang'
+        },
+        backup: {
+          title: '6) Sandaran',
+          description: 'Sediakan sandaran awal. Lebih mudah mencegah kehilangan data daripada memulihkannya.',
+          hint: 'Menu: Tetapan → Sandaran'
+        }
+      }
+    },
+    backupRestore: {
+      pageTitle: 'Sandaran & Pengurusan Pangkalan Data',
+      backupCard: {
+        title: 'Sandaran & Pulih',
+        description: 'Cipta sandaran pangkalan data anda untuk melindungi daripada kehilangan data. Sandaran termasuk semua transaksi, pesawah, pengilang, musim, produk, dan tetapan.',
+        backupLocationLabel: 'Lokasi Sandaran',
+        noBackupPathLabel: 'Tiada Laluan Sandaran',
+        configureBackupPath: 'Konfigurasikan laluan sandaran di Tetapan → Umum → Sandaran terlebih dahulu.',
+        createBackupButton: 'Cipta Sandaran Sekarang',
+        restoreButton: 'Pulih dari Sandaran',
+        openFolderButton: 'Buka Folder Sandaran',
+        backupFormatLabel: 'Format Sandaran',
+        backupFormatValue: 'MySQL dump (.sql) dengan cap masa',
+        namingLabel: 'Penamaan',
+        namingValue: 'padi_backup_YYYYMMDD_HHMMSS.sql',
+        contentsLabel: 'Kandungan',
+        contentsValue: 'Semua transaksi, pesawah, pengilang, musim, dan produk'
+      },
+      cleanupCard: {
+        title: 'Pembersihan Pangkalan Data',
+        description: 'Buang semua data dari pangkalan data untuk memulakan semula. Ini berguna untuk ujian atau menetapkan semula sistem. Akaun pengguna akan dipelihara.',
+        dangerZoneLabel: '⚠️ Zon Bahaya',
+        dangerZoneDesc: 'Tindakan ini memadamkan semua data secara kekal dan tidak boleh dibatalkan. Sentiasa cipta sandaran terlebih dahulu!',
+        willDeleteLabel: 'Apa yang akan dipadamkan',
+        deleteItems: {
+          purchases: 'Semua transaksi belian',
+          sales: 'Semua transaksi jualan',
+          farmersAndDocs: 'Semua pesawah dan dokumen',
+          manufacturers: 'Semua pengilang',
+          seasonsAndPrices: 'Semua musim dan sejarah harga',
+          productsAndGrades: 'Semua produk dan gred'
+        },
+        willKeepLabel: 'Apa yang akan disimpan',
+        keepItems: {
+          userAccounts: 'Akaun pengguna dan kelayakan',
+          appSettings: 'Tetapan aplikasi'
+        },
+        recommendedStepsLabel: '💡 Langkah Yang Disyorkan',
+        steps: {
+          createBackup: 'Cipta sandaran terlebih dahulu',
+          verifyBackup: 'Sahkan fail sandaran dicipta',
+          proceedCleanup: 'Teruskan dengan pembersihan'
+        },
+        cleanButton: 'Bersihkan Semua Data Pangkalan Data'
+      },
+      restoreModal: {
+        title: 'Pulih Pangkalan Data dari Sandaran?',
+        selectedFile: 'Fail dipilih',
+        warning: '⚠️ Ini akan menggantikan semua data semasa dengan data sandaran.',
+        makeBackupFirst: 'Pastikan cipta sandaran data semasa terlebih dahulu jika diperlukan.',
+        restoreButton: 'Pulih',
+        cancelButton: 'Batal'
+      },
+      cleanupModal: {
+        title: 'Bersihkan Semua Data Pangkalan Data?',
+        warningCannotUndo: '⚠️ AMARAN: Tindakan ini tidak boleh dibatalkan!',
+        willDeleteLabel: 'Ini akan memadamkan secara kekal',
+        deleteItems: {
+          purchases: 'Semua transaksi belian',
+          sales: 'Semua transaksi jualan',
+          farmers: 'Semua pesawah',
+          manufacturers: 'Semua pengilang',
+          seasons: 'Semua musim',
+          products: 'Semua produk dan gred',
+          documents: 'Semua dokumen'
+        },
+        accountsPreserved: 'Akaun pengguna akan dipelihara.',
+        tipCreateBackup: '💡 Petua: Cipta sandaran sebelum membersihkan pangkalan data.',
+        enterVerificationCodes: 'Untuk meneruskan, sila masukkan kod pengesahan berikut',
+        verificationCode1: 'Kod Pengesahan 1',
+        verificationCode2: 'Kod Pengesahan 2',
+        enterCode1: 'Masukkan kod 1',
+        enterCode2: 'Masukkan kod 2',
+        confirmDeleteButton: 'Sahkan & Padam Semua Data',
+        cancelButton: 'Batal'
+      },
+      messages: {
+        setBackupPathFirst: 'Sila tetapkan laluan sandaran di Tetapan Umum terlebih dahulu',
+        backupCreatedSuccess: 'Sandaran berjaya dicipta',
+        backupFailed: 'Sandaran gagal',
+        failedToCreateBackup: 'Gagal mencipta sandaran',
+        restoringDatabase: 'Memulihkan pangkalan data... sila tunggu',
+        restoreSuccessTitle: 'Pangkalan Data Berjaya Dipulihkan',
+        restoreSuccessDesc: 'Pangkalan data telah dipulihkan dari sandaran.',
+        restartRequired: 'Sila mulakan semula aplikasi untuk melihat data yang dipulihkan.',
+        restoreFailed: 'Pemulihan gagal',
+        failedToRestoreBackup: 'Gagal memulihkan sandaran',
+        failedToSelectFile: 'Gagal memilih fail sandaran',
+        failedToOpenFolder: 'Gagal membuka folder',
+        failedToOpenBackupFolder: 'Gagal membuka folder sandaran',
+        verificationFailed: 'Kod pengesahan tidak sepadan. Pembersihan pangkalan data dibatalkan.',
+        cleanupSuccess: 'Pangkalan data berjaya dibersihkan. Semua data dibuang kecuali pengguna.',
+        cleanupFailed: 'Pembersihan gagal',
+        failedToCleanDatabase: 'Gagal membersihkan pangkalan data'
       }
     },
     menu: {
