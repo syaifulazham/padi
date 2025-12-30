@@ -822,6 +822,28 @@ const DICTS = {
         title: 'Sales Workflow (Complete)',
         description: "1. Press F3 or click 'New Sale' → 2. Enter container number → 3. Enter TARE weight (empty) → 4. After loading, press F2 → 5. Enter GROSS weight (weigh-out) → 6. Click 'Select Receipts' to choose purchase receipts → 7. Split receipts if needed to match net weight → 8. Select manufacturer → 9. Complete!"
       },
+      containerModal: {
+        title: 'New Sale - Enter Container/Truck',
+        fields: {
+          vehicleRegistrationNumber: 'Container/Truck Registration Number'
+        },
+        placeholders: {
+          vehicleRegistrationExample: 'e.g., ABC 1234'
+        },
+        validations: {
+          vehicleRegistrationRequired: 'Please enter vehicle registration'
+        },
+        actions: {
+          okNextWeighInTare: 'OK - Next: Weigh In (Tare)'
+        }
+      },
+      recallModal: {
+        title: 'Recall Pending Container',
+        description: 'Click on a container to complete the weigh-out process (after loading). Press F2 anytime to open this modal.',
+        containerCard: {
+          tareLabel: 'Tare:'
+        }
+      },
       header: {
         weighingOutLabel: 'Weighing Out:',
         hintPress: 'Press',
@@ -869,6 +891,25 @@ const DICTS = {
       },
       pagination: {
         totalTransactions: 'Total {total} transactions'
+      },
+      receiptsTable: {
+        receipt: 'Receipt',
+        date: 'Date',
+        farmer: 'Farmer',
+        netWeightKg: 'Net Weight',
+        action: 'Action',
+        total: 'Total'
+      },
+      wizard: {
+        selectPurchaseReceipts: 'Select Purchase Receipts',
+        containerNetWeight: 'Container Net Weight',
+        selectedReceiptsTotal: 'Selected Receipts Total',
+        difference: 'Difference',
+        totalAmount: 'Total Amount',
+        splitChild: 'Split Child',
+        splitThisReceipt: 'Split this receipt',
+        split: 'Split',
+        remove: 'Remove'
       },
       messages: {
         generatingReceipt: 'Generating receipt...',
@@ -2028,7 +2069,20 @@ const DICTS = {
         receipt: 'Resit',
         date: 'Tarikh',
         farmer: 'Pesawah',
-        netWeightKg: 'Berat Bersih (kg)'
+        netWeightKg: 'Berat Bersih',
+        action: 'Tindakan',
+        total: 'Jumlah'
+      },
+      wizard: {
+        selectPurchaseReceipts: 'Pilih Resit Belian',
+        containerNetWeight: 'Berat Bersih Kontena',
+        selectedReceiptsTotal: 'Jumlah Resit Terpilih',
+        difference: 'Perbezaan',
+        totalAmount: 'Jumlah Keseluruhan',
+        splitChild: 'Bahagian Resit',
+        splitThisReceipt: 'Bahagi resit ini',
+        split: 'Bahagi',
+        remove: 'Buang'
       },
       messages: {
         saveToStorageFailed: 'Gagal menyimpan rekod timbang masuk ke storan',

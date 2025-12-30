@@ -11,6 +11,7 @@ import {
   DollarOutlined,
   ScissorOutlined
 } from '@ant-design/icons';
+import { useI18n } from '../../i18n/I18nProvider';
 import './SalesWeighOutWizard.css';
 
 const SalesWeighOutWizard = ({ 
@@ -22,6 +23,7 @@ const SalesWeighOutWizard = ({
   availableReceipts,
   onReloadReceipts
 }) => {
+  const { t } = useI18n();
   const [currentStep, setCurrentStep] = useState(0);
   const [visitedSteps, setVisitedSteps] = useState([0]);
   const [wizardData, setWizardData] = useState({
@@ -486,31 +488,31 @@ const SalesWeighOutWizard = ({
 
   const receiptColumns = [
     {
-      title: 'Receipt No.',
+      title: t('salesWeighIn.receiptsTable.receipt'),
       dataIndex: 'receipt_number',
       key: 'receipt_number',
       width: 180,
       render: (text, record) => (
         <Space>
           <Tag color="blue">{text}</Tag>
-          {record.parent_transaction_id && <Tag color="green">Split Child</Tag>}
+          {record.parent_transaction_id && <Tag color="green">{t('salesWeighIn.wizard.splitChild')}</Tag>}
         </Space>
       )
     },
     {
-      title: 'Date',
+      title: t('salesWeighIn.receiptsTable.date'),
       dataIndex: 'transaction_date',
       key: 'transaction_date',
       width: 120,
       render: (date) => new Date(date).toLocaleDateString('en-GB')
     },
     {
-      title: 'Farmer',
+      title: t('salesWeighIn.receiptsTable.farmer'),
       dataIndex: 'farmer_name',
       key: 'farmer_name'
     },
     {
-      title: 'Net Weight',
+      title: t('salesWeighIn.receiptsTable.netWeightKg'),
       dataIndex: 'net_weight_kg',
       key: 'net_weight_kg',
       width: 120,
@@ -593,7 +595,7 @@ const SalesWeighOutWizard = ({
           </div>
           
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 11, color: '#999', marginBottom: 4 }}>Total Amount</div>
+            <div style={{ fontSize: 11, color: '#999', marginBottom: 4 }}>{t('salesWeighIn.wizard.totalAmount')}</div>
             <div style={{ fontSize: 16, fontWeight: 600, color: totalAmount > 0 ? '#52c41a' : '#bfbfbf' }}>
               {totalAmount > 0 ? `RM ${parseFloat(totalAmount).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
             </div>
@@ -788,8 +790,8 @@ const SalesWeighOutWizard = ({
           <div>
             <div style={{ marginBottom: 16 }}>
               <Alert
-                message="Select Purchase Receipts"
-                description={`Container Net Weight: ${netWeight} kg | Selected Receipts Total: ${selectedTotalWeight.toFixed(2)} kg | Difference: ${weightDifference.toFixed(2)} kg ${weightDifference > 0.5 ? '⚠️' : '✓'}`}
+                message={t('salesWeighIn.wizard.selectPurchaseReceipts')}
+                description={`${t('salesWeighIn.wizard.containerNetWeight')}: ${netWeight} kg | ${t('salesWeighIn.wizard.selectedReceiptsTotal')}: ${selectedTotalWeight.toFixed(2)} kg | ${t('salesWeighIn.wizard.difference')}: ${weightDifference.toFixed(2)} kg ${weightDifference > 0.5 ? '⚠️' : '✓'}`}
                 type={weightDifference > 0.5 ? 'warning' : 'success'}
                 showIcon
               />
@@ -802,7 +804,7 @@ const SalesWeighOutWizard = ({
                   columns={[
                     ...receiptColumns,
                     {
-                      title: 'Action',
+                      title: t('salesWeighIn.receiptsTable.action'),
                       key: 'action',
                       width: 150,
                       render: (_, record) => {
@@ -818,9 +820,9 @@ const SalesWeighOutWizard = ({
                                 size="small" 
                                 icon={<ScissorOutlined />}
                                 onClick={() => openSplitModal(record)}
-                                title="Split this receipt"
+                                title={t('salesWeighIn.wizard.splitThisReceipt')}
                               >
-                                Split
+                                {t('salesWeighIn.wizard.split')}
                               </Button>
                             )}
                             <Button 
@@ -828,7 +830,7 @@ const SalesWeighOutWizard = ({
                               danger 
                               onClick={() => removeReceipt(record)}
                             >
-                              Remove
+                              {t('salesWeighIn.wizard.remove')}
                             </Button>
                           </Space>
                         );
@@ -849,7 +851,7 @@ const SalesWeighOutWizard = ({
                     <Table.Summary fixed>
                       <Table.Summary.Row>
                         <Table.Summary.Cell index={0} colSpan={3}>
-                          <strong>Total</strong>
+                          <strong>{t('salesWeighIn.receiptsTable.total')}</strong>
                         </Table.Summary.Cell>
                         <Table.Summary.Cell index={1}>
                           <strong>{selectedTotalWeight.toFixed(2)} kg</strong>
