@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, Steps, Button, Form, Input, InputNumber, message, Divider, Space, Tag, Tooltip, Radio, Card } from 'antd';
+import { Modal, Steps, Button, Form, Input, InputNumber, message, Divider, Space, Tag, Tooltip, Radio, Card, Alert } from 'antd';
 import { 
   ArrowLeftOutlined, 
   ArrowRightOutlined, 
@@ -11,7 +11,8 @@ import {
   PercentageOutlined,
   InfoCircleOutlined,
   AppstoreOutlined,
-  SettingOutlined
+  SettingOutlined,
+  CloseCircleOutlined
 } from '@ant-design/icons';
 import { useI18n } from '../../i18n/I18nProvider';
 
@@ -20,6 +21,7 @@ const WeighOutWizard = ({
   products, 
   onComplete, 
   onCancel,
+  onCancelLorry,
   activeSeason 
 }) => {
   const { t } = useI18n();
@@ -41,6 +43,9 @@ const WeighOutWizard = ({
   const [deductionPresets, setDeductionPresets] = useState([]);
   const [selectedPresetIndex, setSelectedPresetIndex] = useState(0);
   const [presetModalOpen, setPresetModalOpen] = useState(false);
+  const [cancelPasscodeModalOpen, setCancelPasscodeModalOpen] = useState(false);
+  const [generatedPasscode, setGeneratedPasscode] = useState('');
+  const [passcodeForm] = Form.useForm();
   
   // Refs for auto-focus
   const productRefs = useRef([]);
@@ -223,6 +228,44 @@ const WeighOutWizard = ({
     }
   };
 
+  // Generate random 6-character passcode
+  const generatePasscode = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Exclude similar chars like I,1,O,0
+    let passcode = '';
+    for (let i = 0; i < 6; i++) {
+      passcode += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return passcode;
+  };
+
+  const handleCancelLorry = () => {
+    const passcode = generatePasscode();
+    setGeneratedPasscode(passcode);
+    passcodeForm.resetFields();
+    setCancelPasscodeModalOpen(true);
+  };
+
+  const proceedWithCancellation = async () => {
+    try {
+      const values = await passcodeForm.validateFields();
+      
+      // Verify passcode
+      if (values.passcode !== generatedPasscode) {
+        message.error(t('purchasesWeighIn.weighOutWizard.cancelLorry.incorrectPasscode'));
+        return;
+      }
+      
+      setCancelPasscodeModalOpen(false);
+      
+      // Proceed with cancellation
+      if (onCancelLorry) {
+        await onCancelLorry(session);
+      }
+    } catch (error) {
+      console.error('Passcode validation error:', error);
+    }
+  };
+
   // Navigate to a specific step (only if visited)
   const goToStep = (step) => {
     if (visitedSteps.includes(step)) {
@@ -304,9 +347,19 @@ const WeighOutWizard = ({
                 <div style={{ fontSize: 14, fontWeight: 600 }}>{currentStageTitle}</div>
               </div>
             )}
-            <Button onClick={onCancel} size="large">
-              {t('purchasesWeighIn.weighOutWizard.actions.cancelEsc')}
-            </Button>
+            <Space>
+              <Button onClick={onCancel} size="large">
+                {t('purchasesWeighIn.weighOutWizard.actions.cancelEsc')}
+              </Button>
+              <Button 
+                onClick={handleCancelLorry} 
+                size="large"
+                danger
+                icon={<CloseCircleOutlined />}
+              >
+                {t('purchasesWeighIn.weighOutWizard.actions.cancelLorry')}
+              </Button>
+            </Space>
           </div>
         </div>
 
@@ -874,6 +927,85 @@ const WeighOutWizard = ({
             </Space>
           </Radio.Group>
         </div>
+      </Modal>
+
+      {/* Cancel Lorry Passcode Confirmation Modal */}
+      <Modal
+        title={t('purchasesWeighIn.weighOutWizard.cancelLorry.passcodeTitle')}
+        open={cancelPasscodeModalOpen}
+        onCancel={() => {
+          setCancelPasscodeModalOpen(false);
+          setGeneratedPasscode('');
+          passcodeForm.resetFields();
+        }}
+        onOk={proceedWithCancellation}
+        okText={t('purchasesWeighIn.weighOutWizard.cancelLorry.confirmOk')}
+        okButtonProps={{ danger: true }}
+        cancelText={t('purchasesWeighIn.weighOutWizard.cancelLorry.confirmCancel')}
+        width={500}
+        closable={false}
+        maskClosable={false}
+      >
+        <Alert
+          message={t('purchasesWeighIn.weighOutWizard.cancelLorry.securityWarning')}
+          description={
+            <div>
+              <p>{t('purchasesWeighIn.weighOutWizard.cancelLorry.cancellingLorry')} <strong>{session.lorry_reg_no}</strong></p>
+              <p style={{ marginTop: 8 }}>
+                {t('purchasesWeighIn.weighOutWizard.cancelLorry.transactionWillBeMarked')}
+              </p>
+            </div>
+          }
+          type="warning"
+          showIcon
+          style={{ marginBottom: 24 }}
+        />
+        
+        <div style={{ 
+          background: '#fff7e6', 
+          border: '2px solid #fa8c16', 
+          borderRadius: '8px', 
+          padding: '20px', 
+          textAlign: 'center',
+          marginBottom: 24
+        }}>
+          <div style={{ fontSize: '12px', color: '#666', marginBottom: 8 }}>
+            {t('purchasesWeighIn.weighOutWizard.cancelLorry.enterPasscode')}
+          </div>
+          <div style={{ 
+            fontSize: '32px', 
+            fontWeight: 'bold', 
+            letterSpacing: '8px',
+            color: '#fa8c16',
+            fontFamily: 'monospace'
+          }}>
+            {generatedPasscode}
+          </div>
+        </div>
+
+        <Form form={passcodeForm} layout="vertical">
+          <Form.Item
+            name="passcode"
+            label={t('purchasesWeighIn.weighOutWizard.cancelLorry.passcodeLabel')}
+            rules={[
+              { required: true, message: t('purchasesWeighIn.weighOutWizard.cancelLorry.passcodeRequired') },
+              { len: 6, message: t('purchasesWeighIn.weighOutWizard.cancelLorry.passcodeMustBe6') }
+            ]}
+          >
+            <Input
+              size="large"
+              placeholder={t('purchasesWeighIn.weighOutWizard.cancelLorry.passcodePlaceholder')}
+              maxLength={6}
+              style={{ 
+                textTransform: 'uppercase', 
+                letterSpacing: '4px',
+                fontSize: '18px',
+                fontFamily: 'monospace'
+              }}
+              autoFocus
+            />
+          </Form.Item>
+        </Form>
       </Modal>
     </Card>
   );

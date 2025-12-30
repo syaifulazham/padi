@@ -119,7 +119,7 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
       text-align: left;
       margin-bottom: 8px;
       border-bottom: 1px solid #000;
-      padding-bottom: 5px;
+      padding-bottom: 20px;
     }
     
     .company-name {
@@ -137,6 +137,7 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
       text-align: right;
       float: right;
       margin-top: -60px;
+      margin-bottom: 8px;
     }
     
     .location {
@@ -147,11 +148,12 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
     .receipt-number {
       font-size: ${sizeConfig.receiptNumberSize};
       font-weight: bold;
+      margin-bottom: 5px;
     }
     
     .title {
       font-weight: bold;
-      margin: 8px 0 5px 0;
+      margin: 12px 0 5px 0;
       font-size: 11px;
     }
     
@@ -267,8 +269,9 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
   </div>
   
   <div class="right-header">
+    ${totalDeductionPercent === 0 ? '<div class="bold" style="margin-bottom: 3px;">NOTA TIMBANG</div>' : ''}
     <div class="location">Kawasan: ${season.location || companyDetails.location || 'PANCHANG BEDENA'}</div>
-    <div class="receipt-number">${transaction.receipt_number || transaction.receiptNumber || 'N/A'}</div>
+    <div class="receipt-number" style="${totalDeductionPercent === 0 ? 'font-size: 12px;' : ''}">${transaction.receipt_number || transaction.receiptNumber || 'N/A'}</div>
   </div>
   
   <div style="clear: both;"></div>
@@ -307,11 +310,11 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
         </div>
         <div class="row">
           <span>GIRO</span>
-          <span>: ${transaction.giro || ''}</span>
+          <span>: ${farmer.bank_name && farmer.bank_account_number ? `${farmer.bank_account_number}` : '-'}</span>
         </div>
         <div class="row">
           <span>BPM</span>
-          <span>: ${transaction.bpm || '.-'}</span>
+          <span>: ${farmer.bank2_name && farmer.bank2_account_number ? `${farmer.bank2_account_number}` : '.-'}</span>
         </div>
       </div>
     </div>
@@ -357,19 +360,19 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
       </div>
     </div>
     
+    ${totalDeductionPercent > 0 ? `
     <div class="weight-row">
       <div class="weight-label">
         <span class="bold">POTONGAN</span>
         <span>: ${formatNumber(totalDeductionPercent, 2)}%</span>
         ${deductionText ? `<div class="deduction-note">(${deductionText})</div>` : ''}
       </div>
-      ${totalDeductionPercent > 0 ? `
       <div class="weight-value">
         <span class="bold">AMAUN</span>
         <span>: RM ${formatNumber(transaction.total_amount, 2)}</span>
       </div>
-      ` : ''}
     </div>
+    ` : ''}
     
     <div class="net-weight">
       <div class="weight-row">
@@ -461,7 +464,7 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
       text-align: left;
       margin-bottom: 8px;
       border-bottom: 1px solid #000;
-      padding-bottom: 5px;
+      padding-bottom: 20px;
     }
     
     .company-name {
@@ -479,6 +482,7 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
       text-align: right;
       float: right;
       margin-top: -60px;
+      margin-bottom: 8px;
     }
     
     .location {
@@ -489,11 +493,12 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
     .receipt-number {
       font-size: ${sizeConfig.receiptNumberSize};
       font-weight: bold;
+      margin-bottom: 5px;
     }
     
     .title {
       font-weight: bold;
-      margin: 8px 0 5px 0;
+      margin: 12px 0 5px 0;
       font-size: 11px;
     }
     

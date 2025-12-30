@@ -139,10 +139,14 @@ const PurchaseHistory = () => {
       key: 'farmer_name',
       width: 200,
       render: (text, record) => (
-        <div>
-          <div style={{ fontWeight: 500 }}>{text}</div>
-          <div style={{ fontSize: '12px', color: '#999' }}>{record.farmer_code}</div>
-        </div>
+        record.status === 'cancelled' ? (
+          <Tag color="red">{t('purchasesHistory.misc.notApplicable')}</Tag>
+        ) : (
+          <div>
+            <div style={{ fontWeight: 500 }}>{text}</div>
+            <div style={{ fontSize: '12px', color: '#999' }}>{record.farmer_code}</div>
+          </div>
+        )
       )
     },
     {
@@ -202,13 +206,23 @@ const PurchaseHistory = () => {
     },
     {
       title: t('purchasesHistory.table.status'),
-      dataIndex: 'payment_status',
-      key: 'payment_status',
-      width: 100,
-      render: (status) => (
-        <Tag color={status === 'paid' ? 'green' : 'orange'}>
-          {status ? (t(`purchasesHistory.statuses.${status}`) || status.toUpperCase()) : t('purchasesHistory.statuses.unknown')}
-        </Tag>
+      dataIndex: 'status',
+      key: 'status',
+      width: 120,
+      render: (status, record) => (
+        <Space direction="vertical" size={2}>
+          <Tag color={
+            status === 'cancelled' ? 'red' : 
+            status === 'completed' ? 'blue' : 'default'
+          }>
+            {status ? (t(`purchasesHistory.transactionStatuses.${status}`) || status.toUpperCase()) : t('purchasesHistory.statuses.unknown')}
+          </Tag>
+          {status !== 'cancelled' && (
+            <Tag color={record.payment_status === 'paid' ? 'green' : 'orange'} style={{ fontSize: '10px' }}>
+              {record.payment_status ? (t(`purchasesHistory.statuses.${record.payment_status}`) || record.payment_status.toUpperCase()) : ''}
+            </Tag>
+          )}
+        </Space>
       )
     },
     {
@@ -217,16 +231,20 @@ const PurchaseHistory = () => {
       width: 100,
       fixed: 'right',
       render: (_, record) => (
-        <Tooltip title={t('purchasesHistory.actions.reprintReceiptTooltip')}>
-          <Button
-            type="primary"
-            icon={<PrinterOutlined />}
-            size="small"
-            onClick={() => handleReprint(record)}
-          >
-            {t('purchasesHistory.actions.reprint')}
-          </Button>
-        </Tooltip>
+        record.status === 'cancelled' ? (
+          <Tag color="red">{t('purchasesHistory.misc.cancelled')}</Tag>
+        ) : (
+          <Tooltip title={t('purchasesHistory.actions.reprintReceiptTooltip')}>
+            <Button
+              type="primary"
+              icon={<PrinterOutlined />}
+              size="small"
+              onClick={() => handleReprint(record)}
+            >
+              {t('purchasesHistory.actions.reprint')}
+            </Button>
+          </Tooltip>
+        )
       )
     }
   ];

@@ -106,10 +106,10 @@ function App() {
       <AntApp message={{ bottom: 50, top: undefined, duration: 3, maxCount: 3 }}>
         <AppLayout>
           <Routes>
-            <Route path="/home" element={<Home />} />
+            <Route path="/" element={<Home />} />
             <Route path="/home/setup" element={<HomeSetupGuide />} />
             <Route path="/home/menus" element={<HomeMenuGuide />} />
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/farmers" element={<Farmers />} />
             <Route path="/manufacturers" element={<Manufacturers />} />
             <Route path="/purchases" element={<Purchases />} />

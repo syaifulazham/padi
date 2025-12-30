@@ -303,7 +303,8 @@ const Payment = () => {
       });
       
       if (result?.success) {
-        setTransactions(result.data || []);
+        const validTransactions = (result.data || []).filter(t => t.status !== 'cancelled');
+        setTransactions(validTransactions);
       }
     } catch (error) {
       console.error('Failed to load transactions:', error);

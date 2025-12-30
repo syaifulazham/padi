@@ -10,7 +10,8 @@ const store = new Store({
       name: '',
       address: '',
       registration_no: '',
-      paddy_purchasing_licence_no: ''
+      paddy_purchasing_licence_no: '',
+      location: ''
     },
     
     // Application Settings
@@ -75,6 +76,7 @@ const getAll = async () => {
         company_address: settings.company.address,
         company_registration_no: settings.company.registration_no,
         paddy_purchasing_licence_no: settings.company.paddy_purchasing_licence_no,
+        company_location: settings.company.location || '',
         
         // Application
         app_name: settings.application.name,
@@ -136,6 +138,9 @@ const save = async (data) => {
     }
     if (data.paddy_purchasing_licence_no !== undefined) {
       store.set('company.paddy_purchasing_licence_no', data.paddy_purchasing_licence_no);
+    }
+    if (data.company_location !== undefined) {
+      store.set('company.location', data.company_location);
     }
     
     // Application Settings
@@ -237,14 +242,15 @@ const save = async (data) => {
  */
 const getCompanyDetails = async () => {
   try {
-    const company = store.get('company');
+    const company = store.get('company') || {};
     return {
       success: true,
       data: {
-        name: company.name,
-        address: company.address,
-        registration_no: company.registration_no,
-        licence_no: company.paddy_purchasing_licence_no
+        name: company.name || '',
+        address: company.address || '',
+        registration_no: company.registration_no || '',
+        licence_no: company.paddy_purchasing_licence_no || '',
+        location: company.location || ''
       }
     };
   } catch (error) {

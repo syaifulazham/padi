@@ -5,7 +5,6 @@ import dayjs from 'dayjs';
 import jsQR from 'jsqr';
 import { useI18n } from '../../i18n/I18nProvider';
 import DeductionConfirmModal from './DeductionConfirmModal';
-import SetCurrentPriceModal from './SetCurrentPriceModal';
 import WeighOutWizard from './WeighOutWizard';
 
 const STORAGE_KEY = 'paddy_weight_in_sessions';
@@ -55,7 +54,6 @@ const Purchases = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [deductionModalOpen, setDeductionModalOpen] = useState(false);
   const [pendingPurchaseData, setPendingPurchaseData] = useState(null);
-  const [setPriceModalOpen, setSetPriceModalOpen] = useState(false);
   const [lorryForm] = Form.useForm();
   const [weightForm] = Form.useForm();
   const [finalForm] = Form.useForm();
@@ -410,21 +408,6 @@ const Purchases = () => {
   };
 
 
-  // Handle current price set confirmation
-  const handlePriceSet = async () => {
-    // Reload active season to get updated price
-    await loadActiveSeason();
-    
-    message.success(t('purchasesWeighIn.messages.currentPriceSetProceed'));
-    
-    // Continue to lorry registration
-    lorryForm.resetFields();
-    setLorryModalOpen(true);
-  };
-
-  const handlePriceSetCancel = () => {
-    setSetPriceModalOpen(false);
-  };
 
   // Step 1: Open modal to enter lorry registration
   const startNewPurchase = () => {
@@ -443,10 +426,13 @@ const Purchases = () => {
       return;
     }
 
-    // Check if current price is set for the season
-    if (!activeSeason.current_price_per_ton) {
-      message.warning(t('purchasesWeighIn.messages.currentPriceNotSetForSeason'));
-      setSetPriceModalOpen(true);
+    // Check if there are any products with prices set for this season
+    const hasProductsWithPrices = products.some(p => p.current_price_per_ton && p.current_price_per_ton > 0);
+    if (!hasProductsWithPrices) {
+      message.warning({
+        content: t('purchasesWeighIn.messages.noProductsWithPrices'),
+        duration: 6
+      });
       return;
     }
 
@@ -815,6 +801,48 @@ const Purchases = () => {
     finalForm.resetFields();
   };
 
+  const handleCancelLorry = async (session) => {
+    try {
+      setLoading(true);
+      
+      // Call backend to create cancelled transaction
+      const result = await window.electronAPI.purchases.cancelPendingLorry(
+        session,
+        1, // TODO: Get from auth
+        'Cancelled by operator during weigh-out'
+      );
+      
+      if (result?.success) {
+        message.success({
+          content: `Lorry ${session.lorry_reg_no} cancelled successfully. Receipt: ${result.data.receipt_number}`,
+          duration: 5
+        });
+        
+        // Remove from pending sessions
+        setPendingSessions(prev =>
+          prev.filter(s => {
+            const sameLorry = s.lorry_reg_no === session.lorry_reg_no;
+            const sameSeason = (!s.season_id && !session.season_id) ||
+              s.season_id === session.season_id;
+            return !(sameLorry && sameSeason);
+          })
+        );
+        
+        // Clear active session
+        setActiveSession(null);
+        setSelectedFarmer(null);
+        finalForm.resetFields();
+      } else {
+        message.error(result?.error || 'Failed to cancel lorry');
+      }
+    } catch (error) {
+      console.error('Error cancelling lorry:', error);
+      message.error('Failed to cancel lorry');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div onContextMenu={(e) => { e.preventDefault(); showRecallModal(); }}>
       {/* Quick Stats - Compact */}
@@ -919,6 +947,7 @@ const Purchases = () => {
           activeSeason={activeSeason}
           onComplete={handleWizardComplete}
           onCancel={cancelWeighOut}
+          onCancelLorry={handleCancelLorry}
         />
       )}
 
@@ -1091,6 +1120,27 @@ const Purchases = () => {
         }}
       >
         <Space direction="vertical" style={{ width: '100%' }} size="large">
+          {/* Manual Text Search - FIRST PRIORITY */}
+          <div>
+            <div style={{ marginBottom: 8, fontWeight: 500 }}>
+              <SearchOutlined /> {t('purchasesWeighIn.farmerSearchModal.manualSearch.title')}
+            </div>
+            <Input
+              size="large"
+              placeholder={t('purchasesWeighIn.farmerSearchModal.manualSearch.placeholder')}
+              prefix={<SearchOutlined />}
+              value={farmerSearchText}
+              onChange={(e) => {
+                setFarmerSearchText(e.target.value);
+                searchFarmers(e.target.value);
+              }}
+              allowClear
+              autoFocus
+            />
+          </div>
+
+          <Divider>{t('purchasesWeighIn.farmerSearchModal.orDivider')}</Divider>
+
           <Alert
             message={t('purchasesWeighIn.farmerSearchModal.chooseMethodAlert.message')}
             description={t('purchasesWeighIn.farmerSearchModal.chooseMethodAlert.description')}
@@ -1142,7 +1192,6 @@ const Purchases = () => {
                   handleQRInput(e);
                   e.target.value = '';
                 }}
-                autoFocus
               />
               <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
                 {t('purchasesWeighIn.farmerSearchModal.deviceScan.helperText')}
@@ -1232,26 +1281,6 @@ const Purchases = () => {
               )}
             </div>
           )}
-
-          <Divider>{t('purchasesWeighIn.farmerSearchModal.orDivider')}</Divider>
-
-          {/* Manual Text Search */}
-          <div>
-            <div style={{ marginBottom: 8, fontWeight: 500 }}>
-              <SearchOutlined /> {t('purchasesWeighIn.farmerSearchModal.manualSearch.title')}
-            </div>
-            <Input
-              size="large"
-              placeholder={t('purchasesWeighIn.farmerSearchModal.manualSearch.placeholder')}
-              prefix={<SearchOutlined />}
-              value={farmerSearchText}
-              onChange={(e) => {
-                setFarmerSearchText(e.target.value);
-                searchFarmers(e.target.value);
-              }}
-              allowClear
-            />
-          </div>
 
           {farmerSearchText.length > 0 && farmerSearchText.length < 2 && (
             <Alert
@@ -1344,13 +1373,6 @@ const Purchases = () => {
         netWeight={pendingPurchaseData?.net_weight_kg || 0}
       />
 
-      {/* Set Current Price Modal */}
-      <SetCurrentPriceModal
-        visible={setPriceModalOpen}
-        onConfirm={handlePriceSet}
-        onCancel={handlePriceSetCancel}
-        season={activeSeason}
-      />
 
     </div>
   );

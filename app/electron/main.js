@@ -335,6 +335,10 @@ ipcMain.handle('purchases:updatePayment', async (event, updateData) => {
   return await purchaseService.updatePayment(updateData);
 });
 
+ipcMain.handle('purchases:cancelPendingLorry', async (event, sessionData, userId, reason) => {
+  return await purchaseService.cancelPendingLorry(sessionData, userId, reason);
+});
+
 // Sales
 ipcMain.handle('sales:create', async (event, data) => {
   return await salesService.create(data);
@@ -517,6 +521,8 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId) => {
     console.log('🖨️  Printing receipt for transaction:', transactionId);
     
     // Check print settings
+    const defaultPrinterResult = await settingsService.get('default_printer');
+    const defaultPrinter = defaultPrinterResult?.data || null;
     const printToPdfResult = await settingsService.get('print_to_pdf');
     const printToPdf = printToPdfResult?.data || false;
     const pdfSavePathResult = await settingsService.get('pdf_save_path');
@@ -525,6 +531,19 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId) => {
     const pdfAutoOpen = pdfAutoOpenResult?.data || false;
     const paperSizeResult = await settingsService.get('paper_size');
     const paperSize = paperSizeResult?.data || '80mm';
+    
+    // Check if configured printer exists
+    let printerAvailable = false;
+    if (defaultPrinter) {
+      const printers = await mainWindow.webContents.getPrintersAsync();
+      printerAvailable = printers.some(p => p.name === defaultPrinter);
+      if (!printerAvailable) {
+        console.warn(`⚠️  Configured printer "${defaultPrinter}" not found`);
+      }
+    }
+    
+    // Decide: Print to PDF if explicitly enabled OR if no printer configured/available
+    const shouldPrintToPdf = printToPdf || !defaultPrinter || !printerAvailable;
     
     // Fetch transaction details
     const transactionResult = await purchaseService.getById(transactionId);
@@ -577,19 +596,27 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId) => {
     // Small delay to ensure rendering is complete
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    if (printToPdf && pdfSavePath) {
+    if (shouldPrintToPdf) {
       // Save as PDF
       const fs = require('fs');
       const pathModule = require('path');
       
+      // Determine PDF path - use configured path or default to desktop
+      let finalPdfPath = pdfSavePath;
+      if (!finalPdfPath) {
+        const { app } = require('electron');
+        finalPdfPath = pathModule.join(app.getPath('desktop'), 'Receipts');
+        console.log('📁 No PDF path configured, using default:', finalPdfPath);
+      }
+      
       // Ensure directory exists
-      if (!fs.existsSync(pdfSavePath)) {
-        fs.mkdirSync(pdfSavePath, { recursive: true });
+      if (!fs.existsSync(finalPdfPath)) {
+        fs.mkdirSync(finalPdfPath, { recursive: true });
       }
       
       // Generate filename
       const filename = `Receipt_${transaction.receipt_number}_${Date.now()}.pdf`;
-      const pdfPath = pathModule.join(pdfSavePath, filename);
+      const pdfPath = pathModule.join(finalPdfPath, filename);
       
       // Get page size based on paper size setting
       // Use standard page sizes to avoid Adobe Acrobat warnings
@@ -653,15 +680,20 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId) => {
         shell.openPath(pdfPath);
       }
       
+      const reason = printToPdf ? 'configured' : (!defaultPrinter ? 'no_printer_set' : 'printer_not_found');
+      
       return { 
         success: true, 
         mode: 'pdf',
         path: pdfPath,
-        filename: filename
+        filename: filename,
+        reason: reason
       };
       
     } else {
-      // Print to physical printer
+      // Print to configured physical printer
+      console.log(`🖨️  Printing to configured printer: ${defaultPrinter}`);
+      
       // Use microns for print API (1mm = 1000 microns)
       const pageSizes = {
         '80mm': { width: 80000, height: 297000, landscape: false },    // 80mm x 297mm
@@ -671,9 +703,10 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId) => {
       const pageSize = pageSizes[paperSize] || pageSizes['80mm'];
       
       const printOptions = {
-        silent: false, // Set to true for auto-print without dialog
+        silent: true, // Auto-print to configured printer without dialog
         printBackground: true,
         color: false,
+        deviceName: defaultPrinter, // Use configured printer
         margins: {
           marginType: 'none'
         },
@@ -691,7 +724,7 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId) => {
             console.error('Print failed:', errorType);
           }
           printWindow.close();
-          console.log('✅ Receipt printed successfully');
+          console.log(`✅ Receipt printed successfully to ${defaultPrinter}`);
           resolve({ success: true, mode: 'print' });
         });
       });
@@ -708,6 +741,8 @@ ipcMain.handle('print:salesReceipt', async (event, salesId) => {
     console.log('🖨️  Printing sales receipt for sales ID:', salesId);
     
     // Check print settings
+    const defaultPrinterResult = await settingsService.get('default_printer');
+    const defaultPrinter = defaultPrinterResult?.data || null;
     const printToPdfResult = await settingsService.get('print_to_pdf');
     const printToPdf = printToPdfResult?.data || false;
     const pdfSavePathResult = await settingsService.get('pdf_save_path');
@@ -716,6 +751,19 @@ ipcMain.handle('print:salesReceipt', async (event, salesId) => {
     const pdfAutoOpen = pdfAutoOpenResult?.data || false;
     const paperSizeResult = await settingsService.get('paper_size');
     const paperSize = paperSizeResult?.data || '80mm';
+    
+    // Check if configured printer exists
+    let printerAvailable = false;
+    if (defaultPrinter) {
+      const printers = await mainWindow.webContents.getPrintersAsync();
+      printerAvailable = printers.some(p => p.name === defaultPrinter);
+      if (!printerAvailable) {
+        console.warn(`⚠️  Configured printer "${defaultPrinter}" not found`);
+      }
+    }
+    
+    // Decide: Print to PDF if explicitly enabled OR if no printer configured/available
+    const shouldPrintToPdf = printToPdf || !defaultPrinter || !printerAvailable;
     
     // Fetch sales transaction details with purchase receipts
     const salesResult = await salesService.getById(salesId);
@@ -784,20 +832,28 @@ ipcMain.handle('print:salesReceipt', async (event, salesId) => {
     // Small delay to ensure rendering is complete
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    if (printToPdf && pdfSavePath) {
+    if (shouldPrintToPdf) {
       // Save as PDF
       const fs = require('fs');
       const pathModule = require('path');
       
+      // Determine PDF path - use configured path or default to desktop
+      let finalPdfPath = pdfSavePath;
+      if (!finalPdfPath) {
+        const { app } = require('electron');
+        finalPdfPath = pathModule.join(app.getPath('desktop'), 'Receipts');
+        console.log('📁 No PDF path configured, using default:', finalPdfPath);
+      }
+      
       // Ensure directory exists
-      if (!fs.existsSync(pdfSavePath)) {
-        fs.mkdirSync(pdfSavePath, { recursive: true });
+      if (!fs.existsSync(finalPdfPath)) {
+        fs.mkdirSync(finalPdfPath, { recursive: true });
       }
       
       // Generate filename
       const salesNum = salesTransaction.sales_number || `ID${salesId}`;
       const filename = `SalesReceipt_${salesNum}_${Date.now()}.pdf`;
-      const pdfPath = pathModule.join(pdfSavePath, filename);
+      const pdfPath = pathModule.join(finalPdfPath, filename);
       
       // Get page size based on paper size setting
       let pdfOptions;
@@ -859,15 +915,20 @@ ipcMain.handle('print:salesReceipt', async (event, salesId) => {
         shell.openPath(pdfPath);
       }
       
+      const reason = printToPdf ? 'configured' : (!defaultPrinter ? 'no_printer_set' : 'printer_not_found');
+      
       return { 
         success: true, 
         mode: 'pdf',
         path: pdfPath,
-        filename: filename
+        filename: filename,
+        reason: reason
       };
       
     } else {
-      // Print to physical printer
+      // Print to configured physical printer
+      console.log(`🖨️  Printing to configured printer: ${defaultPrinter}`);
+      
       const pageSizes = {
         '80mm': { width: 80000, height: 297000, landscape: false },
         'a4_portrait': { width: 210000, height: 297000, landscape: false },
@@ -876,9 +937,10 @@ ipcMain.handle('print:salesReceipt', async (event, salesId) => {
       const pageSize = pageSizes[paperSize] || pageSizes['80mm'];
       
       const printOptions = {
-        silent: false,
+        silent: true, // Auto-print to configured printer without dialog
         printBackground: true,
         color: false,
+        deviceName: defaultPrinter, // Use configured printer
         margins: {
           marginType: 'none'
         },
@@ -896,8 +958,13 @@ ipcMain.handle('print:salesReceipt', async (event, salesId) => {
             console.error('Print failed:', errorType);
           }
           printWindow.close();
-          console.log('✅ Sales receipt printed successfully');
-          resolve({ success: true, mode: 'print' });
+          console.log(`✅ Receipt printed successfully to ${defaultPrinter}`);
+          resolve({ 
+            success: success, 
+            error: errorType || null,
+            mode: 'printer',
+            printer: defaultPrinter
+          });
         });
       });
     }

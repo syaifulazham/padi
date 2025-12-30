@@ -39,6 +39,7 @@ const Settings = () => {
         company_address: '',
         company_registration_no: '',
         paddy_purchasing_licence_no: '',
+        company_location: '',
         
         // Database
         db_host: 'localhost',
@@ -232,6 +233,14 @@ const Settings = () => {
                 extra={t('settings.company.extras.paddyPurchasingLicenceNo')}
               >
                 <Input placeholder={t('settings.company.placeholders.paddyPurchasingLicenceNo')} />
+              </Form.Item>
+
+              <Form.Item
+                name="company_location"
+                label={t('settings.company.fields.location')}
+                extra={t('settings.company.extras.location')}
+              >
+                <Input placeholder={t('settings.company.placeholders.location')} />
               </Form.Item>
 
               <Space style={{ marginTop: 16 }}>

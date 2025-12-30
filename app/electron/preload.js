@@ -37,7 +37,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getUnsold: (seasonId) => ipcRenderer.invoke('purchases:getUnsold', seasonId),
     getTotalStats: (seasonId) => ipcRenderer.invoke('purchases:getTotalStats', seasonId),
     createSplit: (parentTransactionId, splitWeightKg, userId) => ipcRenderer.invoke('purchases:createSplit', parentTransactionId, splitWeightKg, userId),
-    updatePayment: (updateData) => ipcRenderer.invoke('purchases:updatePayment', updateData)
+    updatePayment: (updateData) => ipcRenderer.invoke('purchases:updatePayment', updateData),
+    cancelPendingLorry: (sessionData, userId, reason) => ipcRenderer.invoke('purchases:cancelPendingLorry', sessionData, userId, reason)
   },
 
   // Sales

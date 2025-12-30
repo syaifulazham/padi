@@ -1028,6 +1028,93 @@ async function updatePayment(updateData) {
   }
 }
 
+/**
+ * Cancel a pending lorry session by creating a cancelled transaction record
+ * @param {Object} sessionData - The pending session data
+ * @param {number} userId - User performing the cancellation
+ * @param {string} reason - Cancellation reason
+ * @returns {Object} Result with success status
+ */
+async function cancelPendingLorry(sessionData, userId = 1, reason = 'Cancelled by operator') {
+  try {
+    return await db.transaction(async (connection) => {
+      console.log('🚫 Cancelling pending lorry:', sessionData.lorry_reg_no);
+
+      if (!sessionData || !sessionData.lorry_reg_no) {
+        return { success: false, error: 'Missing session data' };
+      }
+
+      const seasonId = Number(sessionData.season_id);
+      if (!seasonId || Number.isNaN(seasonId)) {
+        return { success: false, error: 'Invalid season_id' };
+      }
+
+      // Get default grade
+      const [defaultGradeRows] = await connection.execute(
+        `SELECT grade_id FROM paddy_grades WHERE status = 'active' ORDER BY display_order ASC, grade_id ASC LIMIT 1`
+      );
+      const gradeId = defaultGradeRows?.[0]?.grade_id;
+
+      if (!gradeId) {
+        return { success: false, error: 'No active grade found' };
+      }
+
+      // Generate receipt number
+      await connection.execute(
+        'CALL sp_generate_receipt_number(?, @receipt_number)',
+        [seasonId]
+      );
+      
+      const [receiptResult] = await connection.execute(
+        'SELECT @receipt_number as receipt_number'
+      );
+      const receiptNumber = receiptResult[0].receipt_number;
+
+      // Create cancelled transaction record with minimal data
+      const [result] = await connection.execute(`
+        INSERT INTO purchase_transactions (
+          receipt_number, season_id, farmer_id, grade_id, product_id,
+          transaction_date, gross_weight_kg, tare_weight_kg, net_weight_kg,
+          moisture_content, foreign_matter, base_price_per_kg,
+          moisture_penalty, foreign_matter_penalty,
+          final_price_per_kg, total_amount,
+          vehicle_number, status, payment_status,
+          cancelled_at, cancelled_by, cancellation_reason,
+          created_by, notes
+        ) VALUES (?, ?, 1, ?, NULL, NOW(), ?, 0, 0, 14.0, 0.0, 0, 0, 0, 0, 0, ?, 'cancelled', 'unpaid', NOW(), ?, ?, ?, ?)
+      `, [
+        receiptNumber,
+        seasonId,
+        gradeId,
+        sessionData.weight_with_load || 0,
+        sessionData.lorry_reg_no,
+        userId,
+        reason,
+        userId,
+        `Cancelled during weigh-out. Weigh-in: ${sessionData.weight_with_load} kg`
+      ]);
+
+      console.log('✅ Cancelled transaction created:', {
+        id: result.insertId,
+        receipt: receiptNumber,
+        lorry: sessionData.lorry_reg_no
+      });
+
+      return {
+        success: true,
+        data: {
+          transaction_id: result.insertId,
+          receipt_number: receiptNumber,
+          message: 'Lorry session cancelled successfully'
+        }
+      };
+    });
+  } catch (error) {
+    console.error('Error cancelling pending lorry:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 module.exports = {
   create,
   getAll,
@@ -1037,5 +1124,6 @@ module.exports = {
   getUnsold,
   getTotalStats,
   createSplit,
-  updatePayment
+  updatePayment,
+  cancelPendingLorry
 };

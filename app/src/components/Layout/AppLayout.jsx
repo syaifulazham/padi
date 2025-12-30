@@ -234,12 +234,12 @@ const AppLayout = ({ children }) => {
   const leftMenuItems = (() => {
     const items = [
       {
-        key: '/home',
+        key: '/',
         icon: <HomeOutlined />,
         label: t('menu.home'),
       },
       {
-        key: '/',
+        key: '/dashboard',
         icon: <DashboardOutlined />,
         label: t('menu.dashboard'),
       },
@@ -678,11 +678,11 @@ const AppLayout = ({ children }) => {
           margin: '154px 16px 24px 16px',
           padding: 24,
           minHeight: 280,
-          background: location.pathname === '/home' ? 'transparent' : '#fff',
-          backgroundImage: location.pathname === '/home' ? `url(${bluishPaddyField})` : undefined,
-          backgroundSize: location.pathname === '/home' ? 'cover' : undefined,
-          backgroundPosition: location.pathname === '/home' ? 'center' : undefined,
-          backgroundRepeat: location.pathname === '/home' ? 'no-repeat' : undefined,
+          background: location.pathname === '/' ? 'transparent' : '#fff',
+          backgroundImage: location.pathname === '/' ? `url(${bluishPaddyField})` : undefined,
+          backgroundSize: location.pathname === '/' ? 'cover' : undefined,
+          backgroundPosition: location.pathname === '/' ? 'center' : undefined,
+          backgroundRepeat: location.pathname === '/' ? 'no-repeat' : undefined,
         }}>
           {children}
         </Content>

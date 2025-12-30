@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Row, Col, Statistic, Table } from 'antd';
+import { Card, Row, Col, Statistic, Table, Tag } from 'antd';
 import {
   TeamOutlined,
   ShoppingCartOutlined,
@@ -31,10 +31,10 @@ const Dashboard = () => {
       if (result.success) {
         setRecentPurchases(result.data);
         
-        // Calculate today's purchases
+        // Calculate today's purchases (exclude cancelled)
         const today = new Date().toISOString().split('T')[0];
         const todayData = result.data.filter(p => {
-          if (!p.transaction_date) return false;
+          if (!p.transaction_date || p.status === 'cancelled') return false;
           // Convert to string if it's a Date object
           const dateStr = p.transaction_date instanceof Date 
             ? p.transaction_date.toISOString() 
@@ -66,6 +66,13 @@ const Dashboard = () => {
       title: t('dashboard.farmer'),
       dataIndex: 'farmer_name',
       key: 'farmer_name',
+      render: (text, record) => (
+        record.status === 'cancelled' ? (
+          <Tag color="red">N/A</Tag>
+        ) : (
+          text
+        )
+      ),
     },
     {
       title: t('dashboard.product'),

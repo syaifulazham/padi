@@ -557,6 +557,25 @@ const DICTS = {
         pressF2ToOpenTitle: 'Press F2 to open',
         recallLorry: 'Recall Lorry ({count})'
       },
+      status: {
+        loadingSeason: 'Loading season...',
+        noActiveSeason: '⚠️ No active season'
+      },
+      lorryModal: {
+        title: 'New Purchase - Enter Lorry',
+        fields: {
+          lorryRegistrationNumber: 'Lorry Registration Number'
+        },
+        placeholders: {
+          lorryRegistrationExample: 'e.g., ABC 1234'
+        },
+        validations: {
+          lorryRegistrationRequired: 'Please enter lorry registration'
+        },
+        actions: {
+          okNextWeighIn: 'OK - Next: Weigh In'
+        }
+      },
       recallModal: {
         title: 'Recall Lorry for Weigh-Out',
         alert: {
@@ -615,6 +634,19 @@ const DICTS = {
       misc: {
         kg: 'kg'
       },
+      weighInPanel: {
+        titlePrefix: 'Weigh-In:',
+        description: 'Enter weight with load',
+        fields: {
+          weightWithLoadLabel: 'Weight with Load (kg)'
+        },
+        placeholders: {
+          weightWithLoad: 'e.g., 5000'
+        },
+        validations: {
+          weightRequired: 'Please enter weight'
+        }
+      },
       weighOutWizard: {
         steps: {
           weight: 'Weight',
@@ -652,6 +684,7 @@ const DICTS = {
         },
         actions: {
           cancelEsc: 'Cancel (ESC)',
+          cancelLorry: 'Cancel Lorry',
           continue: 'Continue',
           backToWeight: 'Back to Weight',
           changeFarmer: 'Change Farmer',
@@ -662,6 +695,22 @@ const DICTS = {
           editDeductions: 'Edit Deductions',
           completePurchaseEnter: 'Complete Purchase (Enter)',
           changePresetTooltip: 'Change preset'
+        },
+        cancelLorry: {
+          confirmTitle: 'Cancel Lorry?',
+          confirmMessage: 'Are you sure you want to cancel this lorry? A cancelled transaction record will be created.',
+          confirmOk: 'Yes, Cancel Lorry',
+          confirmCancel: 'No, Keep It',
+          passcodeTitle: 'Confirm Lorry Cancellation',
+          securityWarning: 'Security Confirmation Required',
+          cancellingLorry: 'You are about to cancel lorry',
+          transactionWillBeMarked: 'A cancelled transaction record will be created and this lorry will be removed from the queue.',
+          enterPasscode: 'Enter this passcode to confirm:',
+          passcodeLabel: 'Confirmation Passcode',
+          passcodeRequired: 'Please enter the passcode',
+          passcodeMustBe6: 'Passcode must be exactly 6 characters',
+          passcodePlaceholder: 'Enter 6-character passcode',
+          incorrectPasscode: 'Incorrect passcode. Please try again.'
         },
         validations: {
           required: 'Required',
@@ -710,6 +759,7 @@ const DICTS = {
         noActiveSeasonFound: 'No active season found. Please activate a season in Settings.',
         currentPriceNotSetForSeason: 'Current price not set for this season',
         noActiveSeasonActivateInSettings: 'No active season! Please activate a season in Settings.',
+        noProductsWithPrices: 'No products with prices configured for this season. Please go to Settings > Seasons and update product prices for the active season.',
         weighInRecordedPrefix: '✅ Weigh-in recorded for',
         dataSavedSafeFromRefresh: '💾 Data saved - safe from page refresh',
         noPendingLorriesForSeason: 'No pending lorries to recall for this season',
@@ -804,6 +854,67 @@ const DICTS = {
         paid: 'Paid',
         unpaid: 'Unpaid',
         pending: 'Pending',
+        unknown: 'Unknown'
+      },
+      stats: {
+        totalTransactions: 'Total Transactions',
+        transactionsSuffix: 'transactions',
+        totalWeight: 'Total Weight',
+        kgSuffix: 'KG',
+        totalAmount: 'Total Amount'
+      },
+      pagination: {
+        totalTransactions: 'Total {total} transactions'
+      },
+      messages: {
+        generatingReceipt: 'Generating receipt...',
+        receiptSavedAsPdfPrefix: '📄 Receipt saved as PDF:',
+        locationPrefix: 'Location:',
+        receiptSentToPrinter: '✅ Receipt sent to printer',
+        failedToPrintPrefix: 'Failed to print: ',
+        failedToReprintReceipt: 'Failed to reprint receipt'
+      }
+    },
+    purchasesHistory: {
+      title: 'Purchase Transaction History',
+      seasonLabel: 'Season {season_number}/{year}',
+      misc: {
+        dash: '—',
+        rm: 'RM',
+        cancelled: 'Cancelled',
+        notApplicable: 'N/A'
+      },
+      actions: {
+        refresh: 'Refresh',
+        print: 'Print',
+        export: 'Export',
+        reprint: 'Reprint',
+        reprintReceiptTooltip: 'Reprint Receipt'
+      },
+      table: {
+        receipt: 'Receipt',
+        dateTime: 'Date & Time',
+        lorry: 'Lorry',
+        farmer: 'Farmer',
+        product: 'Product',
+        grossKg: 'Gross (kg)',
+        tareKg: 'Tare (kg)',
+        netKg: 'Net (kg)',
+        pricePerKg: 'Price/kg',
+        totalAmount: 'Total Amount',
+        status: 'Status',
+        actions: 'Actions'
+      },
+      transactionStatuses: {
+        completed: 'Completed',
+        cancelled: 'Cancelled',
+        pending: 'Pending',
+        split: 'Split'
+      },
+      statuses: {
+        paid: 'Paid',
+        unpaid: 'Unpaid',
+        partial: 'Partial',
         unknown: 'Unknown'
       },
       stats: {
@@ -924,13 +1035,15 @@ const DICTS = {
           companyName: 'Company Name',
           companyAddress: 'Company Address',
           companyRegistrationNo: 'Company Registration No',
-          paddyPurchasingLicenceNo: 'Paddy Purchasing Licence No'
+          paddyPurchasingLicenceNo: 'Paddy Purchasing Licence No',
+          location: 'Location (Kawasan)'
         },
         placeholders: {
           companyName: 'e.g., ABC Rice Mill Sdn Bhd',
           companyAddress: 'e.g., No. 1, Jalan Example, 12345',
           companyRegistrationNo: 'e.g., 201901234567',
-          paddyPurchasingLicenceNo: 'e.g., PP-1234'
+          paddyPurchasingLicenceNo: 'e.g., PP-1234',
+          location: 'e.g., PANCHANG BEDENA'
         },
         validations: {
           companyNameRequired: 'Please enter company name',
@@ -942,7 +1055,8 @@ const DICTS = {
           companyName: 'This will appear on receipts',
           companyAddress: 'This will appear on receipts',
           companyRegistrationNo: 'This will appear on receipts',
-          paddyPurchasingLicenceNo: 'This will appear on receipts'
+          paddyPurchasingLicenceNo: 'This will appear on receipts',
+          location: 'This will appear as "Kawasan" on receipts'
         },
         actions: {
           save: 'Save',
@@ -1397,8 +1511,10 @@ const DICTS = {
       title: 'Sejarah Transaksi Belian',
       seasonLabel: 'Musim {season_number}/{year}',
       misc: {
-        dash: '-',
-        rm: 'RM'
+        dash: '—',
+        rm: 'RM',
+        cancelled: 'Dibatalkan',
+        notApplicable: 'T/A'
       },
       actions: {
         refresh: 'Muat Semula',
@@ -1420,6 +1536,12 @@ const DICTS = {
         totalAmount: 'Jumlah',
         status: 'Status',
         actions: 'Tindakan'
+      },
+      transactionStatuses: {
+        completed: 'Selesai',
+        cancelled: 'Dibatalkan',
+        pending: 'Menunggu',
+        split: 'Dipecah'
       },
       statuses: {
         paid: 'Dibayar',
@@ -1578,6 +1700,76 @@ const DICTS = {
           tareWeight: 'Berat Tare',
           netWeight: 'Berat Bersih',
           tareWeightPlaceholder: '0.00'
+        },
+        actions: {
+          cancelEsc: 'Batal (ESC)',
+          cancelLorry: 'Batal Lori',
+          continue: 'Teruskan',
+          backToWeight: 'Kembali ke Berat',
+          changeFarmer: 'Tukar Pesawah',
+          searchFarmer: 'Cari Pesawah',
+          backToFarmer: 'Kembali ke Pesawah',
+          backToProduct: 'Kembali ke Produk',
+          continueToReview: 'Teruskan ke Semakan',
+          editDeductions: 'Edit Potongan',
+          completePurchaseEnter: 'Lengkapkan Belian (Enter)',
+          changePresetTooltip: 'Tukar preset'
+        },
+        cancelLorry: {
+          confirmTitle: 'Batal Lori?',
+          confirmMessage: 'Adakah anda pasti mahu membatalkan lori ini? Rekod transaksi dibatalkan akan dicipta.',
+          confirmOk: 'Ya, Batal Lori',
+          confirmCancel: 'Tidak, Kekalkan',
+          passcodeTitle: 'Sahkan Pembatalan Lori',
+          securityWarning: 'Pengesahan Keselamatan Diperlukan',
+          cancellingLorry: 'Anda akan membatalkan lori',
+          transactionWillBeMarked: 'Rekod transaksi dibatalkan akan dicipta dan lori ini akan dikeluarkan dari barisan.',
+          enterPasscode: 'Masukkan kod laluan ini untuk pengesahan:',
+          passcodeLabel: 'Kod Laluan Pengesahan',
+          passcodeRequired: 'Sila masukkan kod laluan',
+          passcodeMustBe6: 'Kod laluan mestilah tepat 6 aksara',
+          passcodePlaceholder: 'Masukkan kod laluan 6 aksara',
+          incorrectPasscode: 'Kod laluan salah. Sila cuba lagi.'
+        },
+        validations: {
+          required: 'Diperlukan',
+          zeroToHundredPercent: '0-100%'
+        },
+        placeholders: {
+          zero: '0'
+        },
+        misc: {
+          dash: '—',
+          rm: 'RM',
+          standard: 'Piawai',
+          deduction: 'Potongan',
+          percent: '%'
+        },
+        messages: {
+          noPriceSetForProductTitle: 'Tiada harga ditetapkan untuk produk ini',
+          noPriceSetForProductHint: 'Sila tetapkan harga di Tetapan → Musim & Harga',
+          failedToLoadProductPricePrefix: 'Gagal memuat harga produk: ',
+          switchedToPreset: 'Bertukar kepada preset "{preset}"',
+          pleaseEnterValidTareWeight: 'Sila masukkan berat tare yang sah',
+          tareWeightCannotExceedGross: 'Berat tare tidak boleh lebih besar atau sama dengan berat kasar',
+          failedToCompletePurchase: 'Gagal melengkapkan belian'
+        },
+        review: {
+          labels: {
+            lorry: 'Lori',
+            product: 'Produk',
+            farmer: 'Pesawah',
+            grossWeight: 'Berat Kasar',
+            tareWeight: 'Berat Tare',
+            netWeight: 'Berat Bersih',
+            effectiveWeightAfterDeduction: 'Berat Efektif (selepas potongan)',
+            pricePerKg: 'Harga per KG',
+            totalAmount: 'Jumlah Keseluruhan'
+          }
+        },
+        presetModal: {
+          title: 'Pilih Preset Potongan',
+          description: 'Pilih preset potongan yang sesuai berdasarkan kualiti padi:'
         }
       },
       weighInPanel: {
@@ -1793,13 +1985,15 @@ const DICTS = {
           companyName: 'Nama Syarikat',
           companyAddress: 'Alamat Syarikat',
           companyRegistrationNo: 'No. Pendaftaran Syarikat',
-          paddyPurchasingLicenceNo: 'No. Lesen Belian Padi'
+          paddyPurchasingLicenceNo: 'No. Lesen Belian Padi',
+          location: 'Lokasi (Kawasan)'
         },
         placeholders: {
           companyName: 'cth., ABC Rice Mill Sdn Bhd',
           companyAddress: 'cth., No. 1, Jalan Contoh, 12345',
           companyRegistrationNo: 'cth., 201901234567',
-          paddyPurchasingLicenceNo: 'cth., PP-1234'
+          paddyPurchasingLicenceNo: 'cth., PP-1234',
+          location: 'cth., PANCHANG BEDENA'
         },
         validations: {
           companyNameRequired: 'Sila masukkan nama syarikat',
@@ -1811,7 +2005,8 @@ const DICTS = {
           companyName: 'Akan dipaparkan pada resit',
           companyAddress: 'Akan dipaparkan pada resit',
           companyRegistrationNo: 'Akan dipaparkan pada resit',
-          paddyPurchasingLicenceNo: 'Akan dipaparkan pada resit'
+          paddyPurchasingLicenceNo: 'Akan dipaparkan pada resit',
+          location: 'Akan dipaparkan sebagai "Kawasan" pada resit'
         },
         actions: {
           save: 'Simpan',
