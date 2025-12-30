@@ -21,7 +21,7 @@ import {
 import { useI18n } from '../../i18n/I18nProvider';
 import bluishPaddyField from '../../img/bluish-paddy-field.png';
 
-const { Header, Sider, Content } = Layout;
+const { Header, Sider, Content, Footer } = Layout;
 
 const AppLayout = ({ children }) => {
   const MODE_STORAGE_KEY = 'app_mode';
@@ -686,6 +686,17 @@ const AppLayout = ({ children }) => {
         }}>
           {children}
         </Content>
+        
+        <Footer style={{
+          textAlign: 'center',
+          padding: '12px 50px',
+          background: '#f0f2f5',
+          borderTop: '1px solid #d9d9d9',
+          fontSize: '12px',
+          color: '#666'
+        }}>
+          {t('app.poweredBy')}
+        </Footer>
       </Layout>
 
       {/* Right Sidebar - Transactions */}

@@ -9,6 +9,7 @@ const store = new Store({
     company: {
       name: '',
       address: '',
+      phone: '',
       registration_no: '',
       paddy_purchasing_licence_no: '',
       location: ''
@@ -74,6 +75,7 @@ const getAll = async () => {
         // Company
         company_name: settings.company.name,
         company_address: settings.company.address,
+        company_phone: settings.company.phone || '',
         company_registration_no: settings.company.registration_no,
         paddy_purchasing_licence_no: settings.company.paddy_purchasing_licence_no,
         company_location: settings.company.location || '',
@@ -132,6 +134,9 @@ const save = async (data) => {
     }
     if (data.company_address !== undefined) {
       store.set('company.address', data.company_address);
+    }
+    if (data.company_phone !== undefined) {
+      store.set('company.phone', data.company_phone);
     }
     if (data.company_registration_no !== undefined) {
       store.set('company.registration_no', data.company_registration_no);

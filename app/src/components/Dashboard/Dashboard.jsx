@@ -80,16 +80,34 @@ const Dashboard = () => {
       key: 'product_code',
     },
     {
-      title: t('dashboard.weightKg'),
-      dataIndex: 'net_weight_kg',
-      key: 'net_weight_kg',
-      render: (val) => parseFloat(val).toFixed(2)
+      title: t('dashboard.weighIn'),
+      dataIndex: 'gross_weight_kg',
+      key: 'gross_weight_kg',
+      render: (val, record) => (
+        <span style={{ textDecoration: record.status === 'cancelled' ? 'line-through' : 'none' }}>
+          {parseFloat(val).toFixed(2)}
+        </span>
+      )
     },
     {
-      title: t('dashboard.amountRm'),
-      dataIndex: 'total_amount',
-      key: 'total_amount',
-      render: (val) => `RM ${parseFloat(val).toFixed(2)}`
+      title: t('dashboard.weighOut'),
+      dataIndex: 'tare_weight_kg',
+      key: 'tare_weight_kg',
+      render: (val, record) => (
+        <span style={{ textDecoration: record.status === 'cancelled' ? 'line-through' : 'none' }}>
+          {parseFloat(val).toFixed(2)}
+        </span>
+      )
+    },
+    {
+      title: t('dashboard.netWeight'),
+      dataIndex: 'net_weight_kg',
+      key: 'net_weight_kg',
+      render: (val, record) => (
+        <span style={{ textDecoration: record.status === 'cancelled' ? 'line-through' : 'none' }}>
+          {parseFloat(val).toFixed(2)}
+        </span>
+      )
     },
     {
       title: t('dashboard.date'),

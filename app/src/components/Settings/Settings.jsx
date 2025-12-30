@@ -37,6 +37,7 @@ const Settings = () => {
         // Company
         company_name: '',
         company_address: '',
+        company_phone: '',
         company_registration_no: '',
         paddy_purchasing_licence_no: '',
         company_location: '',
@@ -215,6 +216,14 @@ const Settings = () => {
                   rows={3} 
                   placeholder={t('settings.company.placeholders.companyAddress')}
                 />
+              </Form.Item>
+
+              <Form.Item
+                name="company_phone"
+                label={t('settings.company.fields.phone')}
+                extra={t('settings.company.extras.phone')}
+              >
+                <Input placeholder={t('settings.company.placeholders.phone')} />
               </Form.Item>
 
               <Form.Item

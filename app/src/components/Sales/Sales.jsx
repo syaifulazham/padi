@@ -356,6 +356,21 @@ const Sales = () => {
     const tareWeight = activeSession?.tare_weight || 0;
     const containerNetWeight = grossWeight && tareWeight ? grossWeight - tareWeight : 0;
     
+    // Validate that total weight meets or exceeds container weight
+    if (totalWeight < containerNetWeight) {
+      const shortage = containerNetWeight - totalWeight;
+      message.error(
+        t(
+          'salesWeighIn.messages.insufficientReceiptWeight',
+          `Insufficient weight! Selected receipts total ${totalWeight.toFixed(2)} kg, but container load is ${containerNetWeight.toFixed(2)} kg. Please select ${shortage.toFixed(2)} kg more.`
+        )
+          .replace('{selected}', totalWeight.toFixed(2))
+          .replace('{required}', containerNetWeight.toFixed(2))
+          .replace('{shortage}', shortage.toFixed(2))
+      );
+      return;
+    }
+    
     setReceiptSelectionModal(false);
     
     if (Math.abs(totalWeight - containerNetWeight) < 0.01) {

@@ -805,25 +805,34 @@ const SalesWeighOutWizard = ({
                       title: 'Action',
                       key: 'action',
                       width: 150,
-                      render: (_, record) => (
-                        <Space size="small">
-                          <Button 
-                            size="small" 
-                            icon={<ScissorOutlined />}
-                            onClick={() => openSplitModal(record)}
-                            title="Split this receipt"
-                          >
-                            Split
-                          </Button>
-                          <Button 
-                            size="small" 
-                            danger 
-                            onClick={() => removeReceipt(record)}
-                          >
-                            Remove
-                          </Button>
-                        </Space>
-                      )
+                      render: (_, record) => {
+                        // Calculate if there's excess weight
+                        const containerNetWeight = wizardData.gross_weight - session.tare_weight;
+                        const selectedTotalWeight = wizardData.selected_receipts.reduce((sum, r) => sum + parseFloat(r.net_weight_kg || 0), 0);
+                        const hasExcessWeight = selectedTotalWeight > containerNetWeight;
+                        
+                        return (
+                          <Space size="small">
+                            {hasExcessWeight && (
+                              <Button 
+                                size="small" 
+                                icon={<ScissorOutlined />}
+                                onClick={() => openSplitModal(record)}
+                                title="Split this receipt"
+                              >
+                                Split
+                              </Button>
+                            )}
+                            <Button 
+                              size="small" 
+                              danger 
+                              onClick={() => removeReceipt(record)}
+                            >
+                              Remove
+                            </Button>
+                          </Space>
+                        );
+                      }
                     }
                   ]}
                   pagination={false}

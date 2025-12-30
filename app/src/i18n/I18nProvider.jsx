@@ -6,7 +6,8 @@ const DICTS = {
       loading: 'Loading...',
       dbConnectionFailedTitle: '❌ Database Connection Failed',
       dbConnectionFailedBody: 'Please check your database configuration and ensure MySQL is running.',
-      retryConnection: 'Retry Connection'
+      retryConnection: 'Retry Connection',
+      poweredBy: 'Powered by Bytesforge Digital Solution 2025'
     },
     topNav: {
       season: '🌾 Season',
@@ -42,6 +43,9 @@ const DICTS = {
       receipt: 'Receipt',
       farmer: 'Farmer',
       product: 'Product',
+      weighIn: 'Weigh-In (kg)',
+      weighOut: 'Weigh-Out (kg)',
+      netWeight: 'Net Weight (kg)',
       weightKg: 'Weight (kg)',
       amountRm: 'Amount (RM)',
       date: 'Date'
@@ -872,7 +876,12 @@ const DICTS = {
         locationPrefix: 'Location:',
         receiptSentToPrinter: '✅ Receipt sent to printer',
         failedToPrintPrefix: 'Failed to print: ',
-        failedToReprintReceipt: 'Failed to reprint receipt'
+        failedToReprintReceipt: 'Failed to reprint receipt',
+        pleaseSelectAtLeastOneReceipt: 'Please select at least one receipt',
+        insufficientReceiptWeight: 'Insufficient weight! Selected receipts total {selected} kg, but container load is {required} kg. Please select {shortage} kg more.',
+        perfectMatchSelectedReceipts: '✅ Perfect match! Selected {count} receipt(s) totaling {weight} kg',
+        selectedReceiptsTotaling: 'Selected {count} receipt(s) totaling {weight} kg',
+        receiptRemovedFromSelection: 'Receipt removed from selection'
       }
     },
     purchasesHistory: {
@@ -956,6 +965,7 @@ const DICTS = {
         farmer: 'Farmer',
         product: 'Product',
         netWeightKg: 'Net Weight (kg)',
+        deductionPercent: 'Deduction (%)',
         amount: 'Amount',
         paymentStatus: 'Payment Status',
         actions: 'Actions'
@@ -1034,6 +1044,7 @@ const DICTS = {
         fields: {
           companyName: 'Company Name',
           companyAddress: 'Company Address',
+          phone: 'Phone Number',
           companyRegistrationNo: 'Company Registration No',
           paddyPurchasingLicenceNo: 'Paddy Purchasing Licence No',
           location: 'Location (Kawasan)'
@@ -1041,6 +1052,7 @@ const DICTS = {
         placeholders: {
           companyName: 'e.g., ABC Rice Mill Sdn Bhd',
           companyAddress: 'e.g., No. 1, Jalan Example, 12345',
+          phone: 'e.g., 019249396301323396636',
           companyRegistrationNo: 'e.g., 201901234567',
           paddyPurchasingLicenceNo: 'e.g., PP-1234',
           location: 'e.g., PANCHANG BEDENA'
@@ -1054,6 +1066,7 @@ const DICTS = {
         extras: {
           companyName: 'This will appear on receipts',
           companyAddress: 'This will appear on receipts',
+          phone: 'This will appear as "Tel:" on receipts',
           companyRegistrationNo: 'This will appear on receipts',
           paddyPurchasingLicenceNo: 'This will appear on receipts',
           location: 'This will appear as "Kawasan" on receipts'
@@ -1388,6 +1401,63 @@ const DICTS = {
         }
       }
     },
+    homeMenuGuide: {
+      title: 'Menu Guide',
+      description: 'A quick overview of the main menus and what each one is used for.',
+      cards: {
+        dashboard: {
+          title: 'Dashboard',
+          description: 'High-level overview of the current season and key metrics.',
+          actions: {
+            open: 'Open Dashboard'
+          }
+        },
+        purchases: {
+          title: 'Purchases',
+          description: 'Record incoming paddy purchases: weigh-in, weigh-out, history and payment.',
+          actions: {
+            weighIn: 'Weigh-In',
+            history: 'History',
+            payment: 'Payment'
+          }
+        },
+        sales: {
+          title: 'Sales',
+          description: 'Sell to manufacturers: container weigh-in (tare) and weigh-out completion.',
+          actions: {
+            weighIn: 'Weigh-In',
+            history: 'History'
+          }
+        },
+        reports: {
+          title: 'Reports',
+          description: 'Generate season and transaction reports (Purchase, Sales, Lorry).',
+          actions: {
+            purchase: 'Purchase Report',
+            sales: 'Sales Report',
+            lorry: 'Lorry Report'
+          }
+        },
+        stockpiles: {
+          title: 'Stockpiles',
+          description: 'Track paddy/rice stockpiles and movement.',
+          actions: {
+            open: 'Open Stockpiles'
+          }
+        },
+        settings: {
+          title: 'Settings',
+          description: 'Configure system settings, seasons, products, backups and system info.',
+          tip: 'Tip: Set up Settings first before operations.',
+          actions: {
+            general: 'General',
+            seasons: 'Seasons',
+            products: 'Products',
+            backup: 'Backup'
+          }
+        }
+      }
+    },
     backupRestore: {
       pageTitle: 'Backup & Database Management',
       backupCard: {
@@ -1507,6 +1577,29 @@ const DICTS = {
     }
   },
   ms: {
+    app: {
+      loading: 'Memuatkan...',
+      dbConnectionFailedTitle: '❌ Sambungan Pangkalan Data Gagal',
+      dbConnectionFailedBody: 'Sila semak konfigurasi pangkalan data anda dan pastikan MySQL berjalan.',
+      retryConnection: 'Cuba Lagi Sambungan',
+      poweredBy: 'Dikuasakan oleh Bytesforge Digital Solution 2025'
+    },
+    dashboard: {
+      totalFarmers: 'Jumlah Pesawah',
+      todaysPurchases: 'Pembelian Hari Ini',
+      currentStockKg: 'Stok Semasa (kg)',
+      todaysAmount: 'Jumlah Hari Ini',
+      recentPurchases: 'Pembelian Terkini',
+      receipt: 'Resit',
+      farmer: 'Pesawah',
+      product: 'Produk',
+      weighIn: 'Timbang-Masuk (kg)',
+      weighOut: 'Timbang-Keluar (kg)',
+      netWeight: 'Berat Bersih (kg)',
+      weightKg: 'Berat (kg)',
+      amountRm: 'Jumlah (RM)',
+      date: 'Tarikh'
+    },
     purchasesHistory: {
       title: 'Sejarah Transaksi Belian',
       seasonLabel: 'Musim {season_number}/{year}',
@@ -1588,6 +1681,7 @@ const DICTS = {
         farmer: 'Pesawah',
         product: 'Produk',
         netWeightKg: 'Berat Bersih (kg)',
+        deductionPercent: 'Potongan (%)',
         amount: 'Jumlah',
         paymentStatus: 'Status Bayaran',
         actions: 'Tindakan'
@@ -1956,6 +2050,7 @@ const DICTS = {
         autoSplitRemainingLabel: '→ Baki:',
         autoSplitRemainingSuffix: '(kekal tersedia)',
         pleaseSelectAtLeastOneReceipt: 'Sila pilih sekurang-kurangnya satu resit',
+        insufficientReceiptWeight: 'Berat tidak mencukupi! Resit terpilih berjumlah {selected} kg, tetapi muatan kontena adalah {required} kg. Sila pilih {shortage} kg lagi.',
         perfectMatchSelectedReceipts: '✅ Padanan sempurna! Dipilih {count} resit berjumlah {weight} kg',
         selectedReceiptsTotaling: 'Dipilih {count} resit berjumlah {weight} kg',
         receiptRemovedFromSelection: 'Resit dibuang daripada pilihan',
@@ -1984,6 +2079,7 @@ const DICTS = {
         fields: {
           companyName: 'Nama Syarikat',
           companyAddress: 'Alamat Syarikat',
+          phone: 'Nombor Telefon',
           companyRegistrationNo: 'No. Pendaftaran Syarikat',
           paddyPurchasingLicenceNo: 'No. Lesen Belian Padi',
           location: 'Lokasi (Kawasan)'
@@ -1991,6 +2087,7 @@ const DICTS = {
         placeholders: {
           companyName: 'cth., ABC Rice Mill Sdn Bhd',
           companyAddress: 'cth., No. 1, Jalan Contoh, 12345',
+          phone: 'cth., 019249396301323396636',
           companyRegistrationNo: 'cth., 201901234567',
           paddyPurchasingLicenceNo: 'cth., PP-1234',
           location: 'cth., PANCHANG BEDENA'
@@ -2004,6 +2101,7 @@ const DICTS = {
         extras: {
           companyName: 'Akan dipaparkan pada resit',
           companyAddress: 'Akan dipaparkan pada resit',
+          phone: 'Akan dipaparkan sebagai "Tel:" pada resit',
           companyRegistrationNo: 'Akan dipaparkan pada resit',
           paddyPurchasingLicenceNo: 'Akan dipaparkan pada resit',
           location: 'Akan dipaparkan sebagai "Kawasan" pada resit'
@@ -2335,6 +2433,63 @@ const DICTS = {
           title: '6) Sandaran',
           description: 'Sediakan sandaran awal. Lebih mudah mencegah kehilangan data daripada memulihkannya.',
           hint: 'Menu: Tetapan → Sandaran'
+        }
+      }
+    },
+    homeMenuGuide: {
+      title: 'Panduan Menu',
+      description: 'Gambaran ringkas tentang menu utama dan kegunaan setiap satu.',
+      cards: {
+        dashboard: {
+          title: 'Papan Pemuka',
+          description: 'Gambaran keseluruhan peringkat tinggi musim semasa dan metrik utama.',
+          actions: {
+            open: 'Buka Papan Pemuka'
+          }
+        },
+        purchases: {
+          title: 'Belian',
+          description: 'Rekod pembelian padi masuk: timbang-masuk, timbang-keluar, sejarah dan bayaran.',
+          actions: {
+            weighIn: 'Timbang-Masuk',
+            history: 'Sejarah',
+            payment: 'Bayaran'
+          }
+        },
+        sales: {
+          title: 'Jualan',
+          description: 'Jual kepada pengilang: timbang-masuk bekas (tare) dan penyiapan timbang-keluar.',
+          actions: {
+            weighIn: 'Timbang-Masuk',
+            history: 'Sejarah'
+          }
+        },
+        reports: {
+          title: 'Laporan',
+          description: 'Jana laporan musim dan transaksi (Belian, Jualan, Lori).',
+          actions: {
+            purchase: 'Laporan Belian',
+            sales: 'Laporan Jualan',
+            lorry: 'Laporan Lori'
+          }
+        },
+        stockpiles: {
+          title: 'Stok',
+          description: 'Jejak stok padi/beras dan pergerakan.',
+          actions: {
+            open: 'Buka Stok'
+          }
+        },
+        settings: {
+          title: 'Tetapan',
+          description: 'Konfigurasikan tetapan sistem, musim, produk, sandaran dan maklumat sistem.',
+          tip: 'Petua: Sediakan Tetapan dahulu sebelum operasi.',
+          actions: {
+            general: 'Umum',
+            seasons: 'Musim',
+            products: 'Produk',
+            backup: 'Sandaran'
+          }
         }
       }
     },

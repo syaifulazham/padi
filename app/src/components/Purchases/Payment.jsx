@@ -455,6 +455,33 @@ const Payment = () => {
       )
     },
     {
+      title: t('purchasesPayment.table.deductionPercent'),
+      dataIndex: 'deduction_config',
+      key: 'deduction_config',
+      width: 110,
+      align: 'center',
+      render: (deductionConfig) => {
+        let totalPercent = 0;
+        if (deductionConfig) {
+          try {
+            const config = typeof deductionConfig === 'string' 
+              ? JSON.parse(deductionConfig) 
+              : deductionConfig;
+            if (Array.isArray(config)) {
+              totalPercent = config.reduce((sum, d) => sum + parseFloat(d.value || 0), 0);
+            }
+          } catch (e) {
+            console.error('Error parsing deduction_config:', e);
+          }
+        }
+        return (
+          <Tag color={totalPercent > 0 ? 'orange' : 'default'}>
+            {totalPercent.toFixed(2)}%
+          </Tag>
+        );
+      }
+    },
+    {
       title: t('purchasesPayment.table.amount'),
       dataIndex: 'total_amount',
       key: 'total_amount',
