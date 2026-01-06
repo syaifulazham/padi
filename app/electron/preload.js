@@ -129,8 +129,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   printer: {
     print: (type, data) => ipcRenderer.invoke('printer:print', type, data),
     getPrinters: () => ipcRenderer.invoke('printer:getPrinters'),
-    purchaseReceipt: (transactionId) => ipcRenderer.invoke('print:purchaseReceipt', transactionId),
-    salesReceipt: (salesId) => ipcRenderer.invoke('print:salesReceipt', salesId)
+    purchaseReceipt: (transactionId, options) => ipcRenderer.invoke('print:purchaseReceipt', transactionId, options),
+    salesReceipt: (salesId, options) => ipcRenderer.invoke('print:salesReceipt', salesId, options)
   },
 
   // Reports

@@ -68,7 +68,7 @@ const PurchaseHistory = () => {
     try {
       message.loading({ content: t('purchasesHistory.messages.generatingReceipt'), key: 'reprint' });
       
-      const result = await window.electronAPI.printer?.purchaseReceipt(record.transaction_id);
+      const result = await window.electronAPI.printer?.purchaseReceipt(record.transaction_id, { forcePrint: true });
       
       if (result?.success) {
         if (result.mode === 'pdf') {

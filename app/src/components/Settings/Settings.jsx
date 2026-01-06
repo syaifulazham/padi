@@ -508,8 +508,37 @@ const Settings = () => {
               <Form.Item
                 name="default_printer"
                 label={t('settings.printer.fields.defaultPrinter')}
+                extra={t('settings.printer.extras.defaultPrinter')}
               >
-                <Input placeholder={t('settings.printer.placeholders.defaultPrinter')} />
+                <Select
+                  placeholder={t('settings.printer.placeholders.defaultPrinter')}
+                  loading={loadingPrinters}
+                  showSearch
+                  optionFilterProp="children"
+                  notFoundContent={loadingPrinters ? t('settings.general.printerDropdown.loading') : t('settings.general.printerDropdown.noPrintersFound')}
+                  dropdownRender={(menu) => (
+                    <>
+                      {menu}
+                      <Divider style={{ margin: '8px 0' }} />
+                      <Space style={{ padding: '0 8px 4px' }}>
+                        <Button
+                          type="text"
+                          icon={<ReloadOutlined />}
+                          onClick={() => loadPrinters()}
+                          loading={loadingPrinters}
+                        >
+                          {t('settings.general.actions.refreshPrinters')}
+                        </Button>
+                      </Space>
+                    </>
+                  )}
+                >
+                  {printers.map((printer) => (
+                    <Option key={printer.name} value={printer.name}>
+                      {printer.name} {printer.isDefault ? t('settings.general.printerDropdown.defaultSuffix') : ''}
+                    </Option>
+                  ))}
+                </Select>
               </Form.Item>
 
               <Form.Item

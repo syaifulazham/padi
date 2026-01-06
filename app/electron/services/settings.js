@@ -318,6 +318,7 @@ const get = async (key) => {
   try {
     // Map flat keys to nested structure
     const keyMap = {
+      'default_printer': 'printer.default_printer',
       'paper_size': 'printer.paper_size',
       'print_to_pdf': 'printer.print_to_pdf',
       'pdf_save_path': 'printer.pdf_save_path',

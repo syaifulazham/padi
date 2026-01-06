@@ -414,24 +414,44 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
   // Get paper size configuration
   const sizeConfig = getPaperSizeConfig(paperSize);
   
-  // Calculate grand total of berat kasar
+  // Calculate grand total of berat kasar and berat bersih
   const purchaseReceipts = salesTransaction.purchase_receipts || [];
   const totalBeratKasar = purchaseReceipts.reduce((sum, r) => {
-    // Use original_weight which is the net_weight_kg (berat kasar before deductions)
     return sum + parseFloat(r.original_weight || r.gross_weight_kg - r.tare_weight_kg || 0);
   }, 0);
   
-  // Generate purchase receipts table rows
-  const purchaseTableRows = purchaseReceipts.map(receipt => {
+  const totalBeratBersih = purchaseReceipts.reduce((sum, r) => {
+    return sum + parseFloat(r.effective_weight_kg || r.net_weight_kg || 0);
+  }, 0);
+  
+  // Check if all deductions are 0
+  const hasDeductions = purchaseReceipts.some(r => parseFloat(r.total_deduction_rate || 0) > 0);
+  
+  // Generate purchase receipts table rows conditionally
+  const purchaseTableRows = purchaseReceipts.map((receipt, index) => {
     const beratKasar = parseFloat(receipt.original_weight || receipt.gross_weight_kg - receipt.tare_weight_kg || 0);
-    return `
-      <tr>
-        <td style="padding: 3px 5px; border-bottom: 1px solid #ddd;">${receipt.receipt_number}</td>
-        <td style="padding: 3px 5px; border-bottom: 1px solid #ddd;">${receipt.farmer_code || '-'}</td>
-        <td style="padding: 3px 5px; border-bottom: 1px solid #ddd;">${receipt.farmer_name}</td>
-        <td style="padding: 3px 5px; border-bottom: 1px solid #ddd; text-align: right;">${formatNumber(beratKasar, 2)} KG</td>
-      </tr>
-    `;
+    const beratBersih = parseFloat(receipt.effective_weight_kg || receipt.net_weight_kg || 0);
+    const ptg = parseFloat(receipt.total_deduction_rate || 0);
+    
+    if (hasDeductions) {
+      return `
+        <tr>
+          <td style="padding: 3px 5px; border-bottom: 1px solid #ddd; text-align: center;">${index + 1}</td>
+          <td style="padding: 3px 5px; border-bottom: 1px solid #ddd;">${receipt.receipt_number}</td>
+          <td style="padding: 3px 5px; border-bottom: 1px solid #ddd; text-align: right;">${formatNumber(beratKasar, 2)}</td>
+          <td style="padding: 3px 5px; border-bottom: 1px solid #ddd; text-align: right;">${formatNumber(beratBersih, 2)}</td>
+          <td style="padding: 3px 5px; border-bottom: 1px solid #ddd; text-align: right;">${formatNumber(ptg, 2)}</td>
+        </tr>
+      `;
+    } else {
+      return `
+        <tr>
+          <td style="padding: 3px 5px; border-bottom: 1px solid #ddd; text-align: center;">${index + 1}</td>
+          <td style="padding: 3px 5px; border-bottom: 1px solid #ddd;">${receipt.receipt_number}</td>
+          <td style="padding: 3px 5px; border-bottom: 1px solid #ddd; text-align: right;">${formatNumber(beratKasar, 2)}</td>
+        </tr>
+      `;
+    }
   }).join('');
   
   return `
@@ -461,39 +481,28 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
     }
     
     .header {
-      text-align: left;
-      margin-bottom: 8px;
-      border-bottom: 1px solid #000;
-      padding-bottom: 20px;
+      text-align: center;
+      margin-bottom: 10px;
+      border-bottom: 2px solid #000;
+      padding-bottom: 5px;
     }
     
     .company-name {
       font-weight: bold;
       font-size: ${sizeConfig.companyNameSize};
-      margin-bottom: 2px;
-    }
-    
-    .company-info {
-      font-size: calc(${sizeConfig.fontSize} * 0.9);
-      line-height: 1.2;
-    }
-    
-    .right-header {
-      text-align: right;
-      float: right;
-      margin-top: -60px;
-      margin-bottom: 8px;
-    }
-    
-    .location {
-      font-size: ${sizeConfig.fontSize};
       margin-bottom: 3px;
     }
     
-    .receipt-number {
-      font-size: ${sizeConfig.receiptNumberSize};
+    .company-info {
+      font-size: calc(${sizeConfig.fontSize} * 0.85);
+      line-height: 1.3;
+    }
+    
+    .page-title {
+      text-align: right;
       font-weight: bold;
-      margin-bottom: 5px;
+      font-size: calc(${sizeConfig.fontSize} * 1.1);
+      margin: 10px 0;
     }
     
     .title {
@@ -502,50 +511,40 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
       font-size: 11px;
     }
     
-    .details-section {
-      margin-bottom: 8px;
-    }
-    
-    .row {
-      display: flex;
-      margin-bottom: 2px;
-    }
-    
-    .row-split {
+    .main-section {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 2px;
+      margin-bottom: 15px;
     }
     
-    .label {
-      width: 120px;
-      display: inline-block;
+    .left-section {
+      width: 48%;
     }
     
-    .value {
-      flex: 1;
+    .right-section {
+      width: 48%;
     }
     
-    .weights-section {
+    .info-box {
+      border: 1px solid #000;
+      padding: 8px;
+      margin-bottom: 10px;
+      min-height: 60px;
+    }
+    
+    .box-title {
+      font-weight: bold;
+      margin-bottom: 5px;
+      text-decoration: underline;
+    }
+    
+    .info-row {
+      margin-bottom: 3px;
+      font-size: calc(${sizeConfig.fontSize} * 0.9);
+    }
+    
+    .receipt-info {
       margin: 10px 0;
-      border-top: 1px solid #000;
-      border-bottom: 1px solid #000;
-      padding: 5px 0;
-    }
-    
-    .weight-row {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 2px;
-    }
-    
-    .weight-label {
-      width: 50%;
-    }
-    
-    .weight-value {
-      width: 50%;
-      text-align: right;
     }
     
     .purchase-receipts-section {
@@ -560,10 +559,11 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
     }
     
     .purchase-table th {
-      background: #f0f0f0;
-      border-bottom: 2px solid #000;
-      padding: 3px 5px;
-      text-align: left;
+      background: #fff;
+      border-bottom: 1px solid #000;
+      border-top: 1px solid #000;
+      padding: 5px;
+      text-align: center;
       font-weight: bold;
     }
     
@@ -579,28 +579,35 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
     }
     
     .footer {
-      margin-top: 15px;
+      margin-top: 30px;
+      page-break-inside: avoid;
     }
     
     .signature-row {
       display: flex;
       justify-content: space-between;
       margin-top: 20px;
+      page-break-inside: avoid;
     }
     
     .signature-box {
-      text-align: center;
-      width: 30%;
+      width: 48%;
+    }
+    
+    .signature-title {
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    
+    .signature-field {
+      margin-bottom: 5px;
     }
     
     .signature-line {
       border-bottom: 1px solid #000;
-      height: 30px;
-      margin-bottom: 3px;
-    }
-    
-    .signature-label {
-      font-size: 8px;
+      display: inline-block;
+      width: 200px;
+      height: 20px;
     }
     
     .bold {
@@ -620,95 +627,76 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
   <div class="header">
     <div class="company-name">${companyDetails.name || 'BERKAT PADI SDN BHD'}</div>
     <div class="company-info">
-      ${companyDetails.address || 'LOT 14633 PKT 100 SAWAH, SUNGAI NIPAH<br>45300 SUNGAI BESAR, SELANGOR'}<br>
-      Tel:${companyDetails.phone || '019249396301323396636'}<br>
-      Lesen Belian Padi : ${companyDetails.licence_no || companyDetails.license || 'E6380'}
+      ${companyDetails.address || 'LOT 14633 PKT 100, SUNGAI NIPAH, 45300 SUNGAI BESAR, SELANGOR'} No Tel: ${companyDetails.phone || '019-2499963'}
+    </div>
+    <div class="company-info">
+      (Lesen Beli Padi: ${companyDetails.licence_no || companyDetails.license || 'N/A'})
     </div>
   </div>
   
-  <div class="right-header">
-    <div class="location">Kawasan: ${season.location || companyDetails.location || 'PANCHANG BEDENA'}</div>
-    <div class="receipt-number">${salesTransaction.sales_number || salesTransaction.salesNumber || 'N/A'}</div>
-  </div>
+  <div class="page-title">NOTA PENGHANTARAN PADI</div>
   
-  <div style="clear: both;"></div>
-  
-  <!-- Title -->
-  <div class="title">Resit Jualan</div>
-  
-  <!-- Manufacturer Details (Left) and Transaction Details (Right) -->
-  <div class="details-section">
-    <div class="row-split">
-      <div style="width: 60%;">
-        <div class="row">
-          <span class="label">PEMBELI</span>
-          <span class="value">: ${salesTransaction.manufacturer_name || ''}</span>
-        </div>
-        <div class="row">
-          <span class="label">HUBUNGAN</span>
-          <span class="value">: ${salesTransaction.manufacturer_contact || ''}</span>
-        </div>
-        <div class="row">
-          <span class="label">TELEFON</span>
-          <span class="value">: ${salesTransaction.manufacturer_phone || ''}</span>
-        </div>
+  <!-- Main Section with Left and Right Columns -->
+  <div class="main-section">
+    <!-- Left Column -->
+    <div class="left-section">
+      <div class="bold" style="margin-bottom: 5px;">PENGHANTARAN PADI KE</div>
+      <div style="font-size: calc(${sizeConfig.fontSize} * 0.9);">
+        Pengurus,<br>
+        ${salesTransaction.manufacturer_name || 'KILANG BERAS RAKYAT SEKINCHAN'},<br>
+        ${salesTransaction.manufacturer_address || 'LOT 322'},<br>
+        ${salesTransaction.manufacturer_postcode || '45400'} ${salesTransaction.manufacturer_city || 'SEKINCHAN'}<br>
+        ${salesTransaction.manufacturer_state || 'SELANGOR'}
       </div>
-      <div style="width: 38%; text-align: right;">
-        <div class="row">
-          <span class="bold">TARIKH JUALAN: ${formatDate(salesTransaction.sale_date)}</span>
-        </div>
-        <div class="row">
-          <span>MASA</span>
-          <span>: ${formatTime(salesTransaction.sale_date)}</span>
-        </div>
+      
+      <div class="receipt-info">
+        <div><span class="bold">NO RESIT PENGHANTARA</span> ${salesTransaction.sales_number || 'N/A'}</div>
+        <div><span class="bold">TARIKH :</span> ${formatDate(salesTransaction.sale_date)}</div>
+        <div><span class="bold">PRODUK :</span> ${salesTransaction.product_name || 'N/A'}</div>
       </div>
     </div>
     
-    <div class="row" style="margin-top: 5px;">
-      <span class="label">NO. LORI</span>
-      <span class="value">: ${salesTransaction.vehicle_number || ''}</span>
-    </div>
-    <div class="row">
-      <span class="label">PEMANDU</span>
-      <span class="value">: ${salesTransaction.driver_name || ''}</span>
-    </div>
-  </div>
-  
-  <!-- Weights Section -->
-  <div class="weights-section">
-    <div class="weight-row">
-      <span class="bold">BERAT MASUK</span>
-      <span>: ${formatNumber(salesTransaction.tare_weight_kg, 2)} KG</span>
-    </div>
-    
-    <div class="weight-row">
-      <span class="bold">BERAT KELUAR</span>
-      <span>: ${formatNumber(salesTransaction.gross_weight_kg, 2)} KG</span>
-    </div>
-    
-    <div class="weight-row" style="margin-top: 3px; padding-top: 3px; border-top: 1px solid #000;">
-      <span class="bold">BERAT BERSIH</span>
-      <span>: ${formatNumber(salesTransaction.net_weight_kg, 2)} KG</span>
+    <!-- Right Column with Boxed Sections -->
+    <div class="right-section">
+      <!-- Driver Info Box -->
+      <div class="info-box">
+        <div class="box-title">Maklumat Pemandu Penghantaran :</div>
+        <div class="info-row">Nama: ${salesTransaction.driver_name || ''}</div>
+        <div class="info-row">No KP: -</div>
+        <div class="info-row">No Pendaftaran Lori: ${salesTransaction.vehicle_number || ''}</div>
+      </div>
+      
+      <!-- Weighing Info Box -->
+      <div class="info-box">
+        <div class="box-title">Maklumat Timbangan :</div>
+        <div class="info-row"><span class="bold">TIMBANG MASUK : ${formatNumber(salesTransaction.tare_weight_kg, 2)} KG</span></div>
+        <div class="info-row"><span class="bold">TIMBANG KELUAR : ${formatNumber(salesTransaction.gross_weight_kg, 2)} KG</span></div>
+        <div class="info-row"><span class="bold">BERAT KASAR: ${formatNumber(salesTransaction.net_weight_kg, 2)} KG</span></div>
+        <div class="info-row" style="font-size: calc(${sizeConfig.fontSize} * 0.8);">Masa Masuk: ${formatTime(salesTransaction.sale_date)}</div>
+        <div class="info-row" style="font-size: calc(${sizeConfig.fontSize} * 0.8);">Masa Keluar: ${formatTime(salesTransaction.sale_date)}</div>
+      </div>
     </div>
   </div>
   
   <!-- Purchase Receipts Table -->
   <div class="purchase-receipts-section">
-    <div class="title">Senarai Resit Belian</div>
     <table class="purchase-table">
       <thead>
         <tr>
-          <th>Resit Belian</th>
-          <th>Subsidi No.</th>
-          <th>Nama Petani</th>
-          <th style="text-align: right;">Berat Kasar</th>
+          <th style="width: 5%;"></th>
+          <th style="${hasDeductions ? 'width: 25%;' : 'width: 45%;'} text-align: left;">NO RESIT</th>
+          <th style="${hasDeductions ? 'width: 25%;' : 'width: 50%;'} text-align: right;">B. KASAR</th>
+          ${hasDeductions ? '<th style="width: 25%; text-align: right;">B. BERSIH</th>' : ''}
+          ${hasDeductions ? '<th style="width: 20%; text-align: right;">PTG</th>' : ''}
         </tr>
       </thead>
       <tbody>
         ${purchaseTableRows}
         <tr class="total-row">
-          <td colspan="3" style="text-align: right; padding: 5px;">JUMLAH KESELURUHAN:</td>
-          <td style="text-align: right; padding: 5px;">${formatNumber(totalBeratKasar, 2)} KG</td>
+          <td colspan="2" style="text-align: left; padding: 8px; border-top: 2px solid #000;"><span class="bold">Jumlah Berat Hantar</span></td>
+          <td style="text-align: right; padding: 8px; border-top: 2px solid #000;">${formatNumber(totalBeratKasar, 2)} KG</td>
+          ${hasDeductions ? `<td style="text-align: right; padding: 8px; border-top: 2px solid #000;">${formatNumber(totalBeratBersih, 2)} KG</td>` : ''}
+          ${hasDeductions ? '<td style="border-top: 2px solid #000;"></td>' : ''}
         </tr>
       </tbody>
     </table>
@@ -718,16 +706,15 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
   <div class="footer">
     <div class="signature-row">
       <div class="signature-box">
-        <div class="signature-line"></div>
-        <div class="signature-label">DITIMBANG OLEH</div>
+        <div class="signature-title">Dihantar Oleh:</div>
+        <div class="signature-field">Tanda tangan : <span class="signature-line"></span></div>
+        <div class="signature-field">Nama : <span class="signature-line"></span></div>
       </div>
       <div class="signature-box">
-        <div class="signature-line"></div>
-        <div class="signature-label">PEMANDU LORI</div>
-      </div>
-      <div class="signature-box">
-        <div class="signature-line"></div>
-        <div class="signature-label">DITERIMA OLEH</div>
+        <div class="signature-title">Diterima dan disemak oleh:</div>
+        <div class="signature-field">Tanda tangan : <span class="signature-line"></span></div>
+        <div class="signature-field">Nama : <span class="signature-line"></span></div>
+        <div class="signature-field">No KP : <span class="signature-line"></span></div>
       </div>
     </div>
   </div>

@@ -65,7 +65,7 @@ const SalesHistory = () => {
   const handlePrintReceipt = async (record) => {
     try {
       console.log('🖨️  Reprinting sales receipt for:', record.sales_number);
-      const result = await window.electronAPI.printer?.salesReceipt(record.sales_id);
+      const result = await window.electronAPI.printer?.salesReceipt(record.sales_id, { forcePrint: true });
       
       if (result?.success) {
         if (result.mode === 'pdf') {

@@ -1243,6 +1243,7 @@ const DICTS = {
           receiptFooter: 'Enter receipt footer'
         },
         extras: {
+          defaultPrinter: 'Select the printer from available system printers',
           paperSize: 'Choose the correct paper size for your printer',
           saveReceiptsAsPdf: 'Enable to save receipts as PDF after printing',
           pdfSaveLocation: 'Folder where PDF receipts will be saved',
@@ -2291,6 +2292,7 @@ const DICTS = {
           receiptFooter: 'Masukkan footer resit'
         },
         extras: {
+          defaultPrinter: 'Pilih pencetak daripada pencetak sistem yang tersedia',
           paperSize: 'Pilih saiz kertas yang betul untuk pencetak anda',
           saveReceiptsAsPdf: 'Aktifkan untuk simpan resit sebagai PDF selepas cetak',
           pdfSaveLocation: 'Folder untuk menyimpan resit PDF',

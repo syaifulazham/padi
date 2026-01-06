@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Row, Col, Statistic, Table, Tag, Space, Button, message, Alert } from 'antd';
-import { ReloadOutlined, EyeOutlined, WarningOutlined, InboxOutlined, ShoppingCartOutlined, ShopOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Statistic, Table, Tag, Space, Button, message, Alert, Progress } from 'antd';
+import { ReloadOutlined, EyeOutlined, WarningOutlined, InboxOutlined, ShoppingCartOutlined, ShopOutlined, TableOutlined, BarChartOutlined } from '@ant-design/icons';
 
 const Stockpiles = () => {
   const navigate = useNavigate();
@@ -10,6 +10,7 @@ const Stockpiles = () => {
   const [stats, setStats] = useState(null);
   const [activeSeason, setActiveSeason] = useState(null);
   const [lowStockAlerts, setLowStockAlerts] = useState([]);
+  const [viewMode, setViewMode] = useState('table'); // 'table' or 'chart'
 
   useEffect(() => {
     loadActiveSeason();
@@ -125,37 +126,44 @@ const Stockpiles = () => {
       title: 'Purchased',
       key: 'purchased',
       align: 'right',
-      render: (_, record) => (
-        <div>
-          <div style={{ fontWeight: 500, color: '#52c41a' }}>
-            {record.total_purchased_ton.toFixed(3)} ton
+      render: (_, record) => {
+        if (record.total_purchased_ton === 0) return null;
+        return (
+          <div>
+            <div style={{ fontWeight: 500, color: '#52c41a' }}>
+              {record.total_purchased_ton.toFixed(3)} ton
+            </div>
+            <div style={{ fontSize: 12, color: '#999' }}>
+              {record.purchase_count} transactions
+            </div>
           </div>
-          <div style={{ fontSize: 12, color: '#999' }}>
-            {record.purchase_count} transactions
-          </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       title: 'Sold',
       key: 'sold',
       align: 'right',
-      render: (_, record) => (
-        <div>
-          <div style={{ fontWeight: 500, color: '#ff4d4f' }}>
-            {record.total_sold_ton.toFixed(3)} ton
+      render: (_, record) => {
+        if (record.total_sold_ton === 0) return null;
+        return (
+          <div>
+            <div style={{ fontWeight: 500, color: '#ff4d4f' }}>
+              {record.total_sold_ton.toFixed(3)} ton
+            </div>
+            <div style={{ fontSize: 12, color: '#999' }}>
+              {record.sales_count} transactions
+            </div>
           </div>
-          <div style={{ fontSize: 12, color: '#999' }}>
-            {record.sales_count} transactions
-          </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       title: 'Current Stock',
       key: 'stock',
       align: 'right',
       render: (_, record) => {
+        if (record.current_stock_ton === 0) return null;
         const isLow = record.current_stock_kg < 1000;
         return (
           <div>
@@ -169,27 +177,6 @@ const Stockpiles = () => {
           </div>
         );
       },
-    },
-    {
-      title: 'Stock Value',
-      key: 'value',
-      align: 'right',
-      render: (_, record) => (
-        <div>
-          {record.current_price_per_ton ? (
-            <>
-              <div style={{ fontWeight: 500, color: '#52c41a' }}>
-                RM {record.stock_value.toLocaleString()}
-              </div>
-              <div style={{ fontSize: 12, color: '#999' }}>
-                @ RM {parseFloat(record.current_price_per_ton).toFixed(2)}/ton
-              </div>
-            </>
-          ) : (
-            <Tag>No price set</Tag>
-          )}
-        </div>
-      ),
     },
     {
       title: 'Actions',
@@ -228,16 +215,24 @@ const Stockpiles = () => {
                 </Space>
               </Col>
               <Col>
-                <Button
-                  icon={<ReloadOutlined />}
-                  onClick={() => {
-                    loadStockpiles();
-                    loadStats();
-                    loadLowStockAlerts();
-                  }}
-                >
-                  Refresh
-                </Button>
+                <Space>
+                  <Button
+                    icon={viewMode === 'table' ? <BarChartOutlined /> : <TableOutlined />}
+                    onClick={() => setViewMode(viewMode === 'table' ? 'chart' : 'table')}
+                  >
+                    {viewMode === 'table' ? 'Chart View' : 'Table View'}
+                  </Button>
+                  <Button
+                    icon={<ReloadOutlined />}
+                    onClick={() => {
+                      loadStockpiles();
+                      loadStats();
+                      loadLowStockAlerts();
+                    }}
+                  >
+                    Refresh
+                  </Button>
+                </Space>
               </Col>
             </Row>
           </Card>
@@ -329,19 +324,120 @@ const Stockpiles = () => {
         />
       )}
 
-      {/* Stockpiles Table */}
+      {/* Stockpiles Table or Chart View */}
       <Card title="Stockpiles by Product">
-        <Table
-          columns={columns}
-          dataSource={stockpiles}
-          rowKey="product_id"
-          loading={loading}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showTotal: (total) => `Total ${total} products`,
-          }}
-        />
+        {viewMode === 'table' ? (
+          <Table
+            columns={columns}
+            dataSource={stockpiles}
+            rowKey="product_id"
+            loading={loading}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showTotal: (total) => `Total ${total} products`,
+            }}
+          />
+        ) : (
+          <div style={{ padding: '16px 0' }}>
+            {(() => {
+              // Filter out products with 0 purchased
+              const filteredStockpiles = stockpiles.filter(p => p.total_purchased_ton > 0);
+              
+              // Calculate maximum total purchased across all products for scaling
+              const maxTotalPurchased = Math.max(...filteredStockpiles.map(p => p.total_purchased_ton), 0);
+              
+              return filteredStockpiles.map((product) => {
+                const totalPurchased = product.total_purchased_ton;
+                const totalSold = product.total_sold_ton;
+                const currentStock = product.current_stock_ton;
+                
+                // Calculate percentages relative to this product's total
+                const soldPercentageOfProduct = totalPurchased > 0 ? (totalSold / totalPurchased) * 100 : 0;
+                const stockPercentageOfProduct = totalPurchased > 0 ? (currentStock / totalPurchased) * 100 : 0;
+                
+                // Calculate bar width relative to max total purchased across all products
+                const barScalePercentage = maxTotalPurchased > 0 ? (totalPurchased / maxTotalPurchased) * 100 : 0;
+                
+                // Calculate actual segment widths within the scaled bar
+                const soldBarWidth = barScalePercentage * (soldPercentageOfProduct / 100);
+                const stockBarWidth = barScalePercentage * (stockPercentageOfProduct / 100);
+
+                return (
+                  <div
+                    key={product.product_id}
+                    style={{
+                      marginBottom: 32,
+                      paddingBottom: 24,
+                      borderBottom: '1px solid #f0f0f0'
+                    }}
+                  >
+                    {/* Product Name and Total */}
+                    <Row justify="space-between" align="middle" style={{ marginBottom: 8 }}>
+                      <Col>
+                        <div style={{ fontWeight: 600, fontSize: 16 }}>
+                          {product.product_code} - {product.product_type}
+                        </div>
+                      </Col>
+                      <Col>
+                        <div style={{ fontWeight: 600, fontSize: 16 }}>
+                          {totalPurchased.toFixed(3)} ton
+                        </div>
+                      </Col>
+                    </Row>
+
+                    {/* Bar Chart */}
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ display: 'flex', height: 30, borderRadius: 4, overflow: 'hidden', backgroundColor: '#f0f0f0' }}>
+                        {/* Blue Bar (Sold) */}
+                        {soldBarWidth > 0 && (
+                          <div
+                            style={{
+                              width: `${soldBarWidth}%`,
+                              backgroundColor: '#1890ff',
+                              transition: 'width 0.3s ease'
+                            }}
+                          />
+                        )}
+                        {/* Orange Bar (Current Stock) */}
+                        {stockBarWidth > 0 && (
+                          <div
+                            style={{
+                              width: `${stockBarWidth}%`,
+                              backgroundColor: '#ff9800',
+                              transition: 'width 0.3s ease'
+                            }}
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Sold and Stock Details */}
+                    <div style={{ fontSize: 14, color: '#666' }}>
+                      Sold: <span style={{ fontWeight: 600, color: '#1890ff' }}>{totalSold.toFixed(3)} ton</span>
+                      {' '}({soldPercentageOfProduct.toFixed(1)}%)
+                      {' '} Current Stock: <span style={{ fontWeight: 600, color: '#ff9800' }}>{currentStock.toFixed(3)} ton</span>
+                      {' '}({stockPercentageOfProduct.toFixed(1)}%)
+                    </div>
+
+                    {/* View Details Button */}
+                    <div style={{ marginTop: 8 }}>
+                      <Button
+                        type="link"
+                        size="small"
+                        icon={<EyeOutlined />}
+                        onClick={() => viewMovements(product)}
+                        style={{ padding: 0 }}
+                      >
+                        View Movements
+                      </Button>
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        )}
       </Card>
     </div>
   );

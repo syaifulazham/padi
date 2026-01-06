@@ -516,9 +516,9 @@ ipcMain.handle('database:cleanup', async () => {
 // Receipt Printing
 // ===========================================
 
-ipcMain.handle('print:purchaseReceipt', async (event, transactionId) => {
+ipcMain.handle('print:purchaseReceipt', async (event, transactionId, options = {}) => {
   try {
-    console.log('🖨️  Printing receipt for transaction:', transactionId);
+    console.log('🖨️  Printing receipt for transaction:', transactionId, options);
     
     // Check print settings
     const defaultPrinterResult = await settingsService.get('default_printer');
@@ -532,18 +532,40 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId) => {
     const paperSizeResult = await settingsService.get('paper_size');
     const paperSize = paperSizeResult?.data || '80mm';
     
+    console.log('📋 Print Settings:', {
+      defaultPrinter,
+      printToPdf,
+      pdfSavePath,
+      pdfAutoOpen,
+      paperSize,
+      forcePrint: options.forcePrint
+    });
+    
     // Check if configured printer exists
     let printerAvailable = false;
     if (defaultPrinter) {
       const printers = await mainWindow.webContents.getPrintersAsync();
+      console.log(`🖨️  System printers (${printers.length}):`, printers.map(p => ({name: p.name, isDefault: p.isDefault})));
       printerAvailable = printers.some(p => p.name === defaultPrinter);
+      console.log(`🔍 Printer "${defaultPrinter}" available:`, printerAvailable);
       if (!printerAvailable) {
         console.warn(`⚠️  Configured printer "${defaultPrinter}" not found`);
       }
+    } else {
+      console.warn('⚠️  No default printer configured in settings');
     }
     
     // Decide: Print to PDF if explicitly enabled OR if no printer configured/available
-    const shouldPrintToPdf = printToPdf || !defaultPrinter || !printerAvailable;
+    // BUT if forcePrint is true (e.g., for reprints), try to print to physical printer
+    const shouldPrintToPdf = options.forcePrint 
+      ? (!defaultPrinter || !printerAvailable)  // Only PDF if no printer available
+      : (printToPdf || !defaultPrinter || !printerAvailable);  // Respect print_to_pdf setting
+    
+    console.log(`💡 Decision: shouldPrintToPdf = ${shouldPrintToPdf}`, {
+      reason: shouldPrintToPdf 
+        ? (options.forcePrint ? 'no_printer' : (printToPdf ? 'pdf_enabled' : (!defaultPrinter ? 'no_printer_configured' : 'printer_not_found')))
+        : 'print_to_physical_printer'
+    });
     
     // Fetch transaction details
     const transactionResult = await purchaseService.getById(transactionId);
@@ -703,7 +725,7 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId) => {
       const pageSize = pageSizes[paperSize] || pageSizes['80mm'];
       
       const printOptions = {
-        silent: true, // Auto-print to configured printer without dialog
+        silent: true, // Auto-print without dialog
         printBackground: true,
         color: false,
         deviceName: defaultPrinter, // Use configured printer
@@ -720,12 +742,18 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId) => {
       // Print using promise wrapper
       return new Promise((resolve) => {
         printWindow.webContents.print(printOptions, (success, errorType) => {
-          if (!success) {
-            console.error('Print failed:', errorType);
-          }
           printWindow.close();
-          console.log(`✅ Receipt printed successfully to ${defaultPrinter}`);
-          resolve({ success: true, mode: 'print' });
+          if (!success) {
+            console.error('❌ Print failed:', errorType);
+            resolve({ 
+              success: false, 
+              mode: 'print',
+              error: `Print failed: ${errorType}` 
+            });
+          } else {
+            console.log(`✅ Receipt sent to printer: ${defaultPrinter}`);
+            resolve({ success: true, mode: 'print' });
+          }
         });
       });
     }
@@ -736,9 +764,9 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId) => {
   }
 });
 
-ipcMain.handle('print:salesReceipt', async (event, salesId) => {
+ipcMain.handle('print:salesReceipt', async (event, salesId, options = {}) => {
   try {
-    console.log('🖨️  Printing sales receipt for sales ID:', salesId);
+    console.log('🖨️  Printing sales receipt for sales ID:', salesId, options);
     
     // Check print settings
     const defaultPrinterResult = await settingsService.get('default_printer');
@@ -752,18 +780,40 @@ ipcMain.handle('print:salesReceipt', async (event, salesId) => {
     const paperSizeResult = await settingsService.get('paper_size');
     const paperSize = paperSizeResult?.data || '80mm';
     
+    console.log('📋 Print Settings:', {
+      defaultPrinter,
+      printToPdf,
+      pdfSavePath,
+      pdfAutoOpen,
+      paperSize,
+      forcePrint: options.forcePrint
+    });
+    
     // Check if configured printer exists
     let printerAvailable = false;
     if (defaultPrinter) {
       const printers = await mainWindow.webContents.getPrintersAsync();
+      console.log(`🖨️  System printers (${printers.length}):`, printers.map(p => ({name: p.name, isDefault: p.isDefault})));
       printerAvailable = printers.some(p => p.name === defaultPrinter);
+      console.log(`🔍 Printer "${defaultPrinter}" available:`, printerAvailable);
       if (!printerAvailable) {
         console.warn(`⚠️  Configured printer "${defaultPrinter}" not found`);
       }
+    } else {
+      console.warn('⚠️  No default printer configured in settings');
     }
     
     // Decide: Print to PDF if explicitly enabled OR if no printer configured/available
-    const shouldPrintToPdf = printToPdf || !defaultPrinter || !printerAvailable;
+    // BUT if forcePrint is true (e.g., for reprints), try to print to physical printer
+    const shouldPrintToPdf = options.forcePrint 
+      ? (!defaultPrinter || !printerAvailable)  // Only PDF if no printer available
+      : (printToPdf || !defaultPrinter || !printerAvailable);  // Respect print_to_pdf setting
+    
+    console.log(`💡 Decision: shouldPrintToPdf = ${shouldPrintToPdf}`, {
+      reason: shouldPrintToPdf 
+        ? (options.forcePrint ? 'no_printer' : (printToPdf ? 'pdf_enabled' : (!defaultPrinter ? 'no_printer_configured' : 'printer_not_found')))
+        : 'print_to_physical_printer'
+    });
     
     // Fetch sales transaction details with purchase receipts
     const salesResult = await salesService.getById(salesId);
@@ -937,7 +987,7 @@ ipcMain.handle('print:salesReceipt', async (event, salesId) => {
       const pageSize = pageSizes[paperSize] || pageSizes['80mm'];
       
       const printOptions = {
-        silent: true, // Auto-print to configured printer without dialog
+        silent: true, // Auto-print without dialog
         printBackground: true,
         color: false,
         deviceName: defaultPrinter, // Use configured printer
@@ -954,17 +1004,18 @@ ipcMain.handle('print:salesReceipt', async (event, salesId) => {
       // Print using promise wrapper
       return new Promise((resolve) => {
         printWindow.webContents.print(printOptions, (success, errorType) => {
-          if (!success) {
-            console.error('Print failed:', errorType);
-          }
           printWindow.close();
-          console.log(`✅ Receipt printed successfully to ${defaultPrinter}`);
-          resolve({ 
-            success: success, 
-            error: errorType || null,
-            mode: 'printer',
-            printer: defaultPrinter
-          });
+          if (!success) {
+            console.error('❌ Print failed:', errorType);
+            resolve({ 
+              success: false, 
+              mode: 'print',
+              error: `Print failed: ${errorType}` 
+            });
+          } else {
+            console.log(`✅ Receipt sent to printer: ${defaultPrinter}`);
+            resolve({ success: true, mode: 'print' });
+          }
         });
       });
     }
