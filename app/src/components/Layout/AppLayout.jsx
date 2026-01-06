@@ -400,9 +400,17 @@ const AppLayout = ({ children }) => {
           color: '#fff',
           fontSize: leftCollapsed ? '16px' : '20px',
           fontWeight: 'bold',
-          padding: '0 20px'
+          padding: '0 20px',
+          gap: 8
         }}>
-          {leftCollapsed ? '🌾' : '🌾 Paddy Center'}
+          {leftCollapsed ? (
+            <img src="/sparrow.png" alt="Sparrow" style={{ width: 32, height: 32, objectFit: 'contain' }} />
+          ) : (
+            <>
+              <img src="/sparrow.png" alt="Sparrow" style={{ width: 40, height: 40, objectFit: 'contain' }} />
+              <span>Paddy Center</span>
+            </>
+          )}
         </div>
         <Menu
           theme="dark"

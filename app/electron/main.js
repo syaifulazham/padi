@@ -33,7 +33,7 @@ function createWindow() {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     },
-    icon: path.join(__dirname, '../public/icon.png'),
+    icon: path.join(__dirname, '../../icons/sparrow.png'),
     title: 'Paddy Collection Center'
   });
 

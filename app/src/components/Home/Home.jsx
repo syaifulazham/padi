@@ -57,10 +57,19 @@ const Home = () => {
         background: 'rgba(255, 255, 255, 0.92)',
         backdropFilter: 'blur(4px)',
       }}>
-        <Title level={2} style={{ marginTop: 0 }}>{t('home.title')}</Title>
-        <Paragraph style={{ marginBottom: 0 }}>
-          {t('home.description')}
-        </Paragraph>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <img 
+            src="/sparrow.png" 
+            alt="Sparrow Icon" 
+            style={{ width: 80, height: 80, objectFit: 'contain' }}
+          />
+          <div style={{ flex: 1 }}>
+            <Title level={2} style={{ marginTop: 0, marginBottom: 8 }}>{t('home.title')}</Title>
+            <Paragraph style={{ marginBottom: 0 }}>
+              {t('home.description')}
+            </Paragraph>
+          </div>
+        </div>
       </Card>
 
       <Divider />

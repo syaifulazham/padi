@@ -559,7 +559,7 @@ const DICTS = {
         pressF3ToStartTitle: 'Press F3 to start',
         newPurchaseWeighIn: 'New Purchase (Weigh-In)',
         pressF2ToOpenTitle: 'Press F2 to open',
-        recallLorry: 'Recall Lorry ({count})'
+        recallLorry: 'Weighing out ({count})'
       },
       status: {
         loadingSeason: 'Loading season...',
@@ -803,7 +803,12 @@ const DICTS = {
         pressF3ToStartTitle: 'Press F3 to start',
         newSaleWeighInTare: 'New Sale (Weigh-In Tare)',
         pressF2ToOpenTitle: 'Press F2 to open',
-        recallContainer: 'Recall Container ({count})'
+        recallContainer: 'Weighing out ({count})',
+        refresh: 'Refresh',
+        print: 'Print',
+        export: 'Export',
+        reprint: 'Reprint',
+        reprintReceiptTooltip: 'Reprint Receipt'
       },
       weightInPanel: {
         titlePrefix: 'Weigh In (Tare):',
@@ -854,13 +859,6 @@ const DICTS = {
       infoBar: {
         weighIn: 'Weigh-In',
         rm: 'RM'
-      },
-      actions: {
-        refresh: 'Refresh',
-        print: 'Print',
-        export: 'Export',
-        reprint: 'Reprint',
-        reprintReceiptTooltip: 'Reprint Receipt'
       },
       table: {
         receipt: 'Receipt',
@@ -922,7 +920,40 @@ const DICTS = {
         insufficientReceiptWeight: 'Insufficient weight! Selected receipts total {selected} kg, but container load is {required} kg. Please select {shortage} kg more.',
         perfectMatchSelectedReceipts: '✅ Perfect match! Selected {count} receipt(s) totaling {weight} kg',
         selectedReceiptsTotaling: 'Selected {count} receipt(s) totaling {weight} kg',
-        receiptRemovedFromSelection: 'Receipt removed from selection'
+        receiptRemovedFromSelection: 'Receipt removed from selection',
+        saveToStorageFailed: 'Failed to save weigh-in record to storage',
+        noActiveSeasonFound: 'No active season found. Please activate a season in Settings.',
+        selectedPrefix: 'Selected:',
+        noActiveSeasonActivateInSettings: 'No active season! Please activate a season in Settings.',
+        weighInRecordedPrefix: '✅ Weigh-in (tare) recorded for',
+        dataSavedSafeFromRefresh: '💾 Container ready for loading - data saved',
+        noPendingContainersForSeason: 'No pending containers for this season',
+        loadingAvailableReceipts: 'Loading available receipts...',
+        noActiveSeasonFoundSimple: 'No active season found',
+        failedToLoadAvailableReceiptsPrefix: 'Failed to load available receipts: ',
+        failedToLoadAvailableReceipts: 'Failed to load available receipts',
+        pleaseEnterGrossWeightFirst: 'Please enter gross weight first',
+        noActiveSession: 'No active session',
+        containerFullCannotAddMoreReceipts: 'Container full ({weight} kg). Cannot add more receipts.',
+        autoSplitPrefix: '🔪 Auto-split:',
+        autoSplitToBuyerLabel: '→ To buyer:',
+        autoSplitRemainingLabel: '→ Remaining:',
+        autoSplitRemainingSuffix: '(stays available)',
+        splitWeightInvalid: 'Split weight must be greater than 0 and less than original weight',
+        receiptSplitKeepingInSalePrefix: 'Receipt split! Keeping',
+        receiptSplitKeepingInSaleMiddle: 'in sale, removed',
+        receiptSplitRemovedExcessSuffix: 'excess',
+        receiptSplitAddedToSalePrefix: 'Receipt split! Added',
+        receiptSplitAddedToSaleMiddle: 'to sale,',
+        receiptSplitStaysInOriginalSuffix: 'stays in original receipt',
+        invalidSessionOrSeason: 'Invalid session or season',
+        saleCompletedReceiptPrefix: '✅ Sale completed! Receipt:',
+        weightInRecordRemovedFromStorage: '🗑️ Weigh-in record removed from storage',
+        salesReceiptSavedAsPdfPrefix: '📄 Sales receipt saved as PDF:',
+        saleCompletedButPrintingFailed: 'Sale completed but printing failed. You can reprint from history.',
+        failedToSaveSalePrefix: 'Failed to save sale: ',
+        failedToCompleteSale: 'Failed to complete sale',
+        unknownError: 'Unknown error'
       }
     },
     purchasesHistory: {
@@ -1928,7 +1959,7 @@ const DICTS = {
         pressF3ToStartTitle: 'Tekan F3 untuk mula',
         newPurchaseWeighIn: 'Belian Baharu (Timbang Masuk)',
         pressF2ToOpenTitle: 'Tekan F2 untuk buka',
-        recallLorry: 'Panggil Lori ({count})'
+        recallLorry: 'Timbang Keluar ({count})'
       },
       status: {
         loadingSeason: 'Memuat musim...',
@@ -2022,7 +2053,7 @@ const DICTS = {
         pressF3ToStartTitle: 'Tekan F3 untuk mula',
         newSaleWeighInTare: 'Jualan Baharu (Timbang Masuk Tare)',
         pressF2ToOpenTitle: 'Tekan F2 untuk buka',
-        recallContainer: 'Panggil Kontena ({count})'
+        recallContainer: 'Timbang Keluar ({count})'
       },
       weightInPanel: {
         titlePrefix: 'Timbang Masuk (Tare):',
