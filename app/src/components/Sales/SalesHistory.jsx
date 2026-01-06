@@ -140,7 +140,7 @@ const SalesHistory = () => {
       key: 'gross_weight_kg',
       width: 100,
       align: 'right',
-      render: (weight) => weight ? parseFloat(weight).toFixed(2) : '-'
+      render: (weight) => weight ? parseFloat(weight).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'
     },
     {
       title: 'Tare (kg)',
@@ -148,7 +148,7 @@ const SalesHistory = () => {
       key: 'tare_weight_kg',
       width: 100,
       align: 'right',
-      render: (weight) => weight ? parseFloat(weight).toFixed(2) : '-'
+      render: (weight) => weight ? parseFloat(weight).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'
     },
     {
       title: 'Net (kg)',
@@ -158,39 +158,8 @@ const SalesHistory = () => {
       align: 'right',
       render: (weight) => (
         <strong style={{ color: '#52c41a' }}>
-          {weight ? parseFloat(weight).toFixed(2) : '-'}
+          {weight ? parseFloat(weight).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
         </strong>
-      )
-    },
-    {
-      title: 'Price/kg',
-      dataIndex: 'sale_price_per_kg',
-      key: 'sale_price_per_kg',
-      width: 100,
-      align: 'right',
-      render: (price) => price ? `RM ${parseFloat(price).toFixed(2)}` : '-'
-    },
-    {
-      title: 'Total Amount',
-      dataIndex: 'total_amount',
-      key: 'total_amount',
-      width: 120,
-      align: 'right',
-      render: (amount) => (
-        <strong style={{ color: '#fa8c16' }}>
-          {amount ? `RM ${parseFloat(amount).toFixed(2)}` : '-'}
-        </strong>
-      )
-    },
-    {
-      title: 'Status',
-      dataIndex: 'payment_status',
-      key: 'payment_status',
-      width: 100,
-      render: (status) => (
-        <Tag color={status === 'paid' ? 'green' : 'orange'}>
-          {status?.toUpperCase()}
-        </Tag>
       )
     },
     {
@@ -302,7 +271,7 @@ const SalesHistory = () => {
             showSizeChanger: true,
             pageSizeOptions: ['10', '20', '50', '100']
           }}
-          scroll={{ x: 1700 }}
+          scroll={{ x: 1300 }}
         />
       </Space>
     </Card>

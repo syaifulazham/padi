@@ -19,10 +19,49 @@ const Dashboard = () => {
 
   const [recentPurchases, setRecentPurchases] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [dateFormat, setDateFormat] = useState('YYYY-MM-DD');
 
   useEffect(() => {
+    loadSettings();
     loadDashboardData();
   }, []);
+
+  const loadSettings = async () => {
+    try {
+      const result = await window.electronAPI.settings?.getAll();
+      if (result?.success && result.data?.date_format) {
+        setDateFormat(result.data.date_format);
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    }
+  };
+
+  const formatDate = (dateValue) => {
+    if (!dateValue) return '-';
+    try {
+      const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      
+      let formattedDate = '';
+      if (dateFormat === 'DD/MM/YYYY') {
+        formattedDate = `${day}/${month}/${year}`;
+      } else if (dateFormat === 'MM/DD/YYYY') {
+        formattedDate = `${month}/${day}/${year}`;
+      } else {
+        formattedDate = `${year}-${month}-${day}`;
+      }
+      
+      return `${formattedDate} ${hours}:${minutes}:${seconds}`;
+    } catch (e) {
+      return String(dateValue);
+    }
+  };
 
   const loadDashboardData = async () => {
     try {
@@ -113,15 +152,7 @@ const Dashboard = () => {
       title: t('dashboard.date'),
       dataIndex: 'transaction_date',
       key: 'transaction_date',
-      render: (val) => {
-        if (!val) return '-';
-        try {
-          const date = val instanceof Date ? val : new Date(val);
-          return date.toLocaleString();
-        } catch (e) {
-          return String(val);
-        }
-      }
+      render: (val) => formatDate(val)
     },
   ];
 

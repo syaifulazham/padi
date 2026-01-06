@@ -341,7 +341,7 @@ async function getAll(filters = {}) {
       JOIN paddy_grades pg ON pt.grade_id = pg.grade_id
       JOIN harvesting_seasons hs ON pt.season_id = hs.season_id
       LEFT JOIN paddy_products pp ON pt.product_id = pp.product_id
-      WHERE 1=1
+      WHERE pt.parent_transaction_id IS NULL
     `;
     
     const params = [];
@@ -618,6 +618,7 @@ async function getTotalStats(seasonId = null) {
         COALESCE(SUM(total_amount), 0) as total_amount
       FROM purchase_transactions
       WHERE status = 'completed'
+        AND parent_transaction_id IS NULL
     `;
     
     const params = [];
@@ -872,11 +873,10 @@ async function createSplit(parentTransactionId, splitWeightKg, userId = 1) {
         note: 'Gross = Net, Tare = 0'
       });
 
-      // Mark parent transaction as fully split (no longer available)
+      // Mark parent transaction as split (keep original weight for totals)
       const updateParentSql = `
         UPDATE purchase_transactions
         SET is_split_parent = 1,
-            net_weight_kg = 0,
             updated_by = ?,
             notes = CONCAT(COALESCE(notes, ''), '\n', 'Split on ', NOW(), ' by user ', ?, '. Created 2 child receipts: ', ?, ' and ', ?)
         WHERE transaction_id = ?
@@ -890,7 +890,7 @@ async function createSplit(parentTransactionId, splitWeightKg, userId = 1) {
         parentTransactionId
       ]);
       
-      console.log('✅ Parent marked as split (weight=0)');
+      console.log('✅ Parent marked as split (weight preserved)');
       console.log('🎯 Transaction complete - returning both child IDs:', { child1: splitChild1Id, child2: splitChild2Id });
 
       return { child1: splitChild1Id, child2: splitChild2Id };
@@ -1115,6 +1115,37 @@ async function cancelPendingLorry(sessionData, userId = 1, reason = 'Cancelled b
   }
 }
 
+/**
+ * Get split children for a parent transaction
+ */
+async function getSplitChildren(parentTransactionId) {
+  try {
+    const sql = `
+      SELECT 
+        pt.*,
+        f.farmer_code,
+        f.full_name as farmer_name,
+        pg.grade_name,
+        hs.season_name,
+        pp.product_name,
+        pp.product_code
+      FROM purchase_transactions pt
+      JOIN farmers f ON pt.farmer_id = f.farmer_id
+      JOIN paddy_grades pg ON pt.grade_id = pg.grade_id
+      JOIN harvesting_seasons hs ON pt.season_id = hs.season_id
+      LEFT JOIN paddy_products pp ON pt.product_id = pp.product_id
+      WHERE pt.parent_transaction_id = ?
+      ORDER BY pt.created_at ASC
+    `;
+    
+    const rows = await db.query(sql, [parentTransactionId]);
+    return { success: true, data: rows };
+  } catch (error) {
+    console.error('Error fetching split children:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 module.exports = {
   create,
   getAll,
@@ -1125,5 +1156,6 @@ module.exports = {
   getTotalStats,
   createSplit,
   updatePayment,
-  cancelPendingLorry
+  cancelPendingLorry,
+  getSplitChildren
 };

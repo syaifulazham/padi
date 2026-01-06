@@ -339,6 +339,10 @@ ipcMain.handle('purchases:cancelPendingLorry', async (event, sessionData, userId
   return await purchaseService.cancelPendingLorry(sessionData, userId, reason);
 });
 
+ipcMain.handle('purchases:getSplitChildren', async (event, parentTransactionId) => {
+  return await purchaseService.getSplitChildren(parentTransactionId);
+});
+
 // Sales
 ipcMain.handle('sales:create', async (event, data) => {
   return await salesService.create(data);

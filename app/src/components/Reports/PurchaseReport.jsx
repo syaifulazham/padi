@@ -24,6 +24,9 @@ const PurchaseReport = ({ activeSeason }) => {
   const [selectedParent, setSelectedParent] = useState(null);
   const [splitReceipts, setSplitReceipts] = useState([]);
   const [loadingSplits, setLoadingSplits] = useState(false);
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [selectedPurchase, setSelectedPurchase] = useState(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
   useEffect(() => {
     loadPurchases();
@@ -54,6 +57,20 @@ const PurchaseReport = ({ activeSeason }) => {
       setLoading(false);
     }
   };
+
+  // Check if any purchases have deduction_config (regardless of values)
+  const hasDeductions = purchases.some(p => {
+    if (!p.deduction_config) return false;
+    try {
+      const config = typeof p.deduction_config === 'string' 
+        ? JSON.parse(p.deduction_config) 
+        : p.deduction_config;
+      // Return true if deduction_config array exists and has items
+      return Array.isArray(config) && config.length > 0;
+    } catch (e) {
+      return false;
+    }
+  });
 
   const calculateSummary = () => {
     const totalTransactions = purchases.length;
@@ -116,6 +133,7 @@ const PurchaseReport = ({ activeSeason }) => {
     }
   };
 
+  // Build columns dynamically based on whether deductions exist
   const columns = [
     {
       title: t('reports.purchases.columns.date'),
@@ -128,7 +146,16 @@ const PurchaseReport = ({ activeSeason }) => {
       title: t('reports.purchases.columns.receiptNo'),
       dataIndex: 'receipt_number',
       key: 'receipt_number',
-      width: 120
+      width: 120,
+      render: (receiptNo, record) => (
+        <Button 
+          type="link" 
+          onClick={() => handleViewDetails(record)}
+          style={{ padding: 0, height: 'auto' }}
+        >
+          {receiptNo}
+        </Button>
+      )
     },
     {
       title: t('reports.purchases.columns.farmer'),
@@ -158,14 +185,39 @@ const PurchaseReport = ({ activeSeason }) => {
       render: (val) => `RM ${parseFloat(val).toFixed(2)}`,
       width: 100
     },
-    {
+    // Conditionally add Deductions column if any purchases have deductions
+    ...(hasDeductions ? [{
+      title: 'Deductions',
+      dataIndex: 'deduction_config',
+      key: 'deduction_config',
+      align: 'center',
+      width: 100,
+      render: (deductionConfig) => {
+        let totalPercent = 0;
+        if (deductionConfig) {
+          try {
+            const config = typeof deductionConfig === 'string' 
+              ? JSON.parse(deductionConfig) 
+              : deductionConfig;
+            if (Array.isArray(config)) {
+              totalPercent = config.reduce((sum, d) => sum + parseFloat(d.value || 0), 0);
+            }
+          } catch (e) {
+            console.error('Error parsing deduction_config:', e);
+          }
+        }
+        return totalPercent > 0 ? `${totalPercent.toFixed(2)}%` : '-';
+      }
+    }] : []),
+    // Conditionally add Total Amount column only if NO deductions
+    ...(!hasDeductions ? [{
       title: t('reports.purchases.columns.totalAmount'),
       dataIndex: 'total_amount',
       key: 'total_amount',
       align: 'right',
       render: (val) => `RM ${parseFloat(val).toFixed(2)}`,
       width: 120
-    },
+    }] : []),
     {
       title: t('reports.purchases.columns.lorryNo'),
       dataIndex: 'vehicle_number',
@@ -201,17 +253,33 @@ const PurchaseReport = ({ activeSeason }) => {
     setLoadingSplits(true);
     
     try {
-      // Get all purchases and filter for splits of this parent
-      const result = await window.electronAPI.purchases.getAll({ season_id: activeSeason.season_id });
+      // Get split children for this parent
+      const result = await window.electronAPI.purchases.getSplitChildren(parentRecord.transaction_id);
       if (result.success) {
-        const splits = result.data.filter(p => p.parent_transaction_id === parentRecord.transaction_id);
-        setSplitReceipts(splits);
+        setSplitReceipts(result.data);
       }
     } catch (error) {
       console.error('Error loading split receipts:', error);
       message.error(t('reports.purchases.messages.loadSplitsFailed'));
     } finally {
       setLoadingSplits(false);
+    }
+  };
+
+  const handleViewDetails = async (record) => {
+    setDetailModalVisible(true);
+    setLoadingDetail(true);
+    
+    try {
+      const result = await window.electronAPI.purchases.getById(record.transaction_id);
+      if (result.success) {
+        setSelectedPurchase(result.data);
+      }
+    } catch (error) {
+      console.error('Error loading purchase details:', error);
+      message.error('Failed to load purchase details');
+    } finally {
+      setLoadingDetail(false);
     }
   };
 
@@ -235,13 +303,6 @@ const PurchaseReport = ({ activeSeason }) => {
       render: (val) => parseFloat(val).toFixed(2)
     },
     {
-      title: t('reports.purchases.split.columns.amount'),
-      dataIndex: 'total_amount',
-      key: 'total_amount',
-      align: 'right',
-      render: (val) => `RM ${parseFloat(val).toFixed(2)}`
-    },
-    {
       title: t('reports.purchases.split.columns.status'),
       dataIndex: 'status',
       key: 'status',
@@ -255,8 +316,7 @@ const PurchaseReport = ({ activeSeason }) => {
 
   const calculateSplitSummary = () => {
     const totalWeight = splitReceipts.reduce((sum, s) => sum + parseFloat(s.net_weight_kg || 0), 0);
-    const totalAmount = splitReceipts.reduce((sum, s) => sum + parseFloat(s.total_amount || 0), 0);
-    return { totalWeight, totalAmount };
+    return { totalWeight };
   };
 
   const summary = calculateSummary();
@@ -343,10 +403,14 @@ const PurchaseReport = ({ activeSeason }) => {
                 <strong>{summary.totalWeight.toFixed(2)}</strong>
               </Table.Summary.Cell>
               <Table.Summary.Cell index={5} />
-              <Table.Summary.Cell index={6} align="right">
-                <strong>RM {summary.totalAmount.toFixed(2)}</strong>
-              </Table.Summary.Cell>
+              {!hasDeductions && (
+                <Table.Summary.Cell index={6} align="right">
+                  <strong>RM {summary.totalAmount.toFixed(2)}</strong>
+                </Table.Summary.Cell>
+              )}
+              {hasDeductions && <Table.Summary.Cell index={6} />}
               <Table.Summary.Cell index={7} />
+              <Table.Summary.Cell index={8} />
             </Table.Summary.Row>
           </Table.Summary>
         )}
@@ -372,17 +436,13 @@ const PurchaseReport = ({ activeSeason }) => {
           <div style={{ marginBottom: 16 }}>
             <Card size="small" style={{ background: '#f5f5f5' }}>
               <Row gutter={16}>
-                <Col span={8}>
+                <Col span={12}>
                   <div style={{ fontSize: 12, color: '#999' }}>{t('reports.purchases.split.parentReceipt')}</div>
                   <div style={{ fontWeight: 600 }}>{selectedParent.receipt_number}</div>
                 </Col>
-                <Col span={8}>
+                <Col span={12}>
                   <div style={{ fontSize: 12, color: '#999' }}>{t('reports.purchases.split.originalWeight')}</div>
                   <div style={{ fontWeight: 600 }}>{parseFloat(selectedParent.net_weight_kg).toFixed(2)} {t('reports.purchases.misc.kg')}</div>
-                </Col>
-                <Col span={8}>
-                  <div style={{ fontSize: 12, color: '#999' }}>{t('reports.purchases.split.originalAmount')}</div>
-                  <div style={{ fontWeight: 600 }}>RM {parseFloat(selectedParent.total_amount).toFixed(2)}</div>
                 </Col>
               </Row>
             </Card>
@@ -409,15 +469,158 @@ const PurchaseReport = ({ activeSeason }) => {
                   <Table.Summary.Cell index={2} align="right">
                     <strong>{summary.totalWeight.toFixed(2)}</strong>
                   </Table.Summary.Cell>
-                  <Table.Summary.Cell index={3} align="right">
-                    <strong>RM {summary.totalAmount.toFixed(2)}</strong>
-                  </Table.Summary.Cell>
-                  <Table.Summary.Cell index={4} />
+                  <Table.Summary.Cell index={3} />
                 </Table.Summary.Row>
               </Table.Summary>
             );
           }}
         />
+      </Modal>
+
+      <Modal
+        title={`Purchase Details - ${selectedPurchase?.receipt_number || ''}`}
+        open={detailModalVisible}
+        onCancel={() => setDetailModalVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setDetailModalVisible(false)}>
+            Close
+          </Button>
+        ]}
+        width={800}
+      >
+        {loadingDetail ? (
+          <Spin />
+        ) : selectedPurchase ? (
+          <div>
+            <Row gutter={[16, 16]}>
+              <Col span={12}>
+                <div style={{ marginBottom: 8 }}>
+                  <div style={{ fontSize: 12, color: '#999' }}>Farmer</div>
+                  <div style={{ fontWeight: 600 }}>{selectedPurchase.farmer_name}</div>
+                  <div style={{ fontSize: 12, color: '#666' }}>{selectedPurchase.farmer_code}</div>
+                </div>
+              </Col>
+              <Col span={12}>
+                <div style={{ marginBottom: 8 }}>
+                  <div style={{ fontSize: 12, color: '#999' }}>Transaction Date</div>
+                  <div style={{ fontWeight: 600 }}>{dayjs(selectedPurchase.transaction_date).format('DD/MM/YYYY HH:mm:ss')}</div>
+                </div>
+              </Col>
+              <Col span={12}>
+                <div style={{ marginBottom: 8 }}>
+                  <div style={{ fontSize: 12, color: '#999' }}>Product</div>
+                  <div style={{ fontWeight: 600 }}>{selectedPurchase.product_name}</div>
+                </div>
+              </Col>
+              <Col span={12}>
+                <div style={{ marginBottom: 8 }}>
+                  <div style={{ fontSize: 12, color: '#999' }}>Grade</div>
+                  <div style={{ fontWeight: 600 }}>{selectedPurchase.grade_name}</div>
+                </div>
+              </Col>
+            </Row>
+
+            <div style={{ marginTop: 16, marginBottom: 8, fontSize: 14, fontWeight: 600, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
+              Weight Information
+            </div>
+            <Row gutter={[16, 8]}>
+              <Col span={8}>
+                <div style={{ fontSize: 12, color: '#999' }}>Gross Weight</div>
+                <div style={{ fontWeight: 600 }}>{parseFloat(selectedPurchase.gross_weight_kg).toFixed(2)} kg</div>
+              </Col>
+              <Col span={8}>
+                <div style={{ fontSize: 12, color: '#999' }}>Tare Weight</div>
+                <div style={{ fontWeight: 600 }}>{parseFloat(selectedPurchase.tare_weight_kg).toFixed(2)} kg</div>
+              </Col>
+              <Col span={8}>
+                <div style={{ fontSize: 12, color: '#999' }}>Net Weight</div>
+                <div style={{ fontWeight: 600, color: '#52c41a' }}>{parseFloat(selectedPurchase.net_weight_kg).toFixed(2)} kg</div>
+              </Col>
+            </Row>
+
+            <div style={{ marginTop: 16, marginBottom: 8, fontSize: 14, fontWeight: 600, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
+              Quality & Pricing
+            </div>
+            <Row gutter={[16, 8]}>
+              <Col span={8}>
+                <div style={{ fontSize: 12, color: '#999' }}>Total Deductions</div>
+                <div style={{ fontWeight: 600 }}>
+                  {(() => {
+                    let totalDeduction = 0;
+                    if (selectedPurchase.deduction_config) {
+                      try {
+                        const config = typeof selectedPurchase.deduction_config === 'string' 
+                          ? JSON.parse(selectedPurchase.deduction_config) 
+                          : selectedPurchase.deduction_config;
+                        if (Array.isArray(config)) {
+                          totalDeduction = config.reduce((sum, d) => sum + parseFloat(d.value || 0), 0);
+                        }
+                      } catch (e) {
+                        console.error('Error parsing deduction_config:', e);
+                      }
+                    }
+                    return totalDeduction > 0 ? `${totalDeduction.toFixed(2)}%` : '-';
+                  })()}
+                </div>
+              </Col>
+              <Col span={8}>
+                <div style={{ fontSize: 12, color: '#999' }}>Foreign Matter</div>
+                <div style={{ fontWeight: 600 }}>{selectedPurchase.foreign_matter ? `${parseFloat(selectedPurchase.foreign_matter).toFixed(2)}%` : '-'}</div>
+              </Col>
+              <Col span={8}>
+                <div style={{ fontSize: 12, color: '#999' }}>Base Price/kg</div>
+                <div style={{ fontWeight: 600 }}>RM {parseFloat(selectedPurchase.base_price_per_kg).toFixed(2)}</div>
+              </Col>
+              <Col span={8}>
+                <div style={{ fontSize: 12, color: '#999' }}>Final Price/kg</div>
+                <div style={{ fontWeight: 600 }}>RM {parseFloat(selectedPurchase.final_price_per_kg).toFixed(2)}</div>
+              </Col>
+              <Col span={8}>
+                <div style={{ fontSize: 12, color: '#999' }}>Total Amount</div>
+                <div style={{ fontWeight: 600, fontSize: 16, color: '#1890ff' }}>RM {parseFloat(selectedPurchase.total_amount).toFixed(2)}</div>
+              </Col>
+              <Col span={8}>
+                <div style={{ fontSize: 12, color: '#999' }}>Payment Status</div>
+                <div>
+                  <Tag color={selectedPurchase.payment_status === 'paid' ? 'green' : 'orange'}>
+                    {selectedPurchase.payment_status?.toUpperCase()}
+                  </Tag>
+                </div>
+              </Col>
+            </Row>
+
+            {selectedPurchase.vehicle_number && (
+              <>
+                <div style={{ marginTop: 16, marginBottom: 8, fontSize: 14, fontWeight: 600, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
+                  Vehicle Information
+                </div>
+                <Row gutter={[16, 8]}>
+                  <Col span={12}>
+                    <div style={{ fontSize: 12, color: '#999' }}>Lorry No</div>
+                    <div style={{ fontWeight: 600 }}>{selectedPurchase.vehicle_number}</div>
+                  </Col>
+                  {selectedPurchase.driver_name && (
+                    <Col span={12}>
+                      <div style={{ fontSize: 12, color: '#999' }}>Driver Name</div>
+                      <div style={{ fontWeight: 600 }}>{selectedPurchase.driver_name}</div>
+                    </Col>
+                  )}
+                </Row>
+              </>
+            )}
+
+            {selectedPurchase.notes && (
+              <>
+                <div style={{ marginTop: 16, marginBottom: 8, fontSize: 14, fontWeight: 600, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
+                  Notes
+                </div>
+                <div style={{ padding: 8, background: '#f5f5f5', borderRadius: 4, whiteSpace: 'pre-wrap' }}>
+                  {selectedPurchase.notes}
+                </div>
+              </>
+            )}
+          </div>
+        ) : null}
       </Modal>
     </Card>
   );

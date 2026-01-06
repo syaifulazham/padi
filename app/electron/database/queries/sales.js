@@ -106,7 +106,7 @@ async function create(saleData) {
           const splitReceipt1Number = `${parent.receipt_number}-SP1-${timestamp}`;
           const splitReceipt2Number = `${parent.receipt_number}-SP2-${timestamp}`;
           
-          // Mark parent as split
+          // Mark parent as split (keep original weight for totals)
           await connection.execute(
             'UPDATE purchase_transactions SET is_split_parent = 1 WHERE transaction_id = ?',
             [parent.transaction_id]

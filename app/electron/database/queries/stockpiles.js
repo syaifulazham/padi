@@ -34,6 +34,7 @@ async function getStockpileSummary(seasonId) {
       FROM paddy_products p
       LEFT JOIN purchase_transactions pt ON p.product_id = pt.product_id 
         AND pt.season_id = ?
+        AND pt.parent_transaction_id IS NULL
       LEFT JOIN sales_purchase_mapping spm ON pt.transaction_id = spm.transaction_id
       LEFT JOIN sales_transactions st ON spm.sales_id = st.sales_id
         AND st.season_id = ?
@@ -89,6 +90,7 @@ async function getProductMovements(seasonId, productId, filters = {}) {
       FROM purchase_transactions pt
       JOIN farmers f ON pt.farmer_id = f.farmer_id
       WHERE pt.season_id = ? AND pt.product_id = ?
+        AND pt.parent_transaction_id IS NULL
       
       UNION ALL
       
