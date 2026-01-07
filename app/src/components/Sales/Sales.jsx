@@ -4,11 +4,13 @@ import { PlusOutlined, ClockCircleOutlined, TruckOutlined, SearchOutlined, SaveO
 import dayjs from 'dayjs';
 import SalesWeighOutWizard from './SalesWeighOutWizard';
 import { useI18n } from '../../i18n/I18nProvider';
+import { useAuth } from '../../contexts/AuthContext';
 
 const STORAGE_KEY = 'paddy_sales_weight_in_sessions';
 
 const Sales = () => {
   const { t } = useI18n();
+  const { user } = useAuth();
   // Load pending sessions from localStorage on mount
   const [pendingSessions, setPendingSessions] = useState(() => {
     try {
@@ -555,7 +557,7 @@ const Sales = () => {
           receipt_number: r.receipt_number,
           net_weight_kg: r.net_weight_kg
         })),
-        created_by: 1
+        created_by: user?.user_id
       };
 
       console.log('📤 Sending to Backend:', saleData);

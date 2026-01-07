@@ -108,8 +108,7 @@ const PurchaseHistory = () => {
   // Calculate statistics
   const stats = {
     total: transactions.length,
-    totalWeight: transactions.reduce((sum, p) => sum + (parseFloat(p.net_weight_kg) || 0), 0),
-    totalAmount: transactions.reduce((sum, p) => sum + (parseFloat(p.total_amount) || 0), 0)
+    totalWeight: transactions.reduce((sum, p) => sum + (parseFloat(p.net_weight_kg) || 0), 0)
   };
 
   const columns = [
@@ -193,18 +192,6 @@ const PurchaseHistory = () => {
       render: (price) => price ? `${t('purchasesHistory.misc.rm')} ${parseFloat(price).toFixed(2)}` : t('purchasesHistory.misc.dash')
     },
     {
-      title: t('purchasesHistory.table.totalAmount'),
-      dataIndex: 'total_amount',
-      key: 'total_amount',
-      width: 120,
-      align: 'right',
-      render: (amount) => (
-        <strong style={{ color: '#52c41a' }}>
-          {amount ? `${t('purchasesHistory.misc.rm')} ${parseFloat(amount).toFixed(2)}` : t('purchasesHistory.misc.dash')}
-        </strong>
-      )
-    },
-    {
       title: t('purchasesHistory.table.status'),
       dataIndex: 'status',
       key: 'status',
@@ -219,7 +206,7 @@ const PurchaseHistory = () => {
           </Tag>
           {status !== 'cancelled' && (
             <Tag color={record.payment_status === 'paid' ? 'green' : 'orange'} style={{ fontSize: '10px' }}>
-              {record.payment_status ? (t(`purchasesHistory.statuses.${record.payment_status}`) || record.payment_status.toUpperCase()) : ''}
+              {record.payment_status === 'paid' ? 'Updated' : record.payment_status === 'unpaid' ? 'Need Update' : ''}
             </Tag>
           )}
         </Space>
@@ -311,16 +298,6 @@ const PurchaseHistory = () => {
                 title={t('purchasesHistory.stats.totalWeight')}
                 value={stats.totalWeight.toFixed(2)}
                 suffix={t('purchasesHistory.stats.kgSuffix')}
-                precision={2}
-              />
-            </Card>
-          </Col>
-          <Col span={8}>
-            <Card>
-              <Statistic
-                title={t('purchasesHistory.stats.totalAmount')}
-                value={stats.totalAmount}
-                prefix={t('purchasesHistory.misc.rm')}
                 precision={2}
               />
             </Card>

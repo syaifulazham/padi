@@ -11,25 +11,17 @@ const db = require('../connection');
 async function create(saleData) {
   try {
     return await db.transaction(async (connection) => {
-      // Generate sales number (format: SALE-YYYYMMDD-XXXX)
-      const today = new Date();
-      const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
-      
-      // Get the last sales number for today
-      const [lastSale] = await connection.execute(
-        `SELECT sales_number FROM sales_transactions 
-         WHERE sales_number LIKE ? 
-         ORDER BY sales_number DESC LIMIT 1`,
-        [`SALE-${dateStr}-%`]
+      // Generate sales number using stored procedure
+      await connection.execute(
+        'CALL sp_generate_sales_number(?, @sales_number)',
+        [saleData.season_id]
       );
       
-      let sequenceNum = 1;
-      if (lastSale.length > 0) {
-        const lastNum = lastSale[0].sales_number.split('-')[2];
-        sequenceNum = parseInt(lastNum) + 1;
-      }
-      
-      const salesNumber = `SALE-${dateStr}-${sequenceNum.toString().padStart(4, '0')}`;
+      // Get the OUT parameter value
+      const [salesResult] = await connection.execute(
+        'SELECT @sales_number as sales_number'
+      );
+      const salesNumber = salesResult[0].sales_number;
       
       // Calculate total amount
       const totalAmount = saleData.net_weight_kg * saleData.base_price_per_kg;

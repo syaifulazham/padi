@@ -294,10 +294,11 @@ const WeighOutWizard = ({
         .join(', ')
     : '';
   
-  // Calculate effective weight after deductions
-  const effectiveWeight = netWeight * (1 - totalDeductionRate / 100);
+  // Calculate effective weight after deductions with rounding
+  const effectiveWeightRaw = netWeight * (1 - totalDeductionRate / 100);
+  const effectiveWeight = Math.round(effectiveWeightRaw);
   
-  // Calculate total amount using effective weight (after deductions)
+  // Calculate total amount using rounded effective weight (after deductions)
   const totalAmount = wizardData.price_per_kg && effectiveWeight
     ? (effectiveWeight * wizardData.price_per_kg).toFixed(2)
     : 0;
@@ -702,7 +703,8 @@ const WeighOutWizard = ({
             {(() => {
               const deductions = wizardData.deductions || [];
               const totalDeduction = deductions.reduce((sum, d) => sum + parseFloat(d.value || 0), 0);
-              const effectiveWeight = netWeight * (1 - totalDeduction / 100);
+              const effectiveWeightRaw = netWeight * (1 - totalDeduction / 100);
+              const effectiveWeight = Math.round(effectiveWeightRaw);
               
               return totalDeduction > 0 ? (
                 <div style={{
@@ -723,7 +725,7 @@ const WeighOutWizard = ({
                   </span>
                   <span style={{ fontSize: 16, fontWeight: 600 }}>→</span>
                   <span style={{ color: '#52c41a', fontWeight: 600, fontSize: 15 }}>
-                    {effectiveWeight.toFixed(2)} {t('purchasesWeighIn.misc.kg')}
+                    {effectiveWeight.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {t('purchasesWeighIn.misc.kg')}
                   </span>
                 </div>
               ) : null;
@@ -820,7 +822,7 @@ const WeighOutWizard = ({
                       {t('purchasesWeighIn.weighOutWizard.review.labels.effectiveWeightAfterDeduction')}
                     </div>
                     <div style={{ fontWeight: 700, color: '#52c41a', fontSize: 20 }}>
-                      {effectiveWeight.toFixed(2)} {t('purchasesWeighIn.misc.kg')}
+                      {effectiveWeight.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {t('purchasesWeighIn.misc.kg')}
                     </div>
                   </div>
 

@@ -954,7 +954,7 @@ async function createSplit(parentTransactionId, splitWeightKg, userId = 1) {
 async function updatePayment(updateData) {
   try {
     return await db.transaction(async (connection) => {
-      const { transaction_id, deduction_config, payment_status } = updateData;
+      const { transaction_id, deduction_config, effective_weight_kg, total_amount, payment_status } = updateData;
 
       // Get current transaction data
       const [current] = await connection.execute(
@@ -968,42 +968,46 @@ async function updatePayment(updateData) {
 
       const transaction = current[0];
       
-      // Calculate new effective weight and total amount
-      const netWeight = parseFloat(transaction.net_weight_kg);
-      const basePrice = parseFloat(transaction.base_price_per_kg);
+      // Use provided values (already rounded from frontend) or calculate with rounding
+      let effectiveWeight;
+      let newTotalAmount;
       
-      // Calculate total deduction rate
-      let totalDeductionRate = 0;
-      let effectiveWeight = netWeight;
-      
-      if (deduction_config && deduction_config.length > 0) {
-        totalDeductionRate = deduction_config.reduce((sum, d) => sum + parseFloat(d.value || 0), 0);
-        effectiveWeight = netWeight * (1 - totalDeductionRate / 100);
+      if (effective_weight_kg !== undefined && total_amount !== undefined) {
+        // Use pre-calculated rounded values from frontend
+        effectiveWeight = effective_weight_kg;
+        newTotalAmount = total_amount;
+      } else {
+        // Fallback: calculate with rounding
+        const netWeight = parseFloat(transaction.net_weight_kg);
+        const finalPricePerKg = parseFloat(transaction.final_price_per_kg) || parseFloat(transaction.base_price_per_kg);
+        
+        let totalDeductionRate = 0;
+        if (deduction_config && deduction_config.length > 0) {
+          totalDeductionRate = deduction_config.reduce((sum, d) => sum + parseFloat(d.value || 0), 0);
+        }
+        
+        effectiveWeight = Math.round(netWeight * (1 - totalDeductionRate / 100));
+        newTotalAmount = effectiveWeight * finalPricePerKg;
       }
       
-      // Recalculate total amount using effective weight
-      const finalPricePerKg = parseFloat(transaction.final_price_per_kg) || basePrice;
-      const newTotalAmount = effectiveWeight * finalPricePerKg;
-      
-      console.log('💰 Payment Update Calculation:');
+      console.log('💰 Payment Update with Rounding:');
       console.log('  - transaction_id:', transaction_id);
-      console.log('  - net_weight_kg:', netWeight);
-      console.log('  - total_deduction_rate:', totalDeductionRate);
-      console.log('  - effective_weight:', effectiveWeight);
-      console.log('  - final_price_per_kg:', finalPricePerKg);
-      console.log('  - new_total_amount:', newTotalAmount);
+      console.log('  - effective_weight_kg (rounded):', effectiveWeight);
+      console.log('  - total_amount:', newTotalAmount);
       
-      // Update transaction with new deductions and amount
+      // Update transaction with new deductions, effective weight, and amount
       await connection.execute(`
         UPDATE purchase_transactions 
         SET 
           deduction_config = ?,
+          effective_weight_kg = ?,
           total_amount = ?,
           payment_status = ?,
           updated_at = NOW()
         WHERE transaction_id = ?
       `, [
         JSON.stringify(deduction_config),
+        effectiveWeight,
         newTotalAmount,
         payment_status || transaction.payment_status,
         transaction_id

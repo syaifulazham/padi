@@ -14,6 +14,7 @@ const salesService = require('./database/queries/sales');
 const stockpilesService = require('./database/queries/stockpiles');
 const seasonService = require('./database/queries/seasons');
 const seasonPriceService = require('./database/queries/seasonPriceHistory');
+const userService = require('./database/queries/users');
 const weighbridgeService = require('./hardware/weighbridge');
 const settingsService = require('./services/settings');
 const backupService = require('./services/backup');
@@ -117,6 +118,39 @@ ipcMain.handle('db:test', async () => {
   } catch (error) {
     return { success: false, message: error.message };
   }
+});
+
+// Authentication
+ipcMain.handle('auth:hasUsers', async () => {
+  return await userService.hasUsers();
+});
+
+ipcMain.handle('auth:login', async (event, username, password) => {
+  return await userService.authenticate(username, password);
+});
+
+ipcMain.handle('users:getById', async (event, userId) => {
+  return await userService.getById(userId);
+});
+
+ipcMain.handle('users:getAll', async () => {
+  return await userService.getAll();
+});
+
+ipcMain.handle('users:create', async (event, userData) => {
+  return await userService.create(userData);
+});
+
+ipcMain.handle('users:update', async (event, userId, userData) => {
+  return await userService.update(userId, userData);
+});
+
+ipcMain.handle('users:delete', async (event, userId) => {
+  return await userService.delete(userId);
+});
+
+ipcMain.handle('users:changePassword', async (event, userId, oldPassword, newPassword) => {
+  return await userService.changePassword(userId, oldPassword, newPassword);
 });
 
 // Farmers

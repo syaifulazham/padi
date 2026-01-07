@@ -17,23 +17,49 @@ import Settings from './components/Settings/Settings';
 import SeasonConfig from './components/Settings/SeasonConfig';
 import ProductConfig from './components/Settings/ProductConfig';
 import BackupRestore from './components/Settings/BackupRestore';
+import UserManagement from './components/Users/UserManagement';
 import AppLayout from './components/Layout/AppLayout';
 import Home from './components/Home/Home';
 import HomeSetupGuide from './components/Home/HomeSetupGuide';
 import HomeMenuGuide from './components/Home/HomeMenuGuide';
+import Login from './components/Auth/Login';
+import SetupAdmin from './components/Auth/SetupAdmin';
 import { useI18n } from './i18n/I18nProvider';
+import { useAuth } from './contexts/AuthContext';
 
 const { Content } = Layout;
 
 function App() {
   const [dbConnected, setDbConnected] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [needsSetup, setNeedsSetup] = useState(false);
+  const [checkingSetup, setCheckingSetup] = useState(true);
   const { t } = useI18n();
+  const { isAuthenticated, loading: authLoading } = useAuth();
 
   useEffect(() => {
     // Test database connection on startup
     testConnection();
+    checkSetup();
   }, []);
+
+  const checkSetup = async () => {
+    try {
+      const result = await window.electronAPI.auth.hasUsers();
+      if (result.success) {
+        setNeedsSetup(!result.hasUsers);
+      }
+    } catch (error) {
+      console.error('Error checking setup:', error);
+    } finally {
+      setCheckingSetup(false);
+    }
+  };
+
+  const handleSetupComplete = () => {
+    setNeedsSetup(false);
+    checkSetup();
+  };
 
   const testConnection = async () => {
     try {
@@ -52,7 +78,7 @@ function App() {
     }
   };
 
-  if (loading) {
+  if (loading || authLoading || checkingSetup) {
     return (
       <div style={{ 
         display: 'flex', 
@@ -64,6 +90,14 @@ function App() {
         {t('app.loading')}
       </div>
     );
+  }
+
+  if (needsSetup) {
+    return <SetupAdmin onSetupComplete={handleSetupComplete} />;
+  }
+
+  if (!isAuthenticated) {
+    return <Login />;
   }
 
   if (!dbConnected) {
@@ -125,6 +159,7 @@ function App() {
             <Route path="/settings/seasons" element={<SeasonConfig />} />
             <Route path="/settings/products" element={<ProductConfig />} />
             <Route path="/settings/backup" element={<BackupRestore />} />
+            <Route path="/settings/users" element={<UserManagement />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AppLayout>

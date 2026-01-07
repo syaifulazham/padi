@@ -41,11 +41,12 @@ const DeductionConfirmModal = ({ visible, onConfirm, onCancel, seasonDeductions,
     if (!deductions || !netWeight) return;
     
     const totalDeduction = deductions.reduce((sum, d) => sum + parseFloat(d.value || 0), 0);
-    const effectiveWeight = netWeight * (1 - totalDeduction / 100);
+    const effectiveWeightRaw = netWeight * (1 - totalDeduction / 100);
+    const effectiveWeight = Math.round(effectiveWeightRaw);
     
     setPreviewAmount({
       totalDeduction: totalDeduction.toFixed(2),
-      effectiveWeight: effectiveWeight.toFixed(2),
+      effectiveWeight: effectiveWeight.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       deductedWeight: (netWeight - effectiveWeight).toFixed(2)
     });
   };

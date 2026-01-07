@@ -38,18 +38,19 @@ const PaymentModalContent = ({ transaction, form, seasonDeductionConfig }) => {
     const basePrice = parseFloat(transaction.base_price_per_kg);
     const finalPrice = parseFloat(transaction.final_price_per_kg) || basePrice;
     const totalDeduction = deductions.reduce((sum, d) => sum + parseFloat(d.value || 0), 0);
-    const effectiveWeight = netWeight * (1 - totalDeduction / 100);
+    const effectiveWeightRaw = netWeight * (1 - totalDeduction / 100);
+    const effectiveWeight = Math.round(effectiveWeightRaw);
     const totalAmount = effectiveWeight * finalPrice;
     
     setPreviewAmount({
       totalDeduction: totalDeduction.toFixed(2),
-      effectiveWeight: effectiveWeight.toFixed(2),
+      effectiveWeight: effectiveWeight.toString(),
       deductedWeight: (netWeight - effectiveWeight).toFixed(2),
       totalAmount: totalAmount.toFixed(2)
     });
     
-    // Update amount field
-    form.setFieldsValue({ amount: totalAmount });
+    // Update amount field - leave empty if deduction is 0
+    form.setFieldsValue({ amount: totalDeduction === 0 ? undefined : totalAmount });
   };
 
   const handleValuesChange = (_, allValues) => {
@@ -330,8 +331,11 @@ const Payment = () => {
       deductions = [];
     }
     
+    // Calculate total deduction to determine if amount should be empty
+    const totalDeduction = deductions.reduce((sum, d) => sum + parseFloat(d.value || 0), 0);
+    
     form.setFieldsValue({
-      amount: record.total_amount,
+      amount: totalDeduction === 0 ? undefined : record.total_amount,
       deductions: deductions.length > 0 ? deductions : []
     });
     
@@ -344,10 +348,19 @@ const Payment = () => {
       
       message.loading({ content: t('purchasesPayment.messages.processingPayment'), key: 'payment' });
       
+      // Calculate rounded effective weight and amount
+      const netWeight = parseFloat(selectedTransaction.net_weight_kg);
+      const pricePerKg = parseFloat(selectedTransaction.final_price_per_kg || selectedTransaction.base_price_per_kg);
+      const totalDeduction = (values.deductions || []).reduce((sum, d) => sum + parseFloat(d.value || 0), 0);
+      const effectiveWeight = Math.round(netWeight * (1 - totalDeduction / 100));
+      const calculatedAmount = effectiveWeight * pricePerKg;
+      
       // Update deductions and recalculate amount
       const result = await window.electronAPI.purchases?.updatePayment({
         transaction_id: selectedTransaction.transaction_id,
         deduction_config: values.deductions || [],
+        effective_weight_kg: effectiveWeight,
+        total_amount: calculatedAmount,
         payment_status: 'paid'
       });
       
@@ -451,7 +464,7 @@ const Payment = () => {
       width: 120,
       align: 'right',
       render: (weight) => (
-        <strong>{weight ? parseFloat(weight).toFixed(2) : t('purchasesPayment.misc.dash')}</strong>
+        <strong>{weight ? parseFloat(weight).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : t('purchasesPayment.misc.dash')}</strong>
       )
     },
     {
@@ -482,16 +495,76 @@ const Payment = () => {
       }
     },
     {
+      title: 'Effective Weight (kg)',
+      key: 'effective_weight',
+      width: 140,
+      align: 'right',
+      render: (_, record) => {
+        const netWeight = parseFloat(record.net_weight_kg || 0);
+        let totalPercent = 0;
+        
+        if (record.deduction_config) {
+          try {
+            const config = typeof record.deduction_config === 'string' 
+              ? JSON.parse(record.deduction_config) 
+              : record.deduction_config;
+            if (Array.isArray(config)) {
+              totalPercent = config.reduce((sum, d) => sum + parseFloat(d.value || 0), 0);
+            }
+          } catch (e) {
+            console.error('Error parsing deduction_config:', e);
+          }
+        }
+        
+        const effectiveWeight = Math.round(netWeight * (1 - totalPercent / 100));
+        
+        return (
+          <strong style={{ color: '#1890ff' }}>
+            {effectiveWeight.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </strong>
+        );
+      }
+    },
+    {
       title: t('purchasesPayment.table.amount'),
       dataIndex: 'total_amount',
       key: 'total_amount',
       width: 120,
       align: 'right',
-      render: (amount) => (
-        <strong style={{ color: '#52c41a', fontSize: 15 }}>
-          {amount ? `${t('purchasesPayment.misc.rm')} ${parseFloat(amount).toFixed(2)}` : t('purchasesPayment.misc.dash')}
-        </strong>
-      )
+      render: (amount, record) => {
+        // Calculate amount based on rounded effective weight
+        const netWeight = parseFloat(record.net_weight_kg || 0);
+        const pricePerKg = parseFloat(record.final_price_per_kg || record.base_price_per_kg || 0);
+        let totalPercent = 0;
+        
+        if (record.deduction_config) {
+          try {
+            const config = typeof record.deduction_config === 'string' 
+              ? JSON.parse(record.deduction_config) 
+              : record.deduction_config;
+            if (Array.isArray(config)) {
+              totalPercent = config.reduce((sum, d) => sum + parseFloat(d.value || 0), 0);
+            }
+          } catch (e) {
+            console.error('Error parsing deduction_config:', e);
+          }
+        }
+        
+        // Show empty if deduction is 0
+        if (totalPercent === 0) {
+          return <span style={{ color: '#999' }}>{t('purchasesPayment.misc.dash')}</span>;
+        }
+        
+        // Calculate amount using rounded effective weight
+        const effectiveWeight = Math.round(netWeight * (1 - totalPercent / 100));
+        const calculatedAmount = effectiveWeight * pricePerKg;
+        
+        return (
+          <strong style={{ color: '#52c41a', fontSize: 15 }}>
+            {`${t('purchasesPayment.misc.rm')} ${calculatedAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          </strong>
+        );
+      }
     },
     {
       title: t('purchasesPayment.table.paymentStatus'),
@@ -499,8 +572,8 @@ const Payment = () => {
       key: 'payment_status',
       width: 120,
       filters: [
-        { text: t('purchasesPayment.statuses.unpaid'), value: 'unpaid' },
-        { text: t('purchasesPayment.statuses.paid'), value: 'paid' }
+        { text: 'Need Update', value: 'unpaid' },
+        { text: 'Updated', value: 'paid' }
       ],
       onFilter: (value, record) => record.payment_status === value,
       render: (status) => (
@@ -508,7 +581,7 @@ const Payment = () => {
           color={status === 'paid' ? 'green' : 'orange'}
           icon={status === 'paid' ? <CheckCircleOutlined /> : <ClockCircleOutlined />}
         >
-          {status ? (t(`purchasesPayment.statuses.${status}`) || status.toUpperCase()) : t('purchasesPayment.statuses.unknown')}
+          {status === 'paid' ? 'Updated' : status === 'unpaid' ? 'Need Update' : 'Unknown'}
         </Tag>
       )
     },
@@ -525,7 +598,7 @@ const Payment = () => {
           disabled={record.payment_status === 'paid'}
           onClick={() => handlePayment(record)}
         >
-          {record.payment_status === 'paid' ? t('purchasesPayment.actions.paid') : t('purchasesPayment.actions.pay')}
+          {record.payment_status === 'paid' ? 'Updated' : 'Update'}
         </Button>
       )
     }
@@ -538,7 +611,7 @@ const Payment = () => {
         <Row justify="space-between" align="middle">
           <Col>
             <h2 style={{ margin: 0 }}>
-              {t('purchasesPayment.title')}
+              Receipt Management
               {activeSeason && (
                 <Tag color="blue" style={{ marginLeft: 12, fontSize: 14 }}>
                   🌾 {activeSeason.season_name || t('purchasesPayment.seasonLabel').replace('{season_number}', activeSeason.season_number).replace('{year}', activeSeason.year)}
@@ -571,39 +644,16 @@ const Payment = () => {
               <Statistic
                 title={t('purchasesPayment.stats.totalTransactions')}
                 value={stats.total}
-                suffix={t('purchasesPayment.stats.transactionsSuffix')}
               />
             </Card>
           </Col>
           <Col span={6}>
             <Card>
               <Statistic
-                title={t('purchasesPayment.stats.unpaid')}
+                title="Need Update"
                 value={stats.unpaid}
                 valueStyle={{ color: '#ff4d4f' }}
                 prefix={<ClockCircleOutlined />}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title={t('purchasesPayment.stats.unpaidAmount')}
-                value={stats.totalUnpaidAmount}
-                prefix={t('purchasesPayment.misc.rm')}
-                precision={2}
-                valueStyle={{ color: '#ff4d4f' }}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic
-                title={t('purchasesPayment.stats.paidAmount')}
-                value={stats.totalPaidAmount}
-                prefix={t('purchasesPayment.misc.rm')}
-                precision={2}
-                valueStyle={{ color: '#52c41a' }}
               />
             </Card>
           </Col>

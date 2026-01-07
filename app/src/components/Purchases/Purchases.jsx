@@ -4,6 +4,7 @@ import { PlusOutlined, ClockCircleOutlined, TruckOutlined, SearchOutlined, SaveO
 import dayjs from 'dayjs';
 import jsQR from 'jsqr';
 import { useI18n } from '../../i18n/I18nProvider';
+import { useAuth } from '../../contexts/AuthContext';
 import DeductionConfirmModal from './DeductionConfirmModal';
 import WeighOutWizard from './WeighOutWizard';
 
@@ -11,6 +12,7 @@ const STORAGE_KEY = 'paddy_weight_in_sessions';
 
 const Purchases = () => {
   const { t } = useI18n();
+  const { user } = useAuth();
 
   // Load pending sessions from localStorage on mount
   const [pendingSessions, setPendingSessions] = useState(() => {
@@ -538,10 +540,11 @@ const Purchases = () => {
       // Calculate net weight and effective weight with deductions
       const netWeight = parseFloat(activeSession.weight_with_load) - parseFloat(wizardData.weight_without_load);
       
-      // Calculate deductions
+      // Calculate deductions with rounding
       const deductions = wizardData.deductions || [];
       const totalDeductionRate = deductions.reduce((sum, d) => sum + parseFloat(d.value || 0), 0);
-      const effectiveWeight = netWeight * (1 - totalDeductionRate / 100);
+      const effectiveWeightRaw = netWeight * (1 - totalDeductionRate / 100);
+      const effectiveWeight = Math.round(effectiveWeightRaw);
       
       console.log('🔢 Frontend Calculation:');
       console.log('  - Gross Weight:', activeSession.weight_with_load);
@@ -549,7 +552,8 @@ const Purchases = () => {
       console.log('  - Net Weight:', netWeight);
       console.log('  - Deductions:', deductions);
       console.log('  - Total Deduction Rate:', totalDeductionRate, '%');
-      console.log('  - Effective Weight:', effectiveWeight);
+      console.log('  - Effective Weight (Raw):', effectiveWeightRaw);
+      console.log('  - Effective Weight (Rounded):', effectiveWeight);
       console.log('  - Price per kg:', wizardData.price_per_kg);
       console.log('  - Expected Total:', effectiveWeight * wizardData.price_per_kg);
       
@@ -568,7 +572,7 @@ const Purchases = () => {
         driver_name: null,
         weighbridge_id: null,
         weighing_log_id: null,
-        created_by: 1,
+        created_by: user?.user_id,
         deduction_config: deductions,  // Changed from 'deductions' to 'deduction_config'
         total_deduction_rate: totalDeductionRate,
         effective_weight_kg: parseFloat(effectiveWeight)
@@ -708,7 +712,7 @@ const Purchases = () => {
       driver_name: null,
       weighbridge_id: null,
       weighing_log_id: null,
-      created_by: 1 // Default user - you can get from auth later
+      created_by: user?.user_id
     };
 
     // Store pending purchase data and open deduction confirmation modal

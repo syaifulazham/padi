@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Layout, Menu, Space, Statistic, Spin, Tag, Popover, Divider, Modal, Form, InputNumber, message, Button } from 'antd';
+import { Layout, Menu, Space, Statistic, Spin, Tag, Popover, Divider, Modal, Form, InputNumber, message, Button, Dropdown } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   DashboardOutlined,
@@ -17,8 +17,11 @@ import {
   CarOutlined,
   SwapOutlined,
   HomeOutlined,
+  UserOutlined,
+  LogoutOutlined,
 } from '@ant-design/icons';
 import { useI18n } from '../../i18n/I18nProvider';
+import { useAuth } from '../../contexts/AuthContext';
 import bluishPaddyField from '../../img/bluish-paddy-field.png';
 
 const { Header, Sider, Content, Footer } = Layout;
@@ -45,6 +48,39 @@ const AppLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useI18n();
+  const { user, logout } = useAuth();
+
+
+  const handleLogout = () => {
+    Modal.confirm({
+      title: 'Confirm Logout',
+      content: 'Are you sure you want to logout?',
+      okText: 'Logout',
+      cancelText: 'Cancel',
+      onOk: () => {
+        logout();
+        message.success('Logged out successfully');
+      }
+    });
+  };
+
+  const userMenuItems = [
+    {
+      key: 'profile',
+      icon: <UserOutlined />,
+      label: `${user?.full_name || 'User'} (${user?.role || ''})`,
+      disabled: true
+    },
+    {
+      type: 'divider'
+    },
+    {
+      key: 'logout',
+      icon: <LogoutOutlined />,
+      label: 'Logout',
+      onClick: handleLogout
+    }
+  ];
 
   useEffect(() => {
     try {
@@ -231,7 +267,7 @@ const AppLayout = ({ children }) => {
     };
   }, [fetchStats]);
 
-  const leftMenuItems = (() => {
+  const leftMenuItems = React.useMemo(() => {
     const items = [
       {
         key: '/',
@@ -295,6 +331,11 @@ const AppLayout = ({ children }) => {
             icon: <InboxOutlined />,
             label: t('menu.productConfig'),
           },
+          ...(user?.role === 'admin' ? [{
+            key: '/settings/users',
+            icon: <UserOutlined />,
+            label: 'User Management',
+          }] : []),
           {
             key: '/settings/backup',
             icon: <InboxOutlined />,
@@ -304,12 +345,18 @@ const AppLayout = ({ children }) => {
       },
     ];
 
+    // Role-based filtering
+    if (user?.role === 'operator') {
+      // Operators only see Home and Dashboard (transactions are in right sidebar)
+      return items.filter((item) => ['/', '/dashboard'].includes(item.key));
+    }
+
     if (appMode === 'operation') {
       return items.filter((item) => !['/farmers', '/manufacturers', 'settings-group'].includes(item.key));
     }
 
     return items;
-  })();
+  }, [user, appMode, t]);
 
   // Right sidebar - Transactions
   const rightMenuItems = [
@@ -331,7 +378,7 @@ const AppLayout = ({ children }) => {
         {
           key: '/purchases/payment',
           icon: <DollarOutlined />,
-          label: t('menu.payment'),
+          label: 'Receipts',
         },
       ],
     },
@@ -532,8 +579,7 @@ const AppLayout = ({ children }) => {
           </div>
           
           <div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-              <span>{t('topNav.welcome')}</span>
+            <Space size="middle">
               <Popover
                 placement="bottomRight"
                 content={`${t('topNav.mode')} ${appMode === 'operation' ? t('topNav.modes.operation') : t('topNav.modes.management')}`}
@@ -545,7 +591,17 @@ const AppLayout = ({ children }) => {
                   onClick={toggleMode}
                 />
               </Popover>
-            </div>
+              
+              <Dropdown
+                menu={{ items: userMenuItems }}
+                placement="bottomRight"
+                trigger={['click']}
+              >
+                <Button type="text" icon={<UserOutlined />}>
+                  {user?.full_name || user?.username || 'User'}
+                </Button>
+              </Dropdown>
+            </Space>
           </div>
         </Header>
 

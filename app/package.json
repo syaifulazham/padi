@@ -30,6 +30,7 @@
     "@ant-design/icons": "^5.2.6",
     "antd": "^5.11.5",
     "axios": "^1.6.2",
+    "bcrypt": "^6.0.0",
     "dayjs": "^1.11.10",
     "dotenv": "^16.3.1",
     "electron-store": "^8.1.0",

@@ -142,11 +142,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     seasonPerformance: (seasonId) => ipcRenderer.invoke('reports:seasonPerformance', seasonId)
   },
 
+  // Authentication
+  auth: {
+    hasUsers: () => ipcRenderer.invoke('auth:hasUsers'),
+    login: (username, password) => ipcRenderer.invoke('auth:login', username, password)
+  },
+
   // Users
   users: {
-    login: (username, password) => ipcRenderer.invoke('users:login', username, password),
-    logout: () => ipcRenderer.invoke('users:logout'),
-    getCurrentUser: () => ipcRenderer.invoke('users:getCurrentUser')
+    getById: (userId) => ipcRenderer.invoke('users:getById', userId),
+    getAll: () => ipcRenderer.invoke('users:getAll'),
+    create: (userData) => ipcRenderer.invoke('users:create', userData),
+    update: (userId, userData) => ipcRenderer.invoke('users:update', userId, userData),
+    delete: (userId) => ipcRenderer.invoke('users:delete', userId),
+    changePassword: (userId, oldPassword, newPassword) => ipcRenderer.invoke('users:changePassword', userId, oldPassword, newPassword)
   },
 
   // Settings
