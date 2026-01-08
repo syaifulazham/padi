@@ -64,7 +64,14 @@
     "files": [
       "electron/**/*",
       "build/**/*",
-      "package.json"
+      "package.json",
+      ".env.example"
+    ],
+    "extraResources": [
+      {
+        "from": ".env.example",
+        "to": ".env"
+      }
     ],
     "win": {
       "target": [
@@ -73,8 +80,22 @@
           "arch": [
             "x64"
           ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
         }
-      ]
+      ],
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "deleteAppDataOnUninstall": false,
+      "differentialPackage": false
     },
     "mac": {
       "target": [

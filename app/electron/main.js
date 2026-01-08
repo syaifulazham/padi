@@ -1,6 +1,40 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '../.env') });
+const fs = require('fs');
+
+// Load .env from multiple possible locations (for portable version)
+const possibleEnvPaths = [
+  // Next to the executable (for portable version)
+  path.join(path.dirname(process.execPath), '.env'),
+  // In user data directory
+  path.join(app.getPath('userData'), '.env'),
+  // In app resources
+  path.join(process.resourcesPath, '.env'),
+  // Development path
+  path.join(__dirname, '../.env'),
+  path.join(__dirname, '../../.env')
+];
+
+let envLoaded = false;
+for (const envPath of possibleEnvPaths) {
+  if (fs.existsSync(envPath)) {
+    console.log('✓ Loading .env from:', envPath);
+    require('dotenv').config({ path: envPath });
+    envLoaded = true;
+    break;
+  }
+}
+
+if (!envLoaded) {
+  console.error('⚠ Warning: .env file not found in any location');
+  console.error('  Searched paths:', possibleEnvPaths);
+  // Set defaults
+  process.env.QR_HASH_SECRET = process.env.QR_HASH_SECRET || 'f6062c05ab1559acdd77be781745b1845d8cc23bddf583c99ce6f5e40e6790b1';
+  process.env.DB_HOST = process.env.DB_HOST || 'localhost';
+  process.env.DB_PORT = process.env.DB_PORT || '3306';
+  process.env.DB_NAME = process.env.DB_NAME || 'paddy_collection_db';
+  process.env.NODE_ENV = process.env.NODE_ENV || 'production';
+}
 
 // Import services
 const db = require('./database/connection');
@@ -82,6 +116,17 @@ function createWindow() {
 // App lifecycle
 app.whenReady().then(() => {
   createWindow();
+  
+  // Check database connection after window loads
+  setTimeout(() => {
+    const dbStatus = db.getConnectionStatus();
+    if (!dbStatus.connected && dbStatus.error) {
+      const errorMessage = `Database Connection Failed\n\n${dbStatus.error.message}\n\nPlease check:\n1. MySQL is running\n2. Database credentials in .env file\n3. Database '${process.env.DB_NAME}' exists`;
+      
+      dialog.showErrorBox('Database Error', errorMessage);
+      console.error('Database connection error details:', dbStatus.error);
+    }
+  }, 2000);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

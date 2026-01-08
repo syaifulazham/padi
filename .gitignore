@@ -14,6 +14,24 @@ yarn-error.log*
 dist/
 build/
 out/
+app/dist/
+app/build/
+
+# Electron Builder
+*.exe
+*.dmg
+*.AppImage
+*.deb
+*.rpm
+*.snap
+*.zip
+*.blockmap
+builder-effective-config.yaml
+
+# Customer packages
+customer-package/*.exe
+customer-package/*.dmg
+Paddy-Collection-Center*.zip
 
 # IDE
 .vscode/

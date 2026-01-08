@@ -18,17 +18,26 @@ const pool = mysql.createPool({
   keepAliveInitialDelay: 0
 });
 
+// Track connection status
+let dbConnectionStatus = {
+  connected: false,
+  error: null
+};
+
 // Test connection on startup
 pool.getConnection()
   .then(connection => {
     console.log('✅ Database connected successfully');
     console.log(`   Host: ${process.env.DB_HOST}`);
     console.log(`   Database: ${process.env.DB_NAME}`);
+    dbConnectionStatus.connected = true;
     connection.release();
   })
   .catch(err => {
     console.error('❌ Database connection failed:', err.message);
-    process.exit(1);
+    console.error('   Please check your database configuration');
+    dbConnectionStatus.error = err;
+    // Don't exit - let the app show error dialog to user
   });
 
 // Handle pool errors
@@ -100,5 +109,6 @@ module.exports = {
   query,
   transaction,
   callProcedure,
-  end: () => pool.end()
+  end: () => pool.end(),
+  getConnectionStatus: () => dbConnectionStatus
 };

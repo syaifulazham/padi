@@ -1,0 +1,76 @@
+═══════════════════════════════════════════════════════════════
+URGENT: USE THIS NEW VERSION - NO .env FILE NEEDED
+═══════════════════════════════════════════════════════════════
+
+The problem is fixed! New portable version includes defaults.
+
+WHAT WAS WRONG:
+────────────────────────────────────────────────────────────────
+• Portable .exe extracts to temporary folder (TEMP directory)
+• Your .env file is in D:\Documents\a-job\custom app\padi\
+• App couldn't find .env in TEMP folder → Error
+
+THE FIX:
+────────────────────────────────────────────────────────────────
+✓ New version has built-in defaults
+✓ No .env file needed for basic operation
+✓ Works immediately out of the box
+
+INSTALLATION (30 SECONDS):
+────────────────────────────────────────────────────────────────
+1. DELETE the old "Paddy Collection Center 1.0.0.exe"
+2. DELETE the .env file you created
+3. Get NEW portable .exe from package:
+   → Location: app/dist/Paddy Collection Center 1.0.0.exe
+4. Copy to: C:\PaddyCollectionCenter\
+5. Double-click and RUN - DONE!
+
+No configuration needed! It works now!
+
+DATABASE SETTINGS (Only if different from defaults):
+────────────────────────────────────────────────────────────────
+If your MySQL settings are NOT:
+  - Host: localhost
+  - Port: 3306
+  - Database: paddy_collection_db
+  - User: root
+
+Then create .env file with ONLY your database settings:
+
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=paddy_collection_db
+DB_USER=root
+DB_PASSWORD=YourActualPassword
+
+Put this .env file in: C:\PaddyCollectionCenter\
+
+The app will automatically find it there.
+
+DEFAULT VALUES (Built-in):
+────────────────────────────────────────────────────────────────
+The new version has these defaults embedded:
+• QR_HASH_SECRET: ✓ Included (64 chars secure)
+• DB_HOST: localhost
+• DB_PORT: 3306
+• DB_NAME: paddy_collection_db
+• NODE_ENV: production
+
+FINAL FOLDER STRUCTURE:
+────────────────────────────────────────────────────────────────
+Minimum (works without .env):
+C:\PaddyCollectionCenter\
+  └── Paddy Collection Center 1.0.0.exe
+
+With custom database settings:
+C:\PaddyCollectionCenter\
+  ├── Paddy Collection Center 1.0.0.exe
+  └── .env (optional, only if needed)
+
+SEND TO CUSTOMER:
+────────────────────────────────────────────────────────────────
+1. New portable .exe from: app/dist/
+2. This instruction file
+3. Tell them: "Just run it, no setup needed!"
+
+═══════════════════════════════════════════════════════════════

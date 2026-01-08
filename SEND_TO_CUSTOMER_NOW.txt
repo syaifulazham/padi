@@ -1,0 +1,65 @@
+═══════════════════════════════════════════════════════════════
+STOP USING THE INSTALLER - IT WON'T WORK
+═══════════════════════════════════════════════════════════════
+
+The installation is corrupted. Follow these steps:
+
+STEP 1: CANCEL THE INSTALLER
+─────────────────────────────
+• Click "Cancel" button
+• Close all windows
+
+STEP 2: KILL ALL PROCESSES
+─────────────────────────────
+• Press Ctrl + Shift + Esc
+• Find these and click "End Task":
+  - Paddy Collection Center
+  - Paddy Collection Center Setup
+  - electron.exe
+• Close Task Manager
+
+STEP 3: RUN CLEANUP SCRIPT
+─────────────────────────────
+• In the package, find: cleanup.bat
+• Right-click → Run as Administrator
+• Wait for it to complete
+• Restart computer
+
+STEP 4: USE PORTABLE VERSION (NO INSTALLATION!)
+─────────────────────────────
+• Find: "Paddy Collection Center 1.0.0.exe" (77 MB)
+  (This is NOT the Setup file - it's the portable app)
+• Create folder: C:\PaddyCollectionCenter
+• Copy the .exe file there
+• Create file named: .env (in same folder)
+• Open .env with Notepad and paste:
+
+──────────────────────────────────────────────────────
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=paddy_collection_db
+DB_USER=root
+DB_PASSWORD=YourMySQLPasswordHere
+
+NODE_ENV=production
+
+QR_HASH_SECRET=f6062c05ab1559acdd77be781745b1845d8cc23bddf583c99ce6f5e40e6790b1
+
+WEIGHBRIDGE_PORT=COM3
+WEIGHBRIDGE_BAUD_RATE=9600
+──────────────────────────────────────────────────────
+
+• Save .env file
+• Change DB_PASSWORD to your actual MySQL password
+• Double-click "Paddy Collection Center 1.0.0.exe"
+• DONE!
+
+YOUR FOLDER SHOULD LOOK LIKE:
+─────────────────────────────
+C:\PaddyCollectionCenter\
+  ├── Paddy Collection Center 1.0.0.exe
+  └── .env
+
+NO INSTALLATION. NO PROBLEMS. WORKS IMMEDIATELY.
+
+═══════════════════════════════════════════════════════════════
