@@ -1,22 +1,32 @@
 const mysql = require('mysql2/promise');
-const path = require('path');
 
-// Load .env from app root
-require('dotenv').config({ path: path.join(__dirname, '../../.env') });
-
-// Create connection pool
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
+// .env is already loaded by main.js - don't load again
+// Trim values to handle whitespace/newlines
+const dbConfig = {
+  host: (process.env.DB_HOST || 'localhost').trim(),
   port: parseInt(process.env.DB_PORT) || 3306,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
+  user: (process.env.DB_USER || '').trim(),
+  password: (process.env.DB_PASSWORD || '').trim(),
+  database: (process.env.DB_NAME || 'paddy_collection_db').trim(),
   waitForConnections: process.env.DB_WAIT_FOR_CONNECTIONS === 'true',
   connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT) || 10,
   queueLimit: parseInt(process.env.DB_QUEUE_LIMIT) || 0,
   enableKeepAlive: true,
   keepAliveInitialDelay: 0
-});
+};
+
+// Log connection attempt (mask password)
+console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+console.log('MySQL Connection Configuration:');
+console.log(`  Host: "${dbConfig.host}" (length: ${dbConfig.host.length})`);
+console.log(`  Port: ${dbConfig.port}`);
+console.log(`  User: "${dbConfig.user}" (length: ${dbConfig.user.length})`);
+console.log(`  Password: ${dbConfig.password ? `"${dbConfig.password.substring(0, 3)}...${dbConfig.password.substring(dbConfig.password.length - 3)}" (length: ${dbConfig.password.length})` : 'NOT SET'}`);
+console.log(`  Database: "${dbConfig.database}" (length: ${dbConfig.database.length})`);
+console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+// Create connection pool
+const pool = mysql.createPool(dbConfig);
 
 // Track connection status
 let dbConnectionStatus = {

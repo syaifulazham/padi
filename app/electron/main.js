@@ -4,6 +4,8 @@ const fs = require('fs');
 
 // Load .env from multiple possible locations (for portable version)
 const possibleEnvPaths = [
+  // Current working directory (where user launched the exe from) - HIGHEST PRIORITY
+  path.join(process.cwd(), '.env'),
   // Next to the executable (for portable version)
   path.join(path.dirname(process.execPath), '.env'),
   // In user data directory
@@ -16,11 +18,13 @@ const possibleEnvPaths = [
 ];
 
 let envLoaded = false;
+let loadedEnvPath = null;
 for (const envPath of possibleEnvPaths) {
   if (fs.existsSync(envPath)) {
     console.log('✓ Loading .env from:', envPath);
     require('dotenv').config({ path: envPath });
     envLoaded = true;
+    loadedEnvPath = envPath;
     break;
   }
 }
@@ -28,6 +32,7 @@ for (const envPath of possibleEnvPaths) {
 if (!envLoaded) {
   console.error('⚠ Warning: .env file not found in any location');
   console.error('  Searched paths:', possibleEnvPaths);
+  loadedEnvPath = 'NOT FOUND - Using defaults';
   // Set defaults
   process.env.QR_HASH_SECRET = process.env.QR_HASH_SECRET || 'f6062c05ab1559acdd77be781745b1845d8cc23bddf583c99ce6f5e40e6790b1';
   process.env.DB_HOST = process.env.DB_HOST || 'localhost';
@@ -35,6 +40,17 @@ if (!envLoaded) {
   process.env.DB_NAME = process.env.DB_NAME || 'paddy_collection_db';
   process.env.NODE_ENV = process.env.NODE_ENV || 'production';
 }
+
+// Store for error reporting
+global.envConfig = {
+  loadedPath: loadedEnvPath,
+  searchedPaths: possibleEnvPaths,
+  dbHost: process.env.DB_HOST,
+  dbPort: process.env.DB_PORT,
+  dbUser: process.env.DB_USER || 'NOT SET',
+  dbName: process.env.DB_NAME,
+  hasPassword: !!process.env.DB_PASSWORD
+};
 
 // Import services
 const db = require('./database/connection');
@@ -56,6 +72,7 @@ const cleanupService = require('./services/cleanup');
 const { generatePurchaseReceipt, generateSalesReceipt } = require('./utils/receiptTemplate');
 
 let mainWindow;
+let dbConnectionFailed = false;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -100,12 +117,39 @@ function createWindow() {
   } else {
     const indexPath = path.join(__dirname, '../build/index.html');
     console.log('   Loading from:', indexPath);
+    console.log('   __dirname:', __dirname);
+    console.log('   Resolved path:', path.resolve(__dirname, '../build/index.html'));
+    
+    // Check if file exists
+    const fs = require('fs');
+    if (fs.existsSync(indexPath)) {
+      console.log('   ✅ index.html exists');
+    } else {
+      console.error('   ❌ index.html NOT FOUND at:', indexPath);
+    }
+    
     mainWindow.loadFile(indexPath);
+    
+    // Open DevTools in production to see errors
+    mainWindow.webContents.openDevTools();
+    
+    // Log page load events
+    mainWindow.webContents.on('did-finish-load', () => {
+      console.log('✅ Production page loaded successfully');
+    });
+    
+    // Log console messages from renderer
+    mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+      console.log(`[RENDERER ${level}]:`, message);
+      if (level === 2) { // 2 = error
+        console.error('Renderer Error at', sourceId, 'line', line);
+      }
+    });
   }
 
   // Log any loading errors
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-    console.error('❌ Failed to load:', errorDescription);
+    console.error('❌ Failed to load:', errorCode, errorDescription);
   });
 
   mainWindow.on('closed', () => {
@@ -121,10 +165,54 @@ app.whenReady().then(() => {
   setTimeout(() => {
     const dbStatus = db.getConnectionStatus();
     if (!dbStatus.connected && dbStatus.error) {
-      const errorMessage = `Database Connection Failed\n\n${dbStatus.error.message}\n\nPlease check:\n1. MySQL is running\n2. Database credentials in .env file\n3. Database '${process.env.DB_NAME}' exists`;
+      dbConnectionFailed = true;
+      const errorLines = [
+        '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+        'DATABASE CONNECTION FAILED',
+        '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+        '',
+        '❌ ERROR: ' + dbStatus.error.message,
+        '',
+        '📁 CONFIGURATION DETAILS:',
+        '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+        `.env File Loaded From: ${global.envConfig.loadedPath}`,
+        '',
+        'Database Settings Used:',
+        `  • Host: ${global.envConfig.dbHost}`,
+        `  • Port: ${global.envConfig.dbPort}`,
+        `  • User: ${global.envConfig.dbUser}`,
+        `  • Database: ${global.envConfig.dbName}`,
+        `  • Password: ${global.envConfig.hasPassword ? 'SET (hidden)' : 'NOT SET ❌'}`,
+        '',
+        '📍 SEARCHED FOR .env IN:',
+        '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
+      ];
       
-      dialog.showErrorBox('Database Error', errorMessage);
-      console.error('Database connection error details:', dbStatus.error);
+      global.envConfig.searchedPaths.forEach((p, i) => {
+        const isLoaded = p === global.envConfig.loadedPath;
+        errorLines.push(`  ${i + 1}. ${p} ${isLoaded ? '✓ LOADED' : ''}`);
+      });
+      
+      errorLines.push('');
+      errorLines.push('🔧 TROUBLESHOOTING:');
+      errorLines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      errorLines.push('1. Create .env file next to the .exe if not found');
+      errorLines.push('2. Verify MySQL is running (check Windows Services)');
+      errorLines.push('3. Check DB_USER in .env matches MySQL user');
+      errorLines.push('4. Verify DB_PASSWORD is correct');
+      errorLines.push('5. Ensure database exists: ' + global.envConfig.dbName);
+      
+      const errorMessage = errorLines.join('\n');
+      
+      // Store error details for UI
+      global.envConfig.error = dbStatus.error.message;
+      
+      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.error('Database connection failed with details:');
+      console.error('Error:', dbStatus.error);
+      console.error('Config:', global.envConfig);
+      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('Will show database setup page in UI');
     }
   }, 2000);
 
@@ -163,6 +251,136 @@ ipcMain.handle('db:test', async () => {
   } catch (error) {
     return { success: false, message: error.message };
   }
+});
+
+// Get current database configuration
+ipcMain.handle('db:getConfig', async () => {
+  return global.envConfig;
+});
+
+// Test database connection with provided credentials
+ipcMain.handle('db:testConnection', async (event, config) => {
+  const mysql = require('mysql2/promise');
+  
+  try {
+    const connection = await mysql.createConnection({
+      host: config.host.trim(),
+      port: parseInt(config.port),
+      user: config.user.trim(),
+      password: config.password.trim(),
+      database: config.database.trim()
+    });
+    
+    await connection.query('SELECT 1');
+    await connection.end();
+    
+    return { 
+      success: true, 
+      message: 'Connection successful! All credentials are valid.' 
+    };
+  } catch (error) {
+    return { 
+      success: false, 
+      message: error.message 
+    };
+  }
+});
+
+// Save database configuration to .env file
+ipcMain.handle('db:saveConfig', async (event, config) => {
+  const fs = require('fs');
+  const path = require('path');
+  
+  try {
+    // Determine where to save .env
+    let envPath;
+    if (app.isPackaged) {
+      // For packaged app, save next to executable
+      envPath = path.join(path.dirname(process.execPath), '.env');
+    } else {
+      // For dev, save in app root
+      envPath = path.join(__dirname, '../.env');
+    }
+    
+    // Read existing .env or create template
+    let envContent = '';
+    if (fs.existsSync(envPath)) {
+      envContent = fs.readFileSync(envPath, 'utf8');
+    }
+    
+    // Update or add DB configuration
+    const updateEnvVar = (content, key, value) => {
+      const regex = new RegExp(`^${key}=.*$`, 'm');
+      if (regex.test(content)) {
+        return content.replace(regex, `${key}=${value}`);
+      } else {
+        return content + `\n${key}=${value}`;
+      }
+    };
+    
+    envContent = updateEnvVar(envContent, 'DB_HOST', config.host.trim());
+    envContent = updateEnvVar(envContent, 'DB_PORT', config.port);
+    envContent = updateEnvVar(envContent, 'DB_USER', config.user.trim());
+    envContent = updateEnvVar(envContent, 'DB_PASSWORD', config.password.trim());
+    envContent = updateEnvVar(envContent, 'DB_NAME', config.database.trim());
+    
+    // Ensure QR_HASH_SECRET exists
+    if (!envContent.includes('QR_HASH_SECRET=')) {
+      envContent = updateEnvVar(envContent, 'QR_HASH_SECRET', 
+        process.env.QR_HASH_SECRET || 'f6062c05ab1559acdd77be781745b1845d8cc23bddf583c99ce6f5e40e6790b1');
+    }
+    
+    // Write .env file
+    fs.writeFileSync(envPath, envContent.trim() + '\n', 'utf8');
+    
+    // Update process.env
+    process.env.DB_HOST = config.host.trim();
+    process.env.DB_PORT = config.port;
+    process.env.DB_USER = config.user.trim();
+    process.env.DB_PASSWORD = config.password.trim();
+    process.env.DB_NAME = config.database.trim();
+    
+    // Update global config
+    global.envConfig.dbHost = config.host.trim();
+    global.envConfig.dbPort = config.port;
+    global.envConfig.dbUser = config.user.trim();
+    global.envConfig.dbName = config.database.trim();
+    global.envConfig.hasPassword = !!config.password.trim();
+    global.envConfig.loadedPath = envPath;
+    
+    console.log('✅ Configuration saved to:', envPath);
+    
+    // Try to reconnect
+    try {
+      const connection = await db.pool.getConnection();
+      connection.release();
+      dbConnectionFailed = false;
+      console.log('✅ Database reconnected successfully');
+    } catch (err) {
+      console.error('❌ Failed to reconnect:', err.message);
+    }
+    
+    return { 
+      success: true, 
+      message: 'Configuration saved successfully',
+      envPath 
+    };
+  } catch (error) {
+    console.error('❌ Error saving configuration:', error);
+    return { 
+      success: false, 
+      error: error.message 
+    };
+  }
+});
+
+// Get current database connection status
+ipcMain.handle('db:getConnectionStatus', async () => {
+  const status = db.getConnectionStatus();
+  return {
+    connected: status.connected,
+    error: status.error ? status.error.message : null
+  };
 });
 
 // Authentication

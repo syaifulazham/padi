@@ -24,6 +24,7 @@ import HomeSetupGuide from './components/Home/HomeSetupGuide';
 import HomeMenuGuide from './components/Home/HomeMenuGuide';
 import Login from './components/Auth/Login';
 import SetupAdmin from './components/Auth/SetupAdmin';
+import DatabaseSetup from './components/Setup/DatabaseSetup';
 import { useI18n } from './i18n/I18nProvider';
 import { useAuth } from './contexts/AuthContext';
 
@@ -101,6 +102,18 @@ function App() {
   }
 
   if (!dbConnected) {
+    return (
+      <DatabaseSetup 
+        onConnectionSuccess={() => {
+          setDbConnected(true);
+          testConnection();
+        }}
+      />
+    );
+  }
+
+  // Keep old error UI as fallback (shouldn't reach here)
+  if (false && !dbConnected) {
     return (
       <div style={{ 
         display: 'flex', 

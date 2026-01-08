@@ -5,6 +5,10 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
   // Database
   testConnection: () => ipcRenderer.invoke('db:test'),
+  getDbConfig: () => ipcRenderer.invoke('db:getConfig'),
+  testDbConnection: (config) => ipcRenderer.invoke('db:testConnection', config),
+  saveDbConfig: (config) => ipcRenderer.invoke('db:saveConfig', config),
+  getDbConnectionStatus: () => ipcRenderer.invoke('db:getConnectionStatus'),
 
   // Farmers
   farmers: {
@@ -186,4 +190,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   database: {
     cleanup: () => ipcRenderer.invoke('database:cleanup')
   }
+});
+
+// Also expose as 'electron' for compatibility with setup pages
+contextBridge.exposeInMainWorld('electron', {
+  getDbConfig: () => ipcRenderer.invoke('db:getConfig'),
+  testDbConnection: (config) => ipcRenderer.invoke('db:testConnection', config),
+  saveDbConfig: (config) => ipcRenderer.invoke('db:saveConfig', config),
+  getDbConnectionStatus: () => ipcRenderer.invoke('db:getConnectionStatus')
 });

@@ -4,6 +4,11 @@ ECHO Paddy Collection Center - Database Setup
 ECHO ========================================
 ECHO.
 
+REM Change to the batch file's directory
+cd /d "%~dp0"
+ECHO Running from: %CD%
+ECHO.
+
 REM Check if .env file exists
 IF NOT EXIST .env (
     ECHO ERROR: .env file not found!
