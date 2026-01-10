@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Form, Input, Button, Card, message, Space, Divider } from 'antd';
 import { UserOutlined, LockOutlined, SafetyOutlined } from '@ant-design/icons';
+import sparrowLogo from '../../img/sparrow.png';
 
 const SetupAdmin = ({ onSetupComplete }) => {
   const [loading, setLoading] = useState(false);
@@ -76,7 +77,7 @@ const SetupAdmin = ({ onSetupComplete }) => {
         <div style={{ textAlign: 'center', marginBottom: 30 }}>
           <div style={{ marginBottom: 20 }}>
             <img 
-              src="/sparrow.png" 
+              src={sparrowLogo} 
               alt="Sparrow Logo" 
               style={{ width: 80, height: 80, objectFit: 'contain' }} 
             />

@@ -14,23 +14,35 @@ function getPaperSizeConfig(paperSize) {
       fontSize: '10px',
       companyNameSize: '14px',
       receiptNumberSize: '16px',
-      padding: '5mm'
+      padding: '5mm',
+      labelWidth: '120px',
+      maxContentWidth: '302px',
+      usePageSize: true,
+      scale: 1
     },
     'a4_portrait': {
       pageWidth: '210mm',
       pageHeight: '297mm',
-      fontSize: '12px',
-      companyNameSize: '18px',
-      receiptNumberSize: '20px',
-      padding: '15mm'
+      fontSize: '16px',
+      companyNameSize: '24px',
+      receiptNumberSize: '26px',
+      padding: '10mm',
+      labelWidth: '350px',
+      maxContentWidth: '190mm',
+      usePageSize: true,
+      scale: 1
     },
     'a5_landscape': {
       pageWidth: '210mm',
       pageHeight: '148mm',
-      fontSize: '11px',
-      companyNameSize: '16px',
-      receiptNumberSize: '18px',
-      padding: '10mm'
+      fontSize: '12px',
+      companyNameSize: '18px',
+      receiptNumberSize: '20px',
+      padding: '5mm',
+      labelWidth: '150px',
+      maxContentWidth: '750px',
+      usePageSize: true,
+      scale: 1
     }
   };
   
@@ -96,7 +108,7 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
   <meta charset="UTF-8">
   <style>
     @page {
-      size: ${sizeConfig.pageWidth} ${sizeConfig.pageHeight};
+      ${sizeConfig.usePageSize ? `size: ${sizeConfig.pageWidth} ${sizeConfig.pageHeight};` : ''}
       margin: ${sizeConfig.padding};
     }
     
@@ -109,9 +121,11 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
     body {
       font-family: 'Courier New', monospace;
       font-size: ${sizeConfig.fontSize};
-      line-height: 1.3;
-      width: ${sizeConfig.pageWidth};
-      padding: ${sizeConfig.padding};
+      line-height: 1.4;
+      width: ${sizeConfig.maxContentWidth};
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 0;
       color: #000;
     }
     
@@ -173,7 +187,7 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
     }
     
     .label {
-      width: 120px;
+      width: ${sizeConfig.labelWidth};
       display: inline-block;
     }
     
@@ -461,7 +475,7 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
   <meta charset="UTF-8">
   <style>
     @page {
-      size: ${sizeConfig.pageWidth} ${sizeConfig.pageHeight};
+      ${sizeConfig.usePageSize ? `size: ${sizeConfig.pageWidth} ${sizeConfig.pageHeight};` : ''}
       margin: ${sizeConfig.padding};
     }
     
@@ -474,9 +488,11 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
     body {
       font-family: 'Courier New', monospace;
       font-size: ${sizeConfig.fontSize};
-      line-height: 1.3;
-      width: ${sizeConfig.pageWidth};
-      padding: ${sizeConfig.padding};
+      line-height: 1.4;
+      width: ${sizeConfig.maxContentWidth};
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 0;
       color: #000;
     }
     

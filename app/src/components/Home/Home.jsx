@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { SettingOutlined, BarChartOutlined, ShoppingCartOutlined, ShopOutlined, DatabaseOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useI18n } from '../../i18n/I18nProvider';
+import sparrowLogo from '../../img/sparrow.png';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -59,7 +60,7 @@ const Home = () => {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <img 
-            src="/sparrow.png" 
+            src={sparrowLogo} 
             alt="Sparrow Icon" 
             style={{ width: 80, height: 80, objectFit: 'contain' }}
           />

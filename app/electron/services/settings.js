@@ -47,6 +47,7 @@ const store = new Store({
       print_to_pdf: false,
       pdf_save_path: '',
       pdf_auto_open: false,
+      use_print_dialog: false,
       receipt_header: '',
       receipt_footer: ''
     },
@@ -105,6 +106,7 @@ const getAll = async () => {
         print_to_pdf: settings.printer.print_to_pdf,
         pdf_save_path: settings.printer.pdf_save_path,
         pdf_auto_open: settings.printer.pdf_auto_open,
+        use_print_dialog: settings.printer.use_print_dialog,
         receipt_header: settings.printer.receipt_header,
         receipt_footer: settings.printer.receipt_footer,
         
@@ -208,6 +210,9 @@ const save = async (data) => {
     }
     if (data.pdf_auto_open !== undefined) {
       store.set('printer.pdf_auto_open', data.pdf_auto_open);
+    }
+    if (data.use_print_dialog !== undefined) {
+      store.set('printer.use_print_dialog', data.use_print_dialog);
     }
     if (data.receipt_header !== undefined) {
       store.set('printer.receipt_header', data.receipt_header);
@@ -322,7 +327,8 @@ const get = async (key) => {
       'paper_size': 'printer.paper_size',
       'print_to_pdf': 'printer.print_to_pdf',
       'pdf_save_path': 'printer.pdf_save_path',
-      'pdf_auto_open': 'printer.pdf_auto_open'
+      'pdf_auto_open': 'printer.pdf_auto_open',
+      'use_print_dialog': 'printer.use_print_dialog'
     };
     
     const storeKey = keyMap[key] || key;

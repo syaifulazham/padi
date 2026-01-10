@@ -23,6 +23,7 @@ import {
 import { useI18n } from '../../i18n/I18nProvider';
 import { useAuth } from '../../contexts/AuthContext';
 import bluishPaddyField from '../../img/bluish-paddy-field.png';
+import sparrowLogo from '../../img/sparrow.png';
 
 const { Header, Sider, Content, Footer } = Layout;
 
@@ -451,10 +452,10 @@ const AppLayout = ({ children }) => {
           gap: 8
         }}>
           {leftCollapsed ? (
-            <img src="/sparrow.png" alt="Sparrow" style={{ width: 32, height: 32, objectFit: 'contain' }} />
+            <img src={sparrowLogo} alt="Sparrow" style={{ width: 32, height: 32, objectFit: 'contain' }} />
           ) : (
             <>
-              <img src="/sparrow.png" alt="Sparrow" style={{ width: 40, height: 40, objectFit: 'contain' }} />
+              <img src={sparrowLogo} alt="Sparrow" style={{ width: 40, height: 40, objectFit: 'contain' }} />
               <span>Paddy Center</span>
             </>
           )}

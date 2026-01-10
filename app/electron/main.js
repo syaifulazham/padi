@@ -2,6 +2,12 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
+// Fix Windows DPI scaling issues for printing
+if (process.platform === 'win32') {
+  app.commandLine.appendSwitch('high-dpi-support', 'true');
+  app.commandLine.appendSwitch('force-device-scale-factor', '1');
+}
+
 // Load .env from multiple possible locations (for portable version)
 const possibleEnvPaths = [
   // Current working directory (where user launched the exe from) - HIGHEST PRIORITY
@@ -831,14 +837,22 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId, options = {
     const pdfAutoOpenResult = await settingsService.get('pdf_auto_open');
     const pdfAutoOpen = pdfAutoOpenResult?.data || false;
     const paperSizeResult = await settingsService.get('paper_size');
-    const paperSize = paperSizeResult?.data || '80mm';
+    let paperSize = paperSizeResult?.data || '80mm';
     
-    console.log('📋 Print Settings:', {
+    // Validate paper size
+    const validSizes = ['80mm', 'a4_portrait', 'a5_landscape'];
+    if (!validSizes.includes(paperSize)) {
+      console.warn(`⚠️  Invalid paper size "${paperSize}", defaulting to "80mm"`);
+      paperSize = '80mm';
+    }
+    
+    console.log('📋 Print Settings Retrieved:', {
       defaultPrinter,
       printToPdf,
       pdfSavePath,
       pdfAutoOpen,
       paperSize,
+      paperSizeRaw: paperSizeResult,
       forcePrint: options.forcePrint
     });
     
@@ -900,16 +914,19 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId, options = {
     const companyDetails = companyResult?.data || {};
     
     // Generate receipt HTML with paper size
+    console.log(`📄 Generating receipt HTML with paper size: "${paperSize}"`);
     const receiptHTML = generatePurchaseReceipt(transaction, farmer, season, companyDetails, paperSize);
+    console.log(`✅ Receipt HTML generated (${receiptHTML.length} chars)`);
     
-    // Create hidden window for printing/PDF
+    // Create hidden window for printing/PDF - larger size for A4/A5
     const printWindow = new BrowserWindow({
-      width: 800,
-      height: 600,
+      width: 1200,
+      height: 1600,
       show: false,
       webPreferences: {
         nodeIntegration: false,
-        contextIsolation: true
+        contextIsolation: true,
+        zoomFactor: 1.0
       }
     });
     
@@ -942,7 +959,7 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId, options = {
       const pdfPath = pathModule.join(finalPdfPath, filename);
       
       // Get page size based on paper size setting
-      // Use standard page sizes to avoid Adobe Acrobat warnings
+      // Use explicit dimensions to avoid rotation issues
       let pdfOptions;
       
       if (paperSize === 'a4_portrait') {
@@ -958,9 +975,13 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId, options = {
           }
         };
       } else if (paperSize === 'a5_landscape') {
+        // Use explicit landscape dimensions without landscape flag
+        // CSS defines 210mm x 148mm, PDF must match without rotation
         pdfOptions = {
-          pageSize: 'A5',
-          landscape: true,
+          pageSize: {
+            width: 595.28,   // 210mm in points
+            height: 419.53   // 148mm in points
+          },
           printBackground: true,
           margin: {
             top: 0,
@@ -1018,18 +1039,25 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId, options = {
       console.log(`🖨️  Printing to configured printer: ${defaultPrinter}`);
       
       // Use microns for print API (1mm = 1000 microns)
+      // Note: Windows ignores landscape flag, use explicit dimensions instead
       const pageSizes = {
         '80mm': { width: 80000, height: 297000, landscape: false },    // 80mm x 297mm
         'a4_portrait': { width: 210000, height: 297000, landscape: false },  // A4 portrait
-        'a5_landscape': { width: 210000, height: 148000, landscape: true }   // A5 landscape
+        'a5_landscape': { width: 210000, height: 148000, landscape: false }   // A5 landscape (210x148mm)
       };
       const pageSize = pageSizes[paperSize] || pageSizes['80mm'];
       
+      // Check if user wants to use print dialog - await the promise
+      const usePrintDialogResult = await settingsService.get('use_print_dialog');
+      const usePrintDialog = usePrintDialogResult?.data || false;
+      
       const printOptions = {
-        silent: true, // Auto-print without dialog
+        silent: !usePrintDialog, // Show dialog if setting is enabled
         printBackground: true,
         color: false,
-        deviceName: defaultPrinter, // Use configured printer
+        // deviceName: defaultPrinter, // Removed - causes Windows to ignore all settings
+        scaleFactor: 100, // Prevent auto-scaling (100 = 100%)
+        preferCSSPageSize: true, // Respect CSS @page size
         margins: {
           marginType: 'none'
         },
@@ -1039,6 +1067,8 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId, options = {
         },
         landscape: pageSize.landscape
       };
+      
+      console.log('🖨️  Print options:', { ...printOptions, usePrintDialog });
       
       // Print using promise wrapper
       return new Promise((resolve) => {
@@ -1079,14 +1109,22 @@ ipcMain.handle('print:salesReceipt', async (event, salesId, options = {}) => {
     const pdfAutoOpenResult = await settingsService.get('pdf_auto_open');
     const pdfAutoOpen = pdfAutoOpenResult?.data || false;
     const paperSizeResult = await settingsService.get('paper_size');
-    const paperSize = paperSizeResult?.data || '80mm';
+    let paperSize = paperSizeResult?.data || '80mm';
     
-    console.log('📋 Print Settings:', {
+    // Validate paper size
+    const validSizes = ['80mm', 'a4_portrait', 'a5_landscape'];
+    if (!validSizes.includes(paperSize)) {
+      console.warn(`⚠️  Invalid paper size "${paperSize}", defaulting to "80mm"`);
+      paperSize = '80mm';
+    }
+    
+    console.log('📋 Print Settings Retrieved (Sales):', {
       defaultPrinter,
       printToPdf,
       pdfSavePath,
       pdfAutoOpen,
       paperSize,
+      paperSizeRaw: paperSizeResult,
       forcePrint: options.forcePrint
     });
     
@@ -1166,14 +1204,15 @@ ipcMain.handle('print:salesReceipt', async (event, salesId, options = {}) => {
     // Generate sales receipt HTML with paper size
     const receiptHTML = generateSalesReceipt(salesTransaction, season, companyDetails, paperSize);
     
-    // Create hidden window for printing/PDF
+    // Create hidden window for printing/PDF - larger size for A4/A5
     const printWindow = new BrowserWindow({
-      width: 800,
-      height: 600,
+      width: 1200,
+      height: 1600,
       show: false,
       webPreferences: {
         nodeIntegration: false,
-        contextIsolation: true
+        contextIsolation: true,
+        zoomFactor: 1.0
       }
     });
     
@@ -1222,9 +1261,13 @@ ipcMain.handle('print:salesReceipt', async (event, salesId, options = {}) => {
           }
         };
       } else if (paperSize === 'a5_landscape') {
+        // Use explicit landscape dimensions without landscape flag
+        // CSS defines 210mm x 148mm, PDF must match without rotation
         pdfOptions = {
-          pageSize: 'A5',
-          landscape: true,
+          pageSize: {
+            width: 595.28,   // 210mm in points
+            height: 419.53   // 148mm in points
+          },
           printBackground: true,
           margin: {
             top: 0,
@@ -1280,18 +1323,25 @@ ipcMain.handle('print:salesReceipt', async (event, salesId, options = {}) => {
       // Print to configured physical printer
       console.log(`🖨️  Printing to configured printer: ${defaultPrinter}`);
       
+      // Note: Windows ignores landscape flag, use explicit dimensions instead
       const pageSizes = {
         '80mm': { width: 80000, height: 297000, landscape: false },
         'a4_portrait': { width: 210000, height: 297000, landscape: false },
-        'a5_landscape': { width: 210000, height: 148000, landscape: true }
+        'a5_landscape': { width: 210000, height: 148000, landscape: false }   // A5 landscape (210x148mm)
       };
       const pageSize = pageSizes[paperSize] || pageSizes['80mm'];
       
+      // Check if user wants to use print dialog - await the promise
+      const usePrintDialogResult = await settingsService.get('use_print_dialog');
+      const usePrintDialog = usePrintDialogResult?.data || false;
+      
       const printOptions = {
-        silent: true, // Auto-print without dialog
+        silent: !usePrintDialog, // Show dialog if setting is enabled
         printBackground: true,
         color: false,
-        deviceName: defaultPrinter, // Use configured printer
+        // deviceName: defaultPrinter, // Removed - causes Windows to ignore all settings
+        scaleFactor: 100, // Prevent auto-scaling (100 = 100%)
+        preferCSSPageSize: true, // Respect CSS @page size
         margins: {
           marginType: 'none'
         },
@@ -1301,6 +1351,8 @@ ipcMain.handle('print:salesReceipt', async (event, salesId, options = {}) => {
         },
         landscape: pageSize.landscape
       };
+      
+      console.log('🖨️  Print options (Sales):', { ...printOptions, usePrintDialog });
       
       // Print using promise wrapper
       return new Promise((resolve) => {
@@ -1337,6 +1389,145 @@ ipcMain.handle('printer:getPrinters', async () => {
     };
   } catch (error) {
     console.error('Error getting printers:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Test print with mockup receipt
+ipcMain.handle('printer:testPrint', async () => {
+  try {
+    const settingsService = require('./services/settings');
+    const { generatePurchaseReceipt } = require('./utils/receiptTemplate');
+    
+    // Get print settings - await the promises
+    const paperSizeResult = await settingsService.get('paper_size');
+    const paperSize = paperSizeResult?.data || 'a5_landscape';
+    
+    const usePrintDialogResult = await settingsService.get('use_print_dialog');
+    const usePrintDialog = usePrintDialogResult?.data || false;
+    
+    console.log('🧪 Test Print - Paper size:', paperSize);
+    console.log('🧪 Test Print - Use dialog:', usePrintDialog);
+    
+    // Generate mockup receipt data
+    const mockupTransaction = {
+      receipt_number: 'TEST-001',
+      transaction_date: new Date().toISOString(),
+      lorry_weight: 15250.50,
+      paddy_weight: 12450.75,
+      moisture_percentage: 18.5,
+      impurities_percentage: 2.3,
+      variety: 'MR219',
+      price_per_ton: 980.00,
+      total_deduction: 245.50,
+      net_weight: 12205.25,
+      total_amount: 11961.14,
+      deduction_config: [
+        { deduction: 'Moisture', value: 1.5 },
+        { deduction: 'Impurities', value: 0.8 }
+      ]
+    };
+    
+    const mockupFarmer = {
+      name: 'Ahmad bin Ali',
+      ic_number: '800101-01-5678',
+      address: 'No. 123, Kampung Padi, 12345 Sungai Besar, Selangor',
+      vehicle_no: 'WXY 1234'
+    };
+    
+    const mockupSeason = {
+      location: 'PANCHANG BEDENA'
+    };
+    
+    // Get company info - await the promises
+    const companyNameResult = await settingsService.get('company_name');
+    const companyName = companyNameResult?.data || 'TEST COMPANY';
+    
+    const companyAddressResult = await settingsService.get('company_address');
+    const companyAddress = companyAddressResult?.data || 'Test Address';
+    
+    const companyPhoneResult = await settingsService.get('company_phone');
+    const companyPhone = companyPhoneResult?.data || '012-3456789';
+    
+    const companyRegNoResult = await settingsService.get('company_registration_no');
+    const companyRegNo = companyRegNoResult?.data || 'TEST-123';
+    
+    const licenceNoResult = await settingsService.get('paddy_purchasing_licence_no');
+    const licenceNo = licenceNoResult?.data || 'LICENCE-001';
+    
+    const companyLocationResult = await settingsService.get('company_location');
+    const companyLocation = companyLocationResult?.data || 'Test Location';
+    
+    const mockupCompanyDetails = {
+      name: companyName,
+      address: companyAddress,
+      phone: companyPhone,
+      registration_no: companyRegNo,
+      licence_no: licenceNo,
+      location: companyLocation
+    };
+    
+    const htmlContent = generatePurchaseReceipt(
+      mockupTransaction,
+      mockupFarmer,
+      mockupSeason,
+      mockupCompanyDetails,
+      paperSize
+    );
+    
+    // Create hidden print window
+    const printWindow = new BrowserWindow({
+      width: 1200,
+      height: 1600,
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        zoomFactor: 1.0
+      }
+    });
+    
+    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+    
+    // Page sizes in microns
+    const pageSizes = {
+      '80mm': { width: 80000, height: 297000, landscape: false },
+      'a4_portrait': { width: 210000, height: 297000, landscape: false },
+      'a5_landscape': { width: 210000, height: 148000, landscape: false }
+    };
+    const pageSize = pageSizes[paperSize] || pageSizes['80mm'];
+    
+    const printOptions = {
+      silent: !usePrintDialog, // Use dialog if enabled in settings
+      printBackground: true,
+      color: false,
+      scaleFactor: 100,
+      preferCSSPageSize: true,
+      margins: { marginType: 'none' },
+      pageSize: {
+        width: pageSize.width,
+        height: pageSize.height
+      },
+      landscape: pageSize.landscape
+    };
+    
+    console.log('🧪 Test Print options:', printOptions);
+    
+    return new Promise((resolve) => {
+      printWindow.webContents.print(printOptions, (success, errorType) => {
+        printWindow.close();
+        if (!success) {
+          console.error('❌ Test print failed:', errorType);
+          resolve({ success: false, error: `Print failed: ${errorType}` });
+        } else {
+          console.log('✅ Test print sent successfully');
+          resolve({ success: true });
+        }
+      });
+    });
+    
+  } catch (error) {
+    console.error('Error in test print:', error);
     return { success: false, error: error.message };
   }
 });

@@ -1,25 +1,5 @@
--- ============================================
--- PADDY COLLECTION CENTER - DATABASE INITIALIZATION
--- Version: 1.0.0
--- MySQL 8.0+
--- ============================================
-
-CREATE DATABASE IF NOT EXISTS paddy_collection_db
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
-
-USE paddy_collection_db;
-
-SET NAMES utf8mb4;
-SET time_zone = '+08:00';
-SET FOREIGN_KEY_CHECKS = 0;
-SET SQL_MODE = 'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
-
--- ============================================
--- TABLES
--- ============================================
-
-DROP TABLE IF EXISTS `audit_logs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `audit_logs` (
   `audit_id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned DEFAULT NULL,
@@ -43,9 +23,15 @@ CREATE TABLE `audit_logs` (
   KEY `idx_table_name` (`table_name`),
   KEY `idx_record_id` (`record_id`),
   KEY `idx_status` (`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `backup_logs`;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+/*!50100 PARTITION BY RANGE (year(`created_at`))
+(PARTITION p_before_2025 VALUES LESS THAN (2025) ENGINE = InnoDB,
+ PARTITION p_2025 VALUES LESS THAN (2026) ENGINE = InnoDB,
+ PARTITION p_2026 VALUES LESS THAN (2027) ENGINE = InnoDB,
+ PARTITION p_future VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `backup_logs` (
   `backup_id` int unsigned NOT NULL AUTO_INCREMENT,
   `backup_filename` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -67,8 +53,9 @@ CREATE TABLE `backup_logs` (
   KEY `triggered_user_id` (`triggered_user_id`),
   CONSTRAINT `backup_logs_ibfk_1` FOREIGN KEY (`triggered_user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `container_loading_items`;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `container_loading_items` (
   `loading_item_id` int unsigned NOT NULL AUTO_INCREMENT,
   `container_id` int unsigned NOT NULL,
@@ -92,8 +79,43 @@ CREATE TABLE `container_loading_items` (
   CONSTRAINT `container_loading_items_ibfk_3` FOREIGN KEY (`grade_id`) REFERENCES `paddy_grades` (`grade_id`) ON DELETE RESTRICT,
   CONSTRAINT `container_loading_items_ibfk_4` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `delivery_containers`;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 DEFINER=`azham`@`localhost`*/ /*!50003 TRIGGER `trg_after_container_item_insert` AFTER INSERT ON `container_loading_items` FOR EACH ROW BEGIN
+    DECLARE v_season_id INT UNSIGNED;
+    
+    
+    SELECT season_id INTO v_season_id
+    FROM purchase_transactions
+    WHERE transaction_id = NEW.transaction_id;
+    
+    
+    UPDATE inventory_stock
+    SET current_quantity_kg = current_quantity_kg - NEW.quantity_loaded_kg,
+        last_movement_date = NEW.loading_timestamp
+    WHERE season_id = v_season_id
+      AND grade_id = NEW.grade_id;
+    
+    
+    UPDATE delivery_containers
+    SET actual_loaded_kg = actual_loaded_kg + NEW.quantity_loaded_kg
+    WHERE container_id = NEW.container_id;
+END */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `delivery_containers` (
   `container_id` int unsigned NOT NULL AUTO_INCREMENT,
   `sales_id` int unsigned NOT NULL,
@@ -127,8 +149,9 @@ CREATE TABLE `delivery_containers` (
   CONSTRAINT `delivery_containers_ibfk_4` FOREIGN KEY (`loading_started_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
   CONSTRAINT `delivery_containers_ibfk_5` FOREIGN KEY (`loading_completed_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `error_logs`;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `error_logs` (
   `error_id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `error_level` enum('debug','info','warning','error','critical') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'error',
@@ -158,8 +181,9 @@ CREATE TABLE `error_logs` (
   CONSTRAINT `error_logs_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
   CONSTRAINT `error_logs_ibfk_2` FOREIGN KEY (`resolved_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `farmer_documents`;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `farmer_documents` (
   `document_id` int unsigned NOT NULL AUTO_INCREMENT,
   `farmer_id` int unsigned NOT NULL,
@@ -179,9 +203,10 @@ CREATE TABLE `farmer_documents` (
   KEY `idx_qr_hashcode` (`qr_hashcode`(255)),
   CONSTRAINT `farmer_documents_ibfk_1` FOREIGN KEY (`farmer_id`) REFERENCES `farmers` (`farmer_id`) ON DELETE CASCADE,
   CONSTRAINT `farmer_documents_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `farmers`;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `farmers` (
   `farmer_id` int unsigned NOT NULL AUTO_INCREMENT,
   `farmer_code` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -218,9 +243,10 @@ CREATE TABLE `farmers` (
   KEY `updated_by` (`updated_by`),
   CONSTRAINT `farmers_ibfk_1` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
   CONSTRAINT `farmers_ibfk_2` FOREIGN KEY (`updated_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `harvesting_seasons`;
+) ENGINE=InnoDB AUTO_INCREMENT=2035 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `harvesting_seasons` (
   `season_id` int unsigned NOT NULL AUTO_INCREMENT,
   `season_code` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -261,9 +287,10 @@ CREATE TABLE `harvesting_seasons` (
   CONSTRAINT `harvesting_seasons_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
   CONSTRAINT `harvesting_seasons_ibfk_3` FOREIGN KEY (`updated_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
   CONSTRAINT `harvesting_seasons_ibfk_4` FOREIGN KEY (`closed_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `inventory_movements`;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `inventory_movements` (
   `movement_id` int unsigned NOT NULL AUTO_INCREMENT,
   `season_id` int unsigned NOT NULL,
@@ -293,9 +320,10 @@ CREATE TABLE `inventory_movements` (
   CONSTRAINT `inventory_movements_ibfk_1` FOREIGN KEY (`season_id`) REFERENCES `harvesting_seasons` (`season_id`) ON DELETE RESTRICT,
   CONSTRAINT `inventory_movements_ibfk_2` FOREIGN KEY (`grade_id`) REFERENCES `paddy_grades` (`grade_id`) ON DELETE RESTRICT,
   CONSTRAINT `inventory_movements_ibfk_3` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `inventory_stock`;
+) ENGINE=InnoDB AUTO_INCREMENT=93 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `inventory_stock` (
   `stock_id` int unsigned NOT NULL AUTO_INCREMENT,
   `season_id` int unsigned NOT NULL,
@@ -320,9 +348,10 @@ CREATE TABLE `inventory_stock` (
   KEY `idx_quality_status` (`quality_status`),
   CONSTRAINT `inventory_stock_ibfk_1` FOREIGN KEY (`season_id`) REFERENCES `harvesting_seasons` (`season_id`) ON DELETE RESTRICT,
   CONSTRAINT `inventory_stock_ibfk_2` FOREIGN KEY (`grade_id`) REFERENCES `paddy_grades` (`grade_id`) ON DELETE RESTRICT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `manufacturers`;
+) ENGINE=InnoDB AUTO_INCREMENT=96 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `manufacturers` (
   `manufacturer_id` int unsigned NOT NULL AUTO_INCREMENT,
   `manufacturer_code` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -355,8 +384,9 @@ CREATE TABLE `manufacturers` (
   CONSTRAINT `manufacturers_ibfk_1` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
   CONSTRAINT `manufacturers_ibfk_2` FOREIGN KEY (`updated_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `paddy_grades`;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `paddy_grades` (
   `grade_id` int unsigned NOT NULL AUTO_INCREMENT,
   `grade_code` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -380,9 +410,10 @@ CREATE TABLE `paddy_grades` (
   KEY `updated_by` (`updated_by`),
   CONSTRAINT `paddy_grades_ibfk_1` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
   CONSTRAINT `paddy_grades_ibfk_2` FOREIGN KEY (`updated_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `paddy_products`;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `paddy_products` (
   `product_id` int unsigned NOT NULL AUTO_INCREMENT,
   `product_code` varchar(20) NOT NULL,
@@ -398,9 +429,10 @@ CREATE TABLE `paddy_products` (
   KEY `idx_product_type` (`product_type`),
   KEY `idx_variety` (`variety`),
   KEY `idx_is_active` (`is_active`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Global paddy product types';
-
-DROP TABLE IF EXISTS `printer_configurations`;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Global paddy product types';
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `printer_configurations` (
   `printer_id` int unsigned NOT NULL AUTO_INCREMENT,
   `printer_code` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -430,9 +462,10 @@ CREATE TABLE `printer_configurations` (
   KEY `updated_by` (`updated_by`),
   CONSTRAINT `printer_configurations_ibfk_1` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
   CONSTRAINT `printer_configurations_ibfk_2` FOREIGN KEY (`updated_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `product_price_history`;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `product_price_history` (
   `price_history_id` int unsigned NOT NULL AUTO_INCREMENT,
   `season_id` int unsigned NOT NULL,
@@ -448,9 +481,10 @@ CREATE TABLE `product_price_history` (
   KEY `idx_effective_date` (`effective_date`),
   CONSTRAINT `product_price_history_ibfk_1` FOREIGN KEY (`season_id`) REFERENCES `harvesting_seasons` (`season_id`) ON DELETE CASCADE,
   CONSTRAINT `product_price_history_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `paddy_products` (`product_id`) ON DELETE RESTRICT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='History of product price changes';
-
-DROP TABLE IF EXISTS `purchase_documents`;
+) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='History of product price changes';
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `purchase_documents` (
   `document_id` int unsigned NOT NULL AUTO_INCREMENT,
   `transaction_id` int unsigned NOT NULL,
@@ -469,8 +503,9 @@ CREATE TABLE `purchase_documents` (
   CONSTRAINT `purchase_documents_ibfk_1` FOREIGN KEY (`transaction_id`) REFERENCES `purchase_transactions` (`transaction_id`) ON DELETE CASCADE,
   CONSTRAINT `purchase_documents_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `purchase_transactions`;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `purchase_transactions` (
   `transaction_id` int unsigned NOT NULL AUTO_INCREMENT,
   `parent_transaction_id` int unsigned DEFAULT NULL COMMENT 'Reference to parent transaction if this is a split',
@@ -539,9 +574,102 @@ CREATE TABLE `purchase_transactions` (
   CONSTRAINT `purchase_transactions_ibfk_5` FOREIGN KEY (`updated_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
   CONSTRAINT `purchase_transactions_ibfk_6` FOREIGN KEY (`cancelled_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
   CONSTRAINT `purchase_transactions_ibfk_7` FOREIGN KEY (`product_id`) REFERENCES `paddy_products` (`product_id`) ON DELETE RESTRICT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `receipt_print_log`;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 DEFINER=`azham`@`localhost`*/ /*!50003 TRIGGER `trg_before_purchase_insert` BEFORE INSERT ON `purchase_transactions` FOR EACH ROW BEGIN
+    
+    IF NEW.net_weight_kg IS NULL OR NEW.net_weight_kg = 0 THEN
+        SET NEW.net_weight_kg = NEW.gross_weight_kg - NEW.tare_weight_kg;
+    END IF;
+    
+    
+    SET NEW.final_price_per_kg = NEW.base_price_per_kg - NEW.moisture_penalty - NEW.foreign_matter_penalty + NEW.bonus_amount;
+    
+    
+    SET NEW.total_amount = NEW.net_weight_kg * NEW.final_price_per_kg;
+    
+    
+    IF NEW.status IS NULL THEN
+        SET NEW.status = 'completed';
+    END IF;
+END */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 DEFINER=`azham`@`localhost`*/ /*!50003 TRIGGER `trg_after_purchase_insert` AFTER INSERT ON `purchase_transactions` FOR EACH ROW BEGIN
+    IF NEW.status = 'completed' THEN
+        
+        INSERT INTO inventory_stock (season_id, grade_id, current_quantity_kg, average_cost_per_kg, last_movement_date)
+        VALUES (NEW.season_id, NEW.grade_id, NEW.net_weight_kg, NEW.final_price_per_kg, NEW.transaction_date)
+        ON DUPLICATE KEY UPDATE
+            current_quantity_kg = current_quantity_kg + NEW.net_weight_kg,
+            average_cost_per_kg = ((average_cost_per_kg * current_quantity_kg) + (NEW.final_price_per_kg * NEW.net_weight_kg)) 
+                                / (current_quantity_kg + NEW.net_weight_kg),
+            last_movement_date = NEW.transaction_date;
+        
+        
+        INSERT INTO inventory_movements (
+            season_id, grade_id, movement_type, movement_direction, 
+            quantity_kg, unit_price_per_kg, total_value,
+            reference_type, reference_id, reference_number,
+            movement_date, created_by
+        ) VALUES (
+            NEW.season_id, NEW.grade_id, 'purchase', 'in',
+            NEW.net_weight_kg, NEW.final_price_per_kg, NEW.total_amount,
+            'purchase', NEW.transaction_id, NEW.receipt_number,
+            NEW.transaction_date, NEW.created_by
+        );
+    END IF;
+END */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 DEFINER=`azham`@`localhost`*/ /*!50003 TRIGGER `trg_update_season_on_purchase` AFTER INSERT ON `purchase_transactions` FOR EACH ROW BEGIN
+    IF NEW.status = 'completed' THEN
+        UPDATE harvesting_seasons
+        SET actual_quantity_kg = actual_quantity_kg + NEW.net_weight_kg,
+            total_purchases = total_purchases + NEW.total_amount
+        WHERE season_id = NEW.season_id;
+    END IF;
+END */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `receipt_print_log` (
   `print_log_id` int unsigned NOT NULL AUTO_INCREMENT,
   `transaction_id` int unsigned DEFAULT NULL,
@@ -568,8 +696,9 @@ CREATE TABLE `receipt_print_log` (
   CONSTRAINT `receipt_print_log_ibfk_4` FOREIGN KEY (`template_id`) REFERENCES `receipt_templates` (`template_id`) ON DELETE SET NULL,
   CONSTRAINT `receipt_print_log_ibfk_5` FOREIGN KEY (`printed_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `receipt_split_history`;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `receipt_split_history` (
   `split_id` int unsigned NOT NULL AUTO_INCREMENT,
   `original_transaction_id` int unsigned NOT NULL,
@@ -587,8 +716,9 @@ CREATE TABLE `receipt_split_history` (
   CONSTRAINT `receipt_split_history_ibfk_1` FOREIGN KEY (`original_transaction_id`) REFERENCES `purchase_transactions` (`transaction_id`) ON DELETE RESTRICT,
   CONSTRAINT `receipt_split_history_ibfk_2` FOREIGN KEY (`split_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `receipt_split_portions`;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `receipt_split_portions` (
   `portion_id` int unsigned NOT NULL AUTO_INCREMENT,
   `split_id` int unsigned NOT NULL,
@@ -612,8 +742,9 @@ CREATE TABLE `receipt_split_portions` (
   CONSTRAINT `receipt_split_portions_ibfk_2` FOREIGN KEY (`loaded_container_id`) REFERENCES `delivery_containers` (`container_id`) ON DELETE SET NULL,
   CONSTRAINT `receipt_split_portions_ibfk_3` FOREIGN KEY (`loading_item_id`) REFERENCES `container_loading_items` (`loading_item_id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `receipt_templates`;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `receipt_templates` (
   `template_id` int unsigned NOT NULL AUTO_INCREMENT,
   `template_code` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -647,9 +778,10 @@ CREATE TABLE `receipt_templates` (
   KEY `updated_by` (`updated_by`),
   CONSTRAINT `receipt_templates_ibfk_1` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
   CONSTRAINT `receipt_templates_ibfk_2` FOREIGN KEY (`updated_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `sales_purchase_mapping`;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sales_purchase_mapping` (
   `mapping_id` int unsigned NOT NULL AUTO_INCREMENT,
   `sales_id` int unsigned NOT NULL,
@@ -669,8 +801,9 @@ CREATE TABLE `sales_purchase_mapping` (
   CONSTRAINT `sales_purchase_mapping_ibfk_3` FOREIGN KEY (`grade_id`) REFERENCES `paddy_grades` (`grade_id`) ON DELETE RESTRICT,
   CONSTRAINT `sales_purchase_mapping_ibfk_4` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `sales_transactions`;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sales_transactions` (
   `sales_id` int unsigned NOT NULL AUTO_INCREMENT,
   `sales_number` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -724,8 +857,61 @@ CREATE TABLE `sales_transactions` (
   CONSTRAINT `sales_transactions_ibfk_4` FOREIGN KEY (`updated_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
   CONSTRAINT `sales_transactions_ibfk_5` FOREIGN KEY (`cancelled_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `season_closure_summary`;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 DEFINER=`azham`@`localhost`*/ /*!50003 TRIGGER `trg_update_season_on_sales` AFTER INSERT ON `sales_transactions` FOR EACH ROW BEGIN
+    IF NEW.status = 'completed' THEN
+        UPDATE harvesting_seasons
+        SET total_sales = total_sales + NEW.total_amount
+        WHERE season_id = NEW.season_id;
+    END IF;
+END */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 DEFINER=`azham`@`localhost`*/ /*!50003 TRIGGER `trg_after_sales_complete` AFTER UPDATE ON `sales_transactions` FOR EACH ROW BEGIN
+    IF NEW.status = 'completed' AND OLD.status != 'completed' THEN
+        
+        
+        INSERT INTO inventory_movements (
+            season_id, grade_id, movement_type, movement_direction,
+            quantity_kg, unit_price_per_kg, total_value,
+            reference_type, reference_id, reference_number,
+            movement_date, created_by
+        ) VALUES (
+            NEW.season_id, NULL, 'sale', 'out',
+            NEW.total_quantity_kg, NEW.sale_price_per_kg, NEW.total_amount,
+            'sales', NEW.sales_id, NEW.sales_number,
+            NEW.sale_date, NEW.updated_by
+        );
+    END IF;
+END */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `season_closure_summary` (
   `closure_id` int unsigned NOT NULL AUTO_INCREMENT,
   `season_id` int unsigned NOT NULL,
@@ -750,8 +936,9 @@ CREATE TABLE `season_closure_summary` (
   CONSTRAINT `season_closure_summary_ibfk_1` FOREIGN KEY (`season_id`) REFERENCES `harvesting_seasons` (`season_id`) ON DELETE CASCADE,
   CONSTRAINT `season_closure_summary_ibfk_2` FOREIGN KEY (`closed_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `season_grade_pricing`;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `season_grade_pricing` (
   `pricing_id` int unsigned NOT NULL AUTO_INCREMENT,
   `season_id` int unsigned NOT NULL,
@@ -779,9 +966,10 @@ CREATE TABLE `season_grade_pricing` (
   CONSTRAINT `season_grade_pricing_ibfk_2` FOREIGN KEY (`grade_id`) REFERENCES `paddy_grades` (`grade_id`) ON DELETE CASCADE,
   CONSTRAINT `season_grade_pricing_ibfk_3` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
   CONSTRAINT `season_grade_pricing_ibfk_4` FOREIGN KEY (`updated_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `season_grade_standards`;
+) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `season_grade_standards` (
   `standard_id` int unsigned NOT NULL AUTO_INCREMENT,
   `season_id` int unsigned NOT NULL,
@@ -808,9 +996,10 @@ CREATE TABLE `season_grade_standards` (
   CONSTRAINT `season_grade_standards_ibfk_2` FOREIGN KEY (`grade_id`) REFERENCES `paddy_grades` (`grade_id`) ON DELETE CASCADE,
   CONSTRAINT `season_grade_standards_ibfk_3` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
   CONSTRAINT `season_grade_standards_ibfk_4` FOREIGN KEY (`updated_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `season_price_history`;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `season_price_history` (
   `price_history_id` int unsigned NOT NULL AUTO_INCREMENT,
   `season_id` int unsigned NOT NULL,
@@ -823,8 +1012,9 @@ CREATE TABLE `season_price_history` (
   KEY `idx_season_effective_date` (`season_id`,`effective_date` DESC),
   CONSTRAINT `season_price_history_ibfk_1` FOREIGN KEY (`season_id`) REFERENCES `harvesting_seasons` (`season_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Records price changes throughout a season';
-
-DROP TABLE IF EXISTS `season_product_prices`;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `season_product_prices` (
   `season_product_price_id` int unsigned NOT NULL AUTO_INCREMENT,
   `season_id` int unsigned NOT NULL,
@@ -839,9 +1029,10 @@ CREATE TABLE `season_product_prices` (
   KEY `idx_product_id` (`product_id`),
   CONSTRAINT `season_product_prices_ibfk_1` FOREIGN KEY (`season_id`) REFERENCES `harvesting_seasons` (`season_id`) ON DELETE CASCADE,
   CONSTRAINT `season_product_prices_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `paddy_products` (`product_id`) ON DELETE RESTRICT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Product prices per season';
-
-DROP TABLE IF EXISTS `season_type_config`;
+) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Product prices per season';
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `season_type_config` (
   `type_id` int unsigned NOT NULL AUTO_INCREMENT,
   `type_code` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -863,9 +1054,10 @@ CREATE TABLE `season_type_config` (
   KEY `updated_by` (`updated_by`),
   CONSTRAINT `season_type_config_ibfk_1` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
   CONSTRAINT `season_type_config_ibfk_2` FOREIGN KEY (`updated_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `stock_adjustments`;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `stock_adjustments` (
   `adjustment_id` int unsigned NOT NULL AUTO_INCREMENT,
   `season_id` int unsigned NOT NULL,
@@ -900,8 +1092,9 @@ CREATE TABLE `stock_adjustments` (
   CONSTRAINT `stock_adjustments_ibfk_4` FOREIGN KEY (`updated_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
   CONSTRAINT `stock_adjustments_ibfk_5` FOREIGN KEY (`approved_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `system_notifications`;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `system_notifications` (
   `notification_id` int unsigned NOT NULL AUTO_INCREMENT,
   `notification_type` enum('info','warning','error','success') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'info',
@@ -928,8 +1121,9 @@ CREATE TABLE `system_notifications` (
   CONSTRAINT `system_notifications_ibfk_1` FOREIGN KEY (`target_user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
   CONSTRAINT `system_notifications_ibfk_2` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `system_print_settings`;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `system_print_settings` (
   `print_setting_id` int unsigned NOT NULL AUTO_INCREMENT,
   `setting_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -957,9 +1151,10 @@ CREATE TABLE `system_print_settings` (
   KEY `updated_by` (`updated_by`),
   CONSTRAINT `system_print_settings_ibfk_1` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
   CONSTRAINT `system_print_settings_ibfk_2` FOREIGN KEY (`updated_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `system_settings`;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `system_settings` (
   `setting_id` int unsigned NOT NULL AUTO_INCREMENT,
   `setting_category` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -982,9 +1177,10 @@ CREATE TABLE `system_settings` (
   KEY `updated_by` (`updated_by`),
   CONSTRAINT `system_settings_ibfk_1` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
   CONSTRAINT `system_settings_ibfk_2` FOREIGN KEY (`updated_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `user_print_preferences`;
+) ENGINE=InnoDB AUTO_INCREMENT=24 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `user_print_preferences` (
   `preference_id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned NOT NULL,
@@ -1004,8 +1200,9 @@ CREATE TABLE `user_print_preferences` (
   CONSTRAINT `user_print_preferences_ibfk_2` FOREIGN KEY (`printer_id`) REFERENCES `printer_configurations` (`printer_id`) ON DELETE SET NULL,
   CONSTRAINT `user_print_preferences_ibfk_3` FOREIGN KEY (`template_id`) REFERENCES `receipt_templates` (`template_id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `user_sessions`;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `user_sessions` (
   `session_id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned NOT NULL,
@@ -1026,8 +1223,9 @@ CREATE TABLE `user_sessions` (
   KEY `idx_last_activity` (`last_activity`),
   CONSTRAINT `user_sessions_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `users`;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `users` (
   `user_id` int unsigned NOT NULL AUTO_INCREMENT,
   `username` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1048,9 +1246,205 @@ CREATE TABLE `users` (
   KEY `idx_username` (`username`),
   KEY `idx_role` (`role`),
   KEY `idx_status` (`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `weighbridges`;
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `vw_container_loading_details` AS SELECT 
+ 1 AS `container_id`,
+ 1 AS `container_number`,
+ 1 AS `container_type`,
+ 1 AS `sales_id`,
+ 1 AS `sales_number`,
+ 1 AS `manufacturer_name`,
+ 1 AS `target_capacity_kg`,
+ 1 AS `actual_loaded_kg`,
+ 1 AS `container_status`,
+ 1 AS `items_loaded`,
+ 1 AS `total_loaded_kg`,
+ 1 AS `loading_percentage`,
+ 1 AS `loading_started_at`,
+ 1 AS `loading_completed_at`,
+ 1 AS `loading_duration_minutes`*/;
+SET character_set_client = @saved_cs_client;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `vw_current_inventory_summary` AS SELECT 
+ 1 AS `stock_id`,
+ 1 AS `season_id`,
+ 1 AS `season_name`,
+ 1 AS `season_status`,
+ 1 AS `grade_id`,
+ 1 AS `grade_name`,
+ 1 AS `current_quantity_kg`,
+ 1 AS `reserved_quantity_kg`,
+ 1 AS `available_quantity_kg`,
+ 1 AS `average_cost_per_kg`,
+ 1 AS `total_value`,
+ 1 AS `storage_location`,
+ 1 AS `quality_status`,
+ 1 AS `last_quality_check_date`,
+ 1 AS `last_movement_date`*/;
+SET character_set_client = @saved_cs_client;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `vw_daily_purchase_summary` AS SELECT 
+ 1 AS `purchase_date`,
+ 1 AS `season_id`,
+ 1 AS `season_name`,
+ 1 AS `grade_id`,
+ 1 AS `grade_name`,
+ 1 AS `total_transactions`,
+ 1 AS `unique_farmers`,
+ 1 AS `total_weight_kg`,
+ 1 AS `avg_price_per_kg`,
+ 1 AS `total_amount`,
+ 1 AS `avg_moisture_content`,
+ 1 AS `avg_foreign_matter`*/;
+SET character_set_client = @saved_cs_client;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `vw_farmer_purchase_summary` AS SELECT 
+ 1 AS `farmer_id`,
+ 1 AS `farmer_code`,
+ 1 AS `farmer_name`,
+ 1 AS `phone`,
+ 1 AS `farmer_status`,
+ 1 AS `season_id`,
+ 1 AS `season_name`,
+ 1 AS `total_transactions`,
+ 1 AS `total_weight_kg`,
+ 1 AS `total_amount`,
+ 1 AS `avg_price_per_kg`,
+ 1 AS `first_transaction_date`,
+ 1 AS `last_transaction_date`,
+ 1 AS `avg_moisture_content`,
+ 1 AS `avg_foreign_matter`*/;
+SET character_set_client = @saved_cs_client;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `vw_grade_performance` AS SELECT 
+ 1 AS `grade_id`,
+ 1 AS `grade_code`,
+ 1 AS `grade_name`,
+ 1 AS `season_id`,
+ 1 AS `season_name`,
+ 1 AS `total_transactions`,
+ 1 AS `total_purchased_kg`,
+ 1 AS `avg_purchase_price`,
+ 1 AS `min_price`,
+ 1 AS `max_price`,
+ 1 AS `avg_moisture`,
+ 1 AS `avg_foreign_matter`,
+ 1 AS `current_stock_kg`,
+ 1 AS `available_stock_kg`*/;
+SET character_set_client = @saved_cs_client;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `vw_manufacturer_sales_summary` AS SELECT 
+ 1 AS `manufacturer_id`,
+ 1 AS `manufacturer_code`,
+ 1 AS `company_name`,
+ 1 AS `manufacturer_status`,
+ 1 AS `season_id`,
+ 1 AS `season_name`,
+ 1 AS `total_sales`,
+ 1 AS `total_quantity_kg`,
+ 1 AS `total_amount`,
+ 1 AS `total_paid`,
+ 1 AS `outstanding_amount`,
+ 1 AS `avg_price_per_kg`,
+ 1 AS `first_sale_date`,
+ 1 AS `last_sale_date`*/;
+SET character_set_client = @saved_cs_client;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `vw_pending_payments` AS SELECT 
+ 1 AS `transaction_type`,
+ 1 AS `transaction_id`,
+ 1 AS `transaction_number`,
+ 1 AS `transaction_date`,
+ 1 AS `party_id`,
+ 1 AS `party_name`,
+ 1 AS `party_phone`,
+ 1 AS `total_amount`,
+ 1 AS `paid_amount`,
+ 1 AS `outstanding_amount`,
+ 1 AS `due_date`,
+ 1 AS `days_overdue`,
+ 1 AS `payment_status`*/;
+SET character_set_client = @saved_cs_client;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `vw_production_purchases` AS SELECT 
+ 1 AS `transaction_id`,
+ 1 AS `receipt_number`,
+ 1 AS `season_id`,
+ 1 AS `farmer_id`,
+ 1 AS `grade_id`,
+ 1 AS `transaction_date`,
+ 1 AS `gross_weight_kg`,
+ 1 AS `tare_weight_kg`,
+ 1 AS `net_weight_kg`,
+ 1 AS `moisture_content`,
+ 1 AS `foreign_matter`,
+ 1 AS `base_price_per_kg`,
+ 1 AS `moisture_penalty`,
+ 1 AS `foreign_matter_penalty`,
+ 1 AS `bonus_amount`,
+ 1 AS `final_price_per_kg`,
+ 1 AS `total_amount`,
+ 1 AS `vehicle_number`,
+ 1 AS `driver_name`,
+ 1 AS `status`,
+ 1 AS `payment_status`,
+ 1 AS `payment_date`,
+ 1 AS `weighbridge_id`,
+ 1 AS `weighing_log_id`,
+ 1 AS `is_printed`,
+ 1 AS `print_count`,
+ 1 AS `last_printed_at`,
+ 1 AS `notes`,
+ 1 AS `cancelled_at`,
+ 1 AS `cancelled_by`,
+ 1 AS `cancellation_reason`,
+ 1 AS `created_at`,
+ 1 AS `created_by`,
+ 1 AS `updated_at`,
+ 1 AS `updated_by`,
+ 1 AS `season_name`,
+ 1 AS `season_code`,
+ 1 AS `season_type`,
+ 1 AS `farmer_code`,
+ 1 AS `farmer_name`,
+ 1 AS `farmer_phone`,
+ 1 AS `grade_name`,
+ 1 AS `grade_code`*/;
+SET character_set_client = @saved_cs_client;
+SET @saved_cs_client     = @@character_set_client;
+/*!50503 SET character_set_client = utf8mb4 */;
+/*!50001 CREATE VIEW `vw_season_performance` AS SELECT 
+ 1 AS `season_id`,
+ 1 AS `season_code`,
+ 1 AS `season_name`,
+ 1 AS `status`,
+ 1 AS `start_date`,
+ 1 AS `end_date`,
+ 1 AS `duration_days`,
+ 1 AS `total_purchases`,
+ 1 AS `unique_farmers`,
+ 1 AS `total_purchased_kg`,
+ 1 AS `total_purchase_amount`,
+ 1 AS `avg_purchase_price`,
+ 1 AS `total_sales`,
+ 1 AS `unique_manufacturers`,
+ 1 AS `total_sold_kg`,
+ 1 AS `total_sales_amount`,
+ 1 AS `current_stock_kg`,
+ 1 AS `gross_margin`*/;
+SET character_set_client = @saved_cs_client;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `weighbridges` (
   `weighbridge_id` int unsigned NOT NULL AUTO_INCREMENT,
   `weighbridge_code` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -1083,9 +1477,10 @@ CREATE TABLE `weighbridges` (
   KEY `updated_by` (`updated_by`),
   CONSTRAINT `weighbridges_ibfk_1` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
   CONSTRAINT `weighbridges_ibfk_2` FOREIGN KEY (`updated_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-DROP TABLE IF EXISTS `weighing_logs`;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `weighing_logs` (
   `log_id` int unsigned NOT NULL AUTO_INCREMENT,
   `weighbridge_id` int unsigned NOT NULL,
@@ -1112,48 +1507,17 @@ CREATE TABLE `weighing_logs` (
   CONSTRAINT `weighing_logs_ibfk_2` FOREIGN KEY (`transaction_id`) REFERENCES `purchase_transactions` (`transaction_id`) ON DELETE SET NULL,
   CONSTRAINT `weighing_logs_ibfk_3` FOREIGN KEY (`operator_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
--- ============================================
--- VIEWS
--- ============================================
-
-DROP VIEW IF EXISTS `vw_container_loading_details`;
-CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `vw_container_loading_details` AS select `dc`.`container_id` AS `container_id`,`dc`.`container_number` AS `container_number`,`dc`.`container_type` AS `container_type`,`st`.`sales_id` AS `sales_id`,`st`.`sales_number` AS `sales_number`,`m`.`company_name` AS `manufacturer_name`,`dc`.`target_capacity_kg` AS `target_capacity_kg`,`dc`.`actual_loaded_kg` AS `actual_loaded_kg`,`dc`.`status` AS `container_status`,count(`cli`.`loading_item_id`) AS `items_loaded`,sum(`cli`.`quantity_loaded_kg`) AS `total_loaded_kg`,round(((`dc`.`actual_loaded_kg` / nullif(`dc`.`target_capacity_kg`,0)) * 100),2) AS `loading_percentage`,`dc`.`loading_started_at` AS `loading_started_at`,`dc`.`loading_completed_at` AS `loading_completed_at`,timestampdiff(MINUTE,`dc`.`loading_started_at`,`dc`.`loading_completed_at`) AS `loading_duration_minutes` from (((`delivery_containers` `dc` join `sales_transactions` `st` on((`dc`.`sales_id` = `st`.`sales_id`))) join `manufacturers` `m` on((`st`.`manufacturer_id` = `m`.`manufacturer_id`))) left join `container_loading_items` `cli` on((`dc`.`container_id` = `cli`.`container_id`))) group by `dc`.`container_id`,`dc`.`container_number`,`dc`.`container_type`,`st`.`sales_id`,`st`.`sales_number`,`m`.`company_name`,`dc`.`target_capacity_kg`,`dc`.`actual_loaded_kg`,`dc`.`status`,`dc`.`loading_started_at`,`dc`.`loading_completed_at`;
-
-DROP VIEW IF EXISTS `vw_current_inventory_summary`;
-CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `vw_current_inventory_summary` AS select `ist`.`stock_id` AS `stock_id`,`hs`.`season_id` AS `season_id`,`hs`.`season_name` AS `season_name`,`hs`.`status` AS `season_status`,`pg`.`grade_id` AS `grade_id`,`pg`.`grade_name` AS `grade_name`,`ist`.`current_quantity_kg` AS `current_quantity_kg`,`ist`.`reserved_quantity_kg` AS `reserved_quantity_kg`,`ist`.`available_quantity_kg` AS `available_quantity_kg`,`ist`.`average_cost_per_kg` AS `average_cost_per_kg`,`ist`.`total_value` AS `total_value`,`ist`.`storage_location` AS `storage_location`,`ist`.`quality_status` AS `quality_status`,`ist`.`last_quality_check_date` AS `last_quality_check_date`,`ist`.`last_movement_date` AS `last_movement_date` from ((`inventory_stock` `ist` join `harvesting_seasons` `hs` on((`ist`.`season_id` = `hs`.`season_id`))) join `paddy_grades` `pg` on((`ist`.`grade_id` = `pg`.`grade_id`))) where (`ist`.`current_quantity_kg` > 0) order by `hs`.`season_name`,`pg`.`display_order`;
-
-DROP VIEW IF EXISTS `vw_daily_purchase_summary`;
-CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `vw_daily_purchase_summary` AS select cast(`pt`.`transaction_date` as date) AS `purchase_date`,`hs`.`season_id` AS `season_id`,`hs`.`season_name` AS `season_name`,`pg`.`grade_id` AS `grade_id`,`pg`.`grade_name` AS `grade_name`,count(`pt`.`transaction_id`) AS `total_transactions`,count(distinct `pt`.`farmer_id`) AS `unique_farmers`,sum(`pt`.`net_weight_kg`) AS `total_weight_kg`,avg(`pt`.`final_price_per_kg`) AS `avg_price_per_kg`,sum(`pt`.`total_amount`) AS `total_amount`,avg(`pt`.`moisture_content`) AS `avg_moisture_content`,avg(`pt`.`foreign_matter`) AS `avg_foreign_matter` from ((`purchase_transactions` `pt` join `harvesting_seasons` `hs` on((`pt`.`season_id` = `hs`.`season_id`))) join `paddy_grades` `pg` on((`pt`.`grade_id` = `pg`.`grade_id`))) where (`pt`.`status` = 'completed') group by cast(`pt`.`transaction_date` as date),`hs`.`season_id`,`hs`.`season_name`,`pg`.`grade_id`,`pg`.`grade_name`;
-
-DROP VIEW IF EXISTS `vw_farmer_purchase_summary`;
-CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `vw_farmer_purchase_summary` AS select `f`.`farmer_id` AS `farmer_id`,`f`.`farmer_code` AS `farmer_code`,`f`.`full_name` AS `farmer_name`,`f`.`phone` AS `phone`,`f`.`status` AS `farmer_status`,`hs`.`season_id` AS `season_id`,`hs`.`season_name` AS `season_name`,count(`pt`.`transaction_id`) AS `total_transactions`,sum(`pt`.`net_weight_kg`) AS `total_weight_kg`,sum(`pt`.`total_amount`) AS `total_amount`,avg(`pt`.`final_price_per_kg`) AS `avg_price_per_kg`,min(`pt`.`transaction_date`) AS `first_transaction_date`,max(`pt`.`transaction_date`) AS `last_transaction_date`,avg(`pt`.`moisture_content`) AS `avg_moisture_content`,avg(`pt`.`foreign_matter`) AS `avg_foreign_matter` from ((`farmers` `f` left join `purchase_transactions` `pt` on(((`f`.`farmer_id` = `pt`.`farmer_id`) and (`pt`.`status` = 'completed')))) left join `harvesting_seasons` `hs` on((`pt`.`season_id` = `hs`.`season_id`))) group by `f`.`farmer_id`,`f`.`farmer_code`,`f`.`full_name`,`f`.`phone`,`f`.`status`,`hs`.`season_id`,`hs`.`season_name`;
-
-DROP VIEW IF EXISTS `vw_grade_performance`;
-CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `vw_grade_performance` AS select `pg`.`grade_id` AS `grade_id`,`pg`.`grade_code` AS `grade_code`,`pg`.`grade_name` AS `grade_name`,`hs`.`season_id` AS `season_id`,`hs`.`season_name` AS `season_name`,count(`pt`.`transaction_id`) AS `total_transactions`,sum(`pt`.`net_weight_kg`) AS `total_purchased_kg`,avg(`pt`.`final_price_per_kg`) AS `avg_purchase_price`,min(`pt`.`final_price_per_kg`) AS `min_price`,max(`pt`.`final_price_per_kg`) AS `max_price`,avg(`pt`.`moisture_content`) AS `avg_moisture`,avg(`pt`.`foreign_matter`) AS `avg_foreign_matter`,ifnull(`ist`.`current_quantity_kg`,0) AS `current_stock_kg`,ifnull(`ist`.`available_quantity_kg`,0) AS `available_stock_kg` from (((`paddy_grades` `pg` join `harvesting_seasons` `hs`) left join `purchase_transactions` `pt` on(((`pg`.`grade_id` = `pt`.`grade_id`) and (`hs`.`season_id` = `pt`.`season_id`) and (`pt`.`status` = 'completed')))) left join `inventory_stock` `ist` on(((`pg`.`grade_id` = `ist`.`grade_id`) and (`hs`.`season_id` = `ist`.`season_id`)))) where (`hs`.`status` in ('active','closed')) group by `pg`.`grade_id`,`pg`.`grade_code`,`pg`.`grade_name`,`hs`.`season_id`,`hs`.`season_name`,`ist`.`current_quantity_kg`,`ist`.`available_quantity_kg` having ((`total_transactions` > 0) or (`current_stock_kg` > 0));
-
-DROP VIEW IF EXISTS `vw_manufacturer_sales_summary`;
-CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `vw_manufacturer_sales_summary` AS select `m`.`manufacturer_id` AS `manufacturer_id`,`m`.`manufacturer_code` AS `manufacturer_code`,`m`.`company_name` AS `company_name`,`m`.`status` AS `manufacturer_status`,`hs`.`season_id` AS `season_id`,`hs`.`season_name` AS `season_name`,count(`st`.`sales_id`) AS `total_sales`,sum(`st`.`total_quantity_kg`) AS `total_quantity_kg`,sum(`st`.`total_amount`) AS `total_amount`,sum(`st`.`paid_amount`) AS `total_paid`,sum((`st`.`total_amount` - `st`.`paid_amount`)) AS `outstanding_amount`,avg(`st`.`sale_price_per_kg`) AS `avg_price_per_kg`,min(`st`.`sale_date`) AS `first_sale_date`,max(`st`.`sale_date`) AS `last_sale_date` from ((`manufacturers` `m` left join `sales_transactions` `st` on(((`m`.`manufacturer_id` = `st`.`manufacturer_id`) and (`st`.`status` = 'completed')))) left join `harvesting_seasons` `hs` on((`st`.`season_id` = `hs`.`season_id`))) group by `m`.`manufacturer_id`,`m`.`manufacturer_code`,`m`.`company_name`,`m`.`status`,`hs`.`season_id`,`hs`.`season_name`;
-
-DROP VIEW IF EXISTS `vw_pending_payments`;
-CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `vw_pending_payments` AS select 'sales' AS `transaction_type`,`st`.`sales_id` AS `transaction_id`,`st`.`sales_number` AS `transaction_number`,`st`.`sale_date` AS `transaction_date`,`m`.`manufacturer_id` AS `party_id`,`m`.`company_name` AS `party_name`,`m`.`phone` AS `party_phone`,`st`.`total_amount` AS `total_amount`,`st`.`paid_amount` AS `paid_amount`,(`st`.`total_amount` - `st`.`paid_amount`) AS `outstanding_amount`,`st`.`due_date` AS `due_date`,(to_days(curdate()) - to_days(`st`.`due_date`)) AS `days_overdue`,`st`.`payment_status` AS `payment_status` from (`sales_transactions` `st` join `manufacturers` `m` on((`st`.`manufacturer_id` = `m`.`manufacturer_id`))) where ((`st`.`payment_status` in ('pending','partial')) and (`st`.`status` = 'completed')) union all select 'purchase' AS `transaction_type`,`pt`.`transaction_id` AS `transaction_id`,`pt`.`receipt_number` AS `transaction_number`,`pt`.`transaction_date` AS `transaction_date`,`f`.`farmer_id` AS `party_id`,`f`.`full_name` AS `party_name`,`f`.`phone` AS `party_phone`,`pt`.`total_amount` AS `total_amount`,0 AS `paid_amount`,`pt`.`total_amount` AS `outstanding_amount`,NULL AS `due_date`,NULL AS `days_overdue`,`pt`.`payment_status` AS `payment_status` from (`purchase_transactions` `pt` join `farmers` `f` on((`pt`.`farmer_id` = `f`.`farmer_id`))) where ((`pt`.`payment_status` = 'unpaid') and (`pt`.`status` = 'completed')) order by `transaction_date` desc;
-
-DROP VIEW IF EXISTS `vw_production_purchases`;
-CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `vw_production_purchases` AS select `pt`.`transaction_id` AS `transaction_id`,`pt`.`receipt_number` AS `receipt_number`,`pt`.`season_id` AS `season_id`,`pt`.`farmer_id` AS `farmer_id`,`pt`.`grade_id` AS `grade_id`,`pt`.`transaction_date` AS `transaction_date`,`pt`.`gross_weight_kg` AS `gross_weight_kg`,`pt`.`tare_weight_kg` AS `tare_weight_kg`,`pt`.`net_weight_kg` AS `net_weight_kg`,`pt`.`moisture_content` AS `moisture_content`,`pt`.`foreign_matter` AS `foreign_matter`,`pt`.`base_price_per_kg` AS `base_price_per_kg`,`pt`.`moisture_penalty` AS `moisture_penalty`,`pt`.`foreign_matter_penalty` AS `foreign_matter_penalty`,`pt`.`bonus_amount` AS `bonus_amount`,`pt`.`final_price_per_kg` AS `final_price_per_kg`,`pt`.`total_amount` AS `total_amount`,`pt`.`vehicle_number` AS `vehicle_number`,`pt`.`driver_name` AS `driver_name`,`pt`.`status` AS `status`,`pt`.`payment_status` AS `payment_status`,`pt`.`payment_date` AS `payment_date`,`pt`.`weighbridge_id` AS `weighbridge_id`,`pt`.`weighing_log_id` AS `weighing_log_id`,`pt`.`is_printed` AS `is_printed`,`pt`.`print_count` AS `print_count`,`pt`.`last_printed_at` AS `last_printed_at`,`pt`.`notes` AS `notes`,`pt`.`cancelled_at` AS `cancelled_at`,`pt`.`cancelled_by` AS `cancelled_by`,`pt`.`cancellation_reason` AS `cancellation_reason`,`pt`.`created_at` AS `created_at`,`pt`.`created_by` AS `created_by`,`pt`.`updated_at` AS `updated_at`,`pt`.`updated_by` AS `updated_by`,`hs`.`season_name` AS `season_name`,`hs`.`season_code` AS `season_code`,`stc`.`type_name` AS `season_type`,`f`.`farmer_code` AS `farmer_code`,`f`.`full_name` AS `farmer_name`,`f`.`phone` AS `farmer_phone`,`pg`.`grade_name` AS `grade_name`,`pg`.`grade_code` AS `grade_code` from ((((`purchase_transactions` `pt` join `harvesting_seasons` `hs` on((`pt`.`season_id` = `hs`.`season_id`))) join `season_type_config` `stc` on((`hs`.`season_type_id` = `stc`.`type_id`))) join `farmers` `f` on((`pt`.`farmer_id` = `f`.`farmer_id`))) join `paddy_grades` `pg` on((`pt`.`grade_id` = `pg`.`grade_id`))) where ((`stc`.`is_production` = true) and (`pt`.`status` = 'completed')) order by `pt`.`transaction_date` desc;
-
-DROP VIEW IF EXISTS `vw_season_performance`;
-CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `vw_season_performance` AS select `hs`.`season_id` AS `season_id`,`hs`.`season_code` AS `season_code`,`hs`.`season_name` AS `season_name`,`hs`.`status` AS `status`,`hs`.`start_date` AS `start_date`,`hs`.`end_date` AS `end_date`,(to_days(ifnull(`hs`.`end_date`,curdate())) - to_days(`hs`.`start_date`)) AS `duration_days`,count(distinct `pt`.`transaction_id`) AS `total_purchases`,count(distinct `pt`.`farmer_id`) AS `unique_farmers`,sum(`pt`.`net_weight_kg`) AS `total_purchased_kg`,sum(`pt`.`total_amount`) AS `total_purchase_amount`,avg(`pt`.`final_price_per_kg`) AS `avg_purchase_price`,count(distinct `st`.`sales_id`) AS `total_sales`,count(distinct `st`.`manufacturer_id`) AS `unique_manufacturers`,ifnull(sum(`st`.`total_quantity_kg`),0) AS `total_sold_kg`,ifnull(sum(`st`.`total_amount`),0) AS `total_sales_amount`,ifnull(sum(`ist`.`current_quantity_kg`),0) AS `current_stock_kg`,(ifnull(sum(`st`.`total_amount`),0) - sum(`pt`.`total_amount`)) AS `gross_margin` from (((`harvesting_seasons` `hs` left join `purchase_transactions` `pt` on(((`hs`.`season_id` = `pt`.`season_id`) and (`pt`.`status` = 'completed')))) left join `sales_transactions` `st` on(((`hs`.`season_id` = `st`.`season_id`) and (`st`.`status` = 'completed')))) left join `inventory_stock` `ist` on((`hs`.`season_id` = `ist`.`season_id`))) group by `hs`.`season_id`,`hs`.`season_code`,`hs`.`season_name`,`hs`.`status`,`hs`.`start_date`,`hs`.`end_date`;
-
-
--- ============================================
--- STORED PROCEDURES
--- ============================================
-
-DELIMITER //
-
-DROP PROCEDURE IF EXISTS `sp_calculate_purchase_amount`; //
-CREATE PROCEDURE `sp_calculate_purchase_amount`(
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`azham`@`localhost` PROCEDURE `sp_calculate_purchase_amount`(
     IN p_net_weight_kg DECIMAL(10,2),
     IN p_base_price DECIMAL(10,2),
     IN p_moisture_content DECIMAL(5,2),
@@ -1205,10 +1569,22 @@ BEGIN
     
     SET p_final_price = p_base_price - p_moisture_penalty - p_foreign_matter_penalty;
     SET p_total_amount = p_net_weight_kg * p_final_price;
-END //
-
-DROP PROCEDURE IF EXISTS `sp_close_season`; //
-CREATE PROCEDURE `sp_close_season`(
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`azham`@`localhost` PROCEDURE `sp_close_season`(
     IN p_season_id INT UNSIGNED,
     IN p_closed_by INT UNSIGNED
 )
@@ -1280,10 +1656,22 @@ BEGIN
     WHERE season_id = p_season_id;
     
     SELECT 'Season closed successfully' AS message;
-END //
-
-DROP PROCEDURE IF EXISTS `sp_generate_receipt_number`; //
-CREATE PROCEDURE `sp_generate_receipt_number`(
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`azham`@`localhost` PROCEDURE `sp_generate_receipt_number`(
     IN p_season_id INT UNSIGNED,
     OUT p_receipt_number VARCHAR(30)
 )
@@ -1338,10 +1726,22 @@ BEGIN
     
     
     SET p_receipt_number = CONCAT(v_season_prefix, '/', LPAD(v_next_number, 6, '0'), v_demo_suffix);
-END //
-
-DROP PROCEDURE IF EXISTS `sp_generate_sales_number`; //
-CREATE PROCEDURE `sp_generate_sales_number`(
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`azham`@`localhost` PROCEDURE `sp_generate_sales_number`(
     IN p_season_id INT UNSIGNED,
     OUT p_sales_number VARCHAR(30)
 )
@@ -1396,10 +1796,22 @@ BEGIN
     
     
     SET p_sales_number = CONCAT(v_season_prefix, '/', LPAD(v_next_number, 6, '0'), v_demo_suffix);
-END //
-
-DROP PROCEDURE IF EXISTS `sp_get_farmer_stats`; //
-CREATE PROCEDURE `sp_get_farmer_stats`(
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`azham`@`localhost` PROCEDURE `sp_get_farmer_stats`(
     IN p_farmer_id INT UNSIGNED,
     IN p_season_id INT UNSIGNED
 )
@@ -1421,10 +1833,22 @@ BEGIN
         AND pt.status = 'completed'
     WHERE f.farmer_id = p_farmer_id
     GROUP BY f.farmer_id, f.farmer_code, f.full_name;
-END //
-
-DROP PROCEDURE IF EXISTS `sp_get_stock_level`; //
-CREATE PROCEDURE `sp_get_stock_level`(
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+CREATE DEFINER=`azham`@`localhost` PROCEDURE `sp_get_stock_level`(
     IN p_season_id INT UNSIGNED,
     IN p_grade_id INT UNSIGNED,
     OUT p_current_stock DECIMAL(15,2),
@@ -1443,167 +1867,126 @@ BEGIN
     FROM inventory_stock
     WHERE season_id = p_season_id
       AND grade_id = p_grade_id;
-END //
-
+END ;;
 DELIMITER ;
-
-
--- ============================================
--- TRIGGERS
--- ============================================
-
-DELIMITER //
-
-DROP TRIGGER IF EXISTS `trg_after_container_item_insert`; //
-CREATE TRIGGER `trg_after_container_item_insert` AFTER INSERT ON `container_loading_items` FOR EACH ROW BEGIN
-    DECLARE v_season_id INT UNSIGNED;
-    
-    
-    SELECT season_id INTO v_season_id
-    FROM purchase_transactions
-    WHERE transaction_id = NEW.transaction_id;
-    
-    
-    UPDATE inventory_stock
-    SET current_quantity_kg = current_quantity_kg - NEW.quantity_loaded_kg,
-        last_movement_date = NEW.loading_timestamp
-    WHERE season_id = v_season_id
-      AND grade_id = NEW.grade_id;
-    
-    
-    UPDATE delivery_containers
-    SET actual_loaded_kg = actual_loaded_kg + NEW.quantity_loaded_kg
-    WHERE container_id = NEW.container_id;
-END //
-
-DROP TRIGGER IF EXISTS `trg_after_purchase_insert`; //
-CREATE TRIGGER `trg_after_purchase_insert` AFTER INSERT ON `purchase_transactions` FOR EACH ROW BEGIN
-    IF NEW.status = 'completed' THEN
-        
-        INSERT INTO inventory_stock (season_id, grade_id, current_quantity_kg, average_cost_per_kg, last_movement_date)
-        VALUES (NEW.season_id, NEW.grade_id, NEW.net_weight_kg, NEW.final_price_per_kg, NEW.transaction_date)
-        ON DUPLICATE KEY UPDATE
-            current_quantity_kg = current_quantity_kg + NEW.net_weight_kg,
-            average_cost_per_kg = ((average_cost_per_kg * current_quantity_kg) + (NEW.final_price_per_kg * NEW.net_weight_kg)) 
-                                / (current_quantity_kg + NEW.net_weight_kg),
-            last_movement_date = NEW.transaction_date;
-        
-        
-        INSERT INTO inventory_movements (
-            season_id, grade_id, movement_type, movement_direction, 
-            quantity_kg, unit_price_per_kg, total_value,
-            reference_type, reference_id, reference_number,
-            movement_date, created_by
-        ) VALUES (
-            NEW.season_id, NEW.grade_id, 'purchase', 'in',
-            NEW.net_weight_kg, NEW.final_price_per_kg, NEW.total_amount,
-            'purchase', NEW.transaction_id, NEW.receipt_number,
-            NEW.transaction_date, NEW.created_by
-        );
-    END IF;
-END //
-
-DROP TRIGGER IF EXISTS `trg_after_sales_complete`; //
-CREATE TRIGGER `trg_after_sales_complete` AFTER UPDATE ON `sales_transactions` FOR EACH ROW BEGIN
-    IF NEW.status = 'completed' AND OLD.status != 'completed' THEN
-        
-        
-        INSERT INTO inventory_movements (
-            season_id, grade_id, movement_type, movement_direction,
-            quantity_kg, unit_price_per_kg, total_value,
-            reference_type, reference_id, reference_number,
-            movement_date, created_by
-        ) VALUES (
-            NEW.season_id, NULL, 'sale', 'out',
-            NEW.total_quantity_kg, NEW.sale_price_per_kg, NEW.total_amount,
-            'sales', NEW.sales_id, NEW.sales_number,
-            NEW.sale_date, NEW.updated_by
-        );
-    END IF;
-END //
-
-DROP TRIGGER IF EXISTS `trg_before_purchase_insert`; //
-CREATE TRIGGER `trg_before_purchase_insert` BEFORE INSERT ON `purchase_transactions` FOR EACH ROW BEGIN
-    
-    IF NEW.net_weight_kg IS NULL OR NEW.net_weight_kg = 0 THEN
-        SET NEW.net_weight_kg = NEW.gross_weight_kg - NEW.tare_weight_kg;
-    END IF;
-    
-    
-    SET NEW.final_price_per_kg = NEW.base_price_per_kg - NEW.moisture_penalty - NEW.foreign_matter_penalty + NEW.bonus_amount;
-    
-    
-    SET NEW.total_amount = NEW.net_weight_kg * NEW.final_price_per_kg;
-    
-    
-    IF NEW.status IS NULL THEN
-        SET NEW.status = 'completed';
-    END IF;
-END //
-
-DROP TRIGGER IF EXISTS `trg_update_season_on_purchase`; //
-CREATE TRIGGER `trg_update_season_on_purchase` AFTER INSERT ON `purchase_transactions` FOR EACH ROW BEGIN
-    IF NEW.status = 'completed' THEN
-        UPDATE harvesting_seasons
-        SET actual_quantity_kg = actual_quantity_kg + NEW.net_weight_kg,
-            total_purchases = total_purchases + NEW.total_amount
-        WHERE season_id = NEW.season_id;
-    END IF;
-END //
-
-DROP TRIGGER IF EXISTS `trg_update_season_on_sales`; //
-CREATE TRIGGER `trg_update_season_on_sales` AFTER INSERT ON `sales_transactions` FOR EACH ROW BEGIN
-    IF NEW.status = 'completed' THEN
-        UPDATE harvesting_seasons
-        SET total_sales = total_sales + NEW.total_amount
-        WHERE season_id = NEW.season_id;
-    END IF;
-END //
-
-DELIMITER ;
-
-
--- ============================================
--- DEFAULT DATA
--- ============================================
-
-SET FOREIGN_KEY_CHECKS = 1;
-
--- Default admin user (password: admin123)
-INSERT INTO users (username, password_hash, full_name, role, status, created_at, updated_at) 
-VALUES ('admin', '$2b$10$fyOZUCJxv0cDDXhnoXZv7eILikN7NZyG7iwFspgbMe0EhMDZ2sHGu', 'Administrator', 'admin', 'active', NOW(), NOW())
-ON DUPLICATE KEY UPDATE username=username;
-
--- Season type configuration
-INSERT INTO season_type_config (type_code, type_name, description, color_code, is_production, display_order, status, created_at, updated_at)
-VALUES 
-('PROD', 'Production', 'Regular production season', '#28a745', 1, 1, 'active', NOW(), NOW()),
-('DEMO', 'Demo', 'Demonstration and testing', '#ffc107', 0, 2, 'active', NOW(), NOW()),
-('TRAIN', 'Training', 'Training and learning', '#17a2b8', 0, 3, 'active', NOW(), NOW()),
-('TEST', 'Testing', 'System testing only', '#6c757d', 0, 4, 'active', NOW(), NOW())
-ON DUPLICATE KEY UPDATE type_code=type_code;
-
--- Paddy grades
-INSERT INTO paddy_grades (grade_code, grade_name, description, min_moisture_content, max_moisture_content, max_foreign_matter, display_order, status, created_at, updated_at)
-VALUES 
-('PREM', 'Premium', 'Highest quality paddy', 12.00, 14.00, 1.00, 1, 'active', NOW(), NOW()),
-('A', 'Grade A', 'High quality paddy', 13.00, 15.00, 2.00, 2, 'active', NOW(), NOW()),
-('B', 'Grade B', 'Medium quality paddy', 14.00, 16.00, 3.00, 3, 'active', NOW(), NOW()),
-('C', 'Grade C', 'Standard quality paddy', 15.00, 18.00, 5.00, 4, 'active', NOW(), NOW()),
-('REJ', 'Reject', 'Below standard quality', 18.00, 25.00, 10.00, 5, 'active', NOW(), NOW())
-ON DUPLICATE KEY UPDATE grade_code=grade_code;
-
--- Paddy products
-INSERT INTO paddy_products (product_code, product_name, product_type, variety, is_active, created_at, updated_at)
-VALUES 
-('MR297', 'MR297 - Pertama Padi', 'BENIH', 'BIASA', 1, NOW(), NOW()),
-('MR269', 'MR269 - Pertama Padi', 'BENIH', 'BIASA', 1, NOW(), NOW()),
-('MRCL2', 'MRCL2 - Pertama Padi', 'BENIH', 'BIASA', 1, NOW(), NOW()),
-('MR284', 'MR284 - Pertama Padi', 'BENIH', 'BIASA', 1, NOW(), NOW()),
-('MRQ76-F', 'MRQ76 - FGV', 'BERAS', 'WANGI', 1, NOW(), NOW()),
-('MRQ76-B', 'MRQ76 - BERNAS', 'BERAS', 'WANGI', 1, NOW(), NOW())
-ON DUPLICATE KEY UPDATE product_code=product_code;
-
--- ============================================
--- INITIALIZATION COMPLETE
--- ============================================
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50001 DROP VIEW IF EXISTS `vw_container_loading_details`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`azham`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `vw_container_loading_details` AS select `dc`.`container_id` AS `container_id`,`dc`.`container_number` AS `container_number`,`dc`.`container_type` AS `container_type`,`st`.`sales_id` AS `sales_id`,`st`.`sales_number` AS `sales_number`,`m`.`company_name` AS `manufacturer_name`,`dc`.`target_capacity_kg` AS `target_capacity_kg`,`dc`.`actual_loaded_kg` AS `actual_loaded_kg`,`dc`.`status` AS `container_status`,count(`cli`.`loading_item_id`) AS `items_loaded`,sum(`cli`.`quantity_loaded_kg`) AS `total_loaded_kg`,round(((`dc`.`actual_loaded_kg` / nullif(`dc`.`target_capacity_kg`,0)) * 100),2) AS `loading_percentage`,`dc`.`loading_started_at` AS `loading_started_at`,`dc`.`loading_completed_at` AS `loading_completed_at`,timestampdiff(MINUTE,`dc`.`loading_started_at`,`dc`.`loading_completed_at`) AS `loading_duration_minutes` from (((`delivery_containers` `dc` join `sales_transactions` `st` on((`dc`.`sales_id` = `st`.`sales_id`))) join `manufacturers` `m` on((`st`.`manufacturer_id` = `m`.`manufacturer_id`))) left join `container_loading_items` `cli` on((`dc`.`container_id` = `cli`.`container_id`))) group by `dc`.`container_id`,`dc`.`container_number`,`dc`.`container_type`,`st`.`sales_id`,`st`.`sales_number`,`m`.`company_name`,`dc`.`target_capacity_kg`,`dc`.`actual_loaded_kg`,`dc`.`status`,`dc`.`loading_started_at`,`dc`.`loading_completed_at` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+/*!50001 DROP VIEW IF EXISTS `vw_current_inventory_summary`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`azham`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `vw_current_inventory_summary` AS select `ist`.`stock_id` AS `stock_id`,`hs`.`season_id` AS `season_id`,`hs`.`season_name` AS `season_name`,`hs`.`status` AS `season_status`,`pg`.`grade_id` AS `grade_id`,`pg`.`grade_name` AS `grade_name`,`ist`.`current_quantity_kg` AS `current_quantity_kg`,`ist`.`reserved_quantity_kg` AS `reserved_quantity_kg`,`ist`.`available_quantity_kg` AS `available_quantity_kg`,`ist`.`average_cost_per_kg` AS `average_cost_per_kg`,`ist`.`total_value` AS `total_value`,`ist`.`storage_location` AS `storage_location`,`ist`.`quality_status` AS `quality_status`,`ist`.`last_quality_check_date` AS `last_quality_check_date`,`ist`.`last_movement_date` AS `last_movement_date` from ((`inventory_stock` `ist` join `harvesting_seasons` `hs` on((`ist`.`season_id` = `hs`.`season_id`))) join `paddy_grades` `pg` on((`ist`.`grade_id` = `pg`.`grade_id`))) where (`ist`.`current_quantity_kg` > 0) order by `hs`.`season_name`,`pg`.`display_order` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+/*!50001 DROP VIEW IF EXISTS `vw_daily_purchase_summary`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`azham`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `vw_daily_purchase_summary` AS select cast(`pt`.`transaction_date` as date) AS `purchase_date`,`hs`.`season_id` AS `season_id`,`hs`.`season_name` AS `season_name`,`pg`.`grade_id` AS `grade_id`,`pg`.`grade_name` AS `grade_name`,count(`pt`.`transaction_id`) AS `total_transactions`,count(distinct `pt`.`farmer_id`) AS `unique_farmers`,sum(`pt`.`net_weight_kg`) AS `total_weight_kg`,avg(`pt`.`final_price_per_kg`) AS `avg_price_per_kg`,sum(`pt`.`total_amount`) AS `total_amount`,avg(`pt`.`moisture_content`) AS `avg_moisture_content`,avg(`pt`.`foreign_matter`) AS `avg_foreign_matter` from ((`purchase_transactions` `pt` join `harvesting_seasons` `hs` on((`pt`.`season_id` = `hs`.`season_id`))) join `paddy_grades` `pg` on((`pt`.`grade_id` = `pg`.`grade_id`))) where (`pt`.`status` = 'completed') group by cast(`pt`.`transaction_date` as date),`hs`.`season_id`,`hs`.`season_name`,`pg`.`grade_id`,`pg`.`grade_name` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+/*!50001 DROP VIEW IF EXISTS `vw_farmer_purchase_summary`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`azham`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `vw_farmer_purchase_summary` AS select `f`.`farmer_id` AS `farmer_id`,`f`.`farmer_code` AS `farmer_code`,`f`.`full_name` AS `farmer_name`,`f`.`phone` AS `phone`,`f`.`status` AS `farmer_status`,`hs`.`season_id` AS `season_id`,`hs`.`season_name` AS `season_name`,count(`pt`.`transaction_id`) AS `total_transactions`,sum(`pt`.`net_weight_kg`) AS `total_weight_kg`,sum(`pt`.`total_amount`) AS `total_amount`,avg(`pt`.`final_price_per_kg`) AS `avg_price_per_kg`,min(`pt`.`transaction_date`) AS `first_transaction_date`,max(`pt`.`transaction_date`) AS `last_transaction_date`,avg(`pt`.`moisture_content`) AS `avg_moisture_content`,avg(`pt`.`foreign_matter`) AS `avg_foreign_matter` from ((`farmers` `f` left join `purchase_transactions` `pt` on(((`f`.`farmer_id` = `pt`.`farmer_id`) and (`pt`.`status` = 'completed')))) left join `harvesting_seasons` `hs` on((`pt`.`season_id` = `hs`.`season_id`))) group by `f`.`farmer_id`,`f`.`farmer_code`,`f`.`full_name`,`f`.`phone`,`f`.`status`,`hs`.`season_id`,`hs`.`season_name` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+/*!50001 DROP VIEW IF EXISTS `vw_grade_performance`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`azham`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `vw_grade_performance` AS select `pg`.`grade_id` AS `grade_id`,`pg`.`grade_code` AS `grade_code`,`pg`.`grade_name` AS `grade_name`,`hs`.`season_id` AS `season_id`,`hs`.`season_name` AS `season_name`,count(`pt`.`transaction_id`) AS `total_transactions`,sum(`pt`.`net_weight_kg`) AS `total_purchased_kg`,avg(`pt`.`final_price_per_kg`) AS `avg_purchase_price`,min(`pt`.`final_price_per_kg`) AS `min_price`,max(`pt`.`final_price_per_kg`) AS `max_price`,avg(`pt`.`moisture_content`) AS `avg_moisture`,avg(`pt`.`foreign_matter`) AS `avg_foreign_matter`,ifnull(`ist`.`current_quantity_kg`,0) AS `current_stock_kg`,ifnull(`ist`.`available_quantity_kg`,0) AS `available_stock_kg` from (((`paddy_grades` `pg` join `harvesting_seasons` `hs`) left join `purchase_transactions` `pt` on(((`pg`.`grade_id` = `pt`.`grade_id`) and (`hs`.`season_id` = `pt`.`season_id`) and (`pt`.`status` = 'completed')))) left join `inventory_stock` `ist` on(((`pg`.`grade_id` = `ist`.`grade_id`) and (`hs`.`season_id` = `ist`.`season_id`)))) where (`hs`.`status` in ('active','closed')) group by `pg`.`grade_id`,`pg`.`grade_code`,`pg`.`grade_name`,`hs`.`season_id`,`hs`.`season_name`,`ist`.`current_quantity_kg`,`ist`.`available_quantity_kg` having ((`total_transactions` > 0) or (`current_stock_kg` > 0)) */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+/*!50001 DROP VIEW IF EXISTS `vw_manufacturer_sales_summary`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`azham`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `vw_manufacturer_sales_summary` AS select `m`.`manufacturer_id` AS `manufacturer_id`,`m`.`manufacturer_code` AS `manufacturer_code`,`m`.`company_name` AS `company_name`,`m`.`status` AS `manufacturer_status`,`hs`.`season_id` AS `season_id`,`hs`.`season_name` AS `season_name`,count(`st`.`sales_id`) AS `total_sales`,sum(`st`.`total_quantity_kg`) AS `total_quantity_kg`,sum(`st`.`total_amount`) AS `total_amount`,sum(`st`.`paid_amount`) AS `total_paid`,sum((`st`.`total_amount` - `st`.`paid_amount`)) AS `outstanding_amount`,avg(`st`.`sale_price_per_kg`) AS `avg_price_per_kg`,min(`st`.`sale_date`) AS `first_sale_date`,max(`st`.`sale_date`) AS `last_sale_date` from ((`manufacturers` `m` left join `sales_transactions` `st` on(((`m`.`manufacturer_id` = `st`.`manufacturer_id`) and (`st`.`status` = 'completed')))) left join `harvesting_seasons` `hs` on((`st`.`season_id` = `hs`.`season_id`))) group by `m`.`manufacturer_id`,`m`.`manufacturer_code`,`m`.`company_name`,`m`.`status`,`hs`.`season_id`,`hs`.`season_name` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+/*!50001 DROP VIEW IF EXISTS `vw_pending_payments`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`azham`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `vw_pending_payments` AS select 'sales' AS `transaction_type`,`st`.`sales_id` AS `transaction_id`,`st`.`sales_number` AS `transaction_number`,`st`.`sale_date` AS `transaction_date`,`m`.`manufacturer_id` AS `party_id`,`m`.`company_name` AS `party_name`,`m`.`phone` AS `party_phone`,`st`.`total_amount` AS `total_amount`,`st`.`paid_amount` AS `paid_amount`,(`st`.`total_amount` - `st`.`paid_amount`) AS `outstanding_amount`,`st`.`due_date` AS `due_date`,(to_days(curdate()) - to_days(`st`.`due_date`)) AS `days_overdue`,`st`.`payment_status` AS `payment_status` from (`sales_transactions` `st` join `manufacturers` `m` on((`st`.`manufacturer_id` = `m`.`manufacturer_id`))) where ((`st`.`payment_status` in ('pending','partial')) and (`st`.`status` = 'completed')) union all select 'purchase' AS `transaction_type`,`pt`.`transaction_id` AS `transaction_id`,`pt`.`receipt_number` AS `transaction_number`,`pt`.`transaction_date` AS `transaction_date`,`f`.`farmer_id` AS `party_id`,`f`.`full_name` AS `party_name`,`f`.`phone` AS `party_phone`,`pt`.`total_amount` AS `total_amount`,0 AS `paid_amount`,`pt`.`total_amount` AS `outstanding_amount`,NULL AS `due_date`,NULL AS `days_overdue`,`pt`.`payment_status` AS `payment_status` from (`purchase_transactions` `pt` join `farmers` `f` on((`pt`.`farmer_id` = `f`.`farmer_id`))) where ((`pt`.`payment_status` = 'unpaid') and (`pt`.`status` = 'completed')) order by `transaction_date` desc */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+/*!50001 DROP VIEW IF EXISTS `vw_production_purchases`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`azham`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `vw_production_purchases` AS select `pt`.`transaction_id` AS `transaction_id`,`pt`.`receipt_number` AS `receipt_number`,`pt`.`season_id` AS `season_id`,`pt`.`farmer_id` AS `farmer_id`,`pt`.`grade_id` AS `grade_id`,`pt`.`transaction_date` AS `transaction_date`,`pt`.`gross_weight_kg` AS `gross_weight_kg`,`pt`.`tare_weight_kg` AS `tare_weight_kg`,`pt`.`net_weight_kg` AS `net_weight_kg`,`pt`.`moisture_content` AS `moisture_content`,`pt`.`foreign_matter` AS `foreign_matter`,`pt`.`base_price_per_kg` AS `base_price_per_kg`,`pt`.`moisture_penalty` AS `moisture_penalty`,`pt`.`foreign_matter_penalty` AS `foreign_matter_penalty`,`pt`.`bonus_amount` AS `bonus_amount`,`pt`.`final_price_per_kg` AS `final_price_per_kg`,`pt`.`total_amount` AS `total_amount`,`pt`.`vehicle_number` AS `vehicle_number`,`pt`.`driver_name` AS `driver_name`,`pt`.`status` AS `status`,`pt`.`payment_status` AS `payment_status`,`pt`.`payment_date` AS `payment_date`,`pt`.`weighbridge_id` AS `weighbridge_id`,`pt`.`weighing_log_id` AS `weighing_log_id`,`pt`.`is_printed` AS `is_printed`,`pt`.`print_count` AS `print_count`,`pt`.`last_printed_at` AS `last_printed_at`,`pt`.`notes` AS `notes`,`pt`.`cancelled_at` AS `cancelled_at`,`pt`.`cancelled_by` AS `cancelled_by`,`pt`.`cancellation_reason` AS `cancellation_reason`,`pt`.`created_at` AS `created_at`,`pt`.`created_by` AS `created_by`,`pt`.`updated_at` AS `updated_at`,`pt`.`updated_by` AS `updated_by`,`hs`.`season_name` AS `season_name`,`hs`.`season_code` AS `season_code`,`stc`.`type_name` AS `season_type`,`f`.`farmer_code` AS `farmer_code`,`f`.`full_name` AS `farmer_name`,`f`.`phone` AS `farmer_phone`,`pg`.`grade_name` AS `grade_name`,`pg`.`grade_code` AS `grade_code` from ((((`purchase_transactions` `pt` join `harvesting_seasons` `hs` on((`pt`.`season_id` = `hs`.`season_id`))) join `season_type_config` `stc` on((`hs`.`season_type_id` = `stc`.`type_id`))) join `farmers` `f` on((`pt`.`farmer_id` = `f`.`farmer_id`))) join `paddy_grades` `pg` on((`pt`.`grade_id` = `pg`.`grade_id`))) where ((`stc`.`is_production` = true) and (`pt`.`status` = 'completed')) order by `pt`.`transaction_date` desc */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;
+/*!50001 DROP VIEW IF EXISTS `vw_season_performance`*/;
+/*!50001 SET @saved_cs_client          = @@character_set_client */;
+/*!50001 SET @saved_cs_results         = @@character_set_results */;
+/*!50001 SET @saved_col_connection     = @@collation_connection */;
+/*!50001 SET character_set_client      = utf8mb4 */;
+/*!50001 SET character_set_results     = utf8mb4 */;
+/*!50001 SET collation_connection      = utf8mb4_0900_ai_ci */;
+/*!50001 CREATE ALGORITHM=UNDEFINED */
+/*!50013 DEFINER=`azham`@`localhost` SQL SECURITY DEFINER */
+/*!50001 VIEW `vw_season_performance` AS select `hs`.`season_id` AS `season_id`,`hs`.`season_code` AS `season_code`,`hs`.`season_name` AS `season_name`,`hs`.`status` AS `status`,`hs`.`start_date` AS `start_date`,`hs`.`end_date` AS `end_date`,(to_days(ifnull(`hs`.`end_date`,curdate())) - to_days(`hs`.`start_date`)) AS `duration_days`,count(distinct `pt`.`transaction_id`) AS `total_purchases`,count(distinct `pt`.`farmer_id`) AS `unique_farmers`,sum(`pt`.`net_weight_kg`) AS `total_purchased_kg`,sum(`pt`.`total_amount`) AS `total_purchase_amount`,avg(`pt`.`final_price_per_kg`) AS `avg_purchase_price`,count(distinct `st`.`sales_id`) AS `total_sales`,count(distinct `st`.`manufacturer_id`) AS `unique_manufacturers`,ifnull(sum(`st`.`total_quantity_kg`),0) AS `total_sold_kg`,ifnull(sum(`st`.`total_amount`),0) AS `total_sales_amount`,ifnull(sum(`ist`.`current_quantity_kg`),0) AS `current_stock_kg`,(ifnull(sum(`st`.`total_amount`),0) - sum(`pt`.`total_amount`)) AS `gross_margin` from (((`harvesting_seasons` `hs` left join `purchase_transactions` `pt` on(((`hs`.`season_id` = `pt`.`season_id`) and (`pt`.`status` = 'completed')))) left join `sales_transactions` `st` on(((`hs`.`season_id` = `st`.`season_id`) and (`st`.`status` = 'completed')))) left join `inventory_stock` `ist` on((`hs`.`season_id` = `ist`.`season_id`))) group by `hs`.`season_id`,`hs`.`season_code`,`hs`.`season_name`,`hs`.`status`,`hs`.`start_date`,`hs`.`end_date` */;
+/*!50001 SET character_set_client      = @saved_cs_client */;
+/*!50001 SET character_set_results     = @saved_cs_results */;
+/*!50001 SET collation_connection      = @saved_col_connection */;

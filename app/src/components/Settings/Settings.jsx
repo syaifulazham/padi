@@ -61,6 +61,7 @@ const Settings = () => {
         print_to_pdf: false,
         pdf_save_path: '',
         pdf_auto_open: false,
+        use_print_dialog: false,
         
         // Application
         app_name: 'Paddy Collection Center',
@@ -566,6 +567,41 @@ const Settings = () => {
                 valuePropName="checked"
               >
                 <Switch />
+              </Form.Item>
+
+              <Form.Item
+                name="use_print_dialog"
+                label="Use Print Dialog"
+                valuePropName="checked"
+                extra="Show print dialog before printing (allows manual configuration of print settings)"
+              >
+                <Switch />
+              </Form.Item>
+
+              <Form.Item label="Test Printing">
+                <Button 
+                  type="default"
+                  onClick={async () => {
+                    try {
+                      const values = form.getFieldsValue();
+                      await handleSave(values);
+                      
+                      message.loading({ content: 'Preparing test receipt...', key: 'testPrint' });
+                      const result = await window.electronAPI.printer?.testPrint();
+                      
+                      if (result?.success) {
+                        message.success({ content: 'Test print sent successfully!', key: 'testPrint' });
+                      } else {
+                        message.error({ content: `Test print failed: ${result?.error || 'Unknown error'}`, key: 'testPrint' });
+                      }
+                    } catch (error) {
+                      console.error('Test print error:', error);
+                      message.error({ content: 'Failed to send test print', key: 'testPrint' });
+                    }
+                  }}
+                >
+                  Test Print
+                </Button>
               </Form.Item>
 
               <Divider orientation="left">{t('settings.printer.sections.pdfOptions')}</Divider>
