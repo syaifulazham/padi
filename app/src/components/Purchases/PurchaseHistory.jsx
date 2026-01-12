@@ -12,16 +12,23 @@ const PurchaseHistory = () => {
   const [loading, setLoading] = useState(false);
   const [dateRange, setDateRange] = useState([dayjs().startOf('day'), dayjs().endOf('day')]);
   const [activeSeason, setActiveSeason] = useState(null);
+  const [dateRangeLoaded, setDateRangeLoaded] = useState(false);
 
   useEffect(() => {
     loadActiveSeason();
   }, []);
 
   useEffect(() => {
-    if (activeSeason) {
+    if (activeSeason && !dateRangeLoaded) {
+      loadSeasonDateRange();
+    }
+  }, [activeSeason]);
+
+  useEffect(() => {
+    if (activeSeason && dateRangeLoaded) {
       loadTransactions();
     }
-  }, [dateRange, activeSeason]);
+  }, [dateRange, activeSeason, dateRangeLoaded]);
 
   const loadActiveSeason = async () => {
     try {
@@ -35,9 +42,27 @@ const PurchaseHistory = () => {
     }
   };
 
+  const loadSeasonDateRange = async () => {
+    try {
+      const result = await window.electronAPI.purchases?.getSeasonDateRange(activeSeason.season_id);
+      if (result?.success && result.data) {
+        const { earliest_date, latest_date } = result.data;
+        setDateRange([
+          dayjs(earliest_date).startOf('day'),
+          dayjs(latest_date).endOf('day')
+        ]);
+        setDateRangeLoaded(true);
+        console.log('✅ Season date range loaded:', earliest_date, 'to', latest_date);
+      }
+    } catch (error) {
+      console.error('Failed to load season date range:', error);
+      setDateRangeLoaded(true);
+    }
+  };
+
   const loadTransactions = async () => {
-    if (!activeSeason) {
-      console.log('⏳ Waiting for active season to load...');
+    if (!activeSeason || !dateRangeLoaded) {
+      console.log('⏳ Waiting for active season and date range to load...');
       return;
     }
     

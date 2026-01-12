@@ -665,6 +665,10 @@ ipcMain.handle('purchases:getSplitChildren', async (event, parentTransactionId) 
   return await purchaseService.getSplitChildren(parentTransactionId);
 });
 
+ipcMain.handle('purchases:getSeasonDateRange', async (event, seasonId) => {
+  return await purchaseService.getSeasonDateRange(seasonId);
+});
+
 // Sales
 ipcMain.handle('sales:create', async (event, data) => {
   return await salesService.create(data);
@@ -684,6 +688,10 @@ ipcMain.handle('sales:getBySalesNumber', async (event, salesNumber) => {
 
 ipcMain.handle('sales:getTotalStats', async (event, seasonId) => {
   return await salesService.getTotalStats(seasonId);
+});
+
+ipcMain.handle('sales:getSeasonDateRange', async (event, seasonId) => {
+  return await salesService.getSeasonDateRange(seasonId);
 });
 
 // Stockpiles

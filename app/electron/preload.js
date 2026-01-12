@@ -43,7 +43,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     createSplit: (parentTransactionId, splitWeightKg, userId) => ipcRenderer.invoke('purchases:createSplit', parentTransactionId, splitWeightKg, userId),
     updatePayment: (updateData) => ipcRenderer.invoke('purchases:updatePayment', updateData),
     cancelPendingLorry: (sessionData, userId, reason) => ipcRenderer.invoke('purchases:cancelPendingLorry', sessionData, userId, reason),
-    getSplitChildren: (parentTransactionId) => ipcRenderer.invoke('purchases:getSplitChildren', parentTransactionId)
+    getSplitChildren: (parentTransactionId) => ipcRenderer.invoke('purchases:getSplitChildren', parentTransactionId),
+    getSeasonDateRange: (seasonId) => ipcRenderer.invoke('purchases:getSeasonDateRange', seasonId)
   },
 
   // Sales
@@ -51,7 +52,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     create: (data) => ipcRenderer.invoke('sales:create', data),
     getAll: (filters) => ipcRenderer.invoke('sales:getAll', filters),
     getById: (id) => ipcRenderer.invoke('sales:getById', id),
-    getTotalStats: (seasonId) => ipcRenderer.invoke('sales:getTotalStats', seasonId)
+    getTotalStats: (seasonId) => ipcRenderer.invoke('sales:getTotalStats', seasonId),
+    getSeasonDateRange: (seasonId) => ipcRenderer.invoke('sales:getSeasonDateRange', seasonId)
   },
 
   // Stockpiles

@@ -409,10 +409,48 @@ async function getTotalStats(seasonId = null) {
   }
 }
 
+/**
+ * Get date range (min/max) of transactions for a season
+ * @param {number} seasonId - Season ID to get date range for
+ */
+async function getSeasonDateRange(seasonId) {
+  try {
+    const sql = `
+      SELECT 
+        DATE(MIN(sale_date)) as earliest_date,
+        DATE(MAX(sale_date)) as latest_date,
+        COUNT(*) as transaction_count
+      FROM sales_transactions
+      WHERE season_id = ?
+        AND status = 'completed'
+    `;
+    
+    const rows = await db.query(sql, [seasonId]);
+    
+    if (rows.length === 0 || rows[0].transaction_count === 0) {
+      const today = new Date().toISOString().split('T')[0];
+      return { 
+        success: true, 
+        data: { 
+          earliest_date: today, 
+          latest_date: today,
+          transaction_count: 0
+        } 
+      };
+    }
+    
+    return { success: true, data: rows[0] };
+  } catch (error) {
+    console.error('Error fetching season date range:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 module.exports = {
   create,
   getAll,
   getById,
   getBySalesNumber,
-  getTotalStats
+  getTotalStats,
+  getSeasonDateRange
 };
