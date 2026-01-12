@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 // Fix Windows DPI scaling issues for printing
-if (process.platform === 'win32') {
+if (process.platform === 'win32' && app && app.commandLine) {
   app.commandLine.appendSwitch('high-dpi-support', 'true');
   app.commandLine.appendSwitch('force-device-scale-factor', '1');
 }
@@ -14,14 +14,22 @@ const possibleEnvPaths = [
   path.join(process.cwd(), '.env'),
   // Next to the executable (for portable version)
   path.join(path.dirname(process.execPath), '.env'),
-  // In user data directory
-  path.join(app.getPath('userData'), '.env'),
-  // In app resources
-  path.join(process.resourcesPath, '.env'),
   // Development path
   path.join(__dirname, '../.env'),
   path.join(__dirname, '../../.env')
 ];
+
+// Add additional paths if app is available
+if (app && typeof app.getPath === 'function') {
+  // In user data directory
+  possibleEnvPaths.push(path.join(app.getPath('userData'), '.env'));
+}
+
+// Add resource path if available
+if (process.resourcesPath) {
+  // In app resources
+  possibleEnvPaths.push(path.join(process.resourcesPath, '.env'));
+}
 
 let envLoaded = false;
 let loadedEnvPath = null;
@@ -75,7 +83,8 @@ const weighbridgeService = require('./hardware/weighbridge');
 const settingsService = require('./services/settings');
 const backupService = require('./services/backup');
 const cleanupService = require('./services/cleanup');
-const { generatePurchaseReceipt, generateSalesReceipt } = require('./utils/receiptTemplate');
+const { generatePurchaseReceipt, generateSalesReceipt } = require('./utils/receiptTemplate_fixed');
+const printUtils = require('./utils/printUtils');
 
 let mainWindow;
 let dbConnectionFailed = false;
@@ -164,7 +173,8 @@ function createWindow() {
 }
 
 // App lifecycle
-app.whenReady().then(() => {
+if (app && typeof app.whenReady === 'function') {
+  app.whenReady().then(() => {
   createWindow();
   
   // Check database connection after window loads
@@ -228,26 +238,35 @@ app.whenReady().then(() => {
     }
   });
 });
+}
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
+// Window closed event
+if (app && typeof app.on === 'function') {
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+      app.quit();
+    }
+  });
+}
 
 // Cleanup on quit
-app.on('before-quit', async () => {
-  try {
-    await db.end();
-    console.log('Database connection closed');
-  } catch (error) {
-    console.error('Error closing database:', error);
-  }
-});
+if (app && typeof app.on === 'function') {
+  app.on('before-quit', async () => {
+    try {
+      await db.end();
+      console.log('Database connection closed');
+    } catch (error) {
+      console.error('Error closing database:', error);
+    }
+  });
+}
 
 // ===========================================
 // IPC Handlers - Database Operations
 // ===========================================
+
+// Only setup IPC handlers if ipcMain is available
+if (ipcMain && typeof ipcMain.handle === 'function') {
 
 // Test database connection
 ipcMain.handle('db:test', async () => {
@@ -1038,55 +1057,57 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId, options = {
       // Print to configured physical printer
       console.log(`🖨️  Printing to configured printer: ${defaultPrinter}`);
       
-      // Use microns for print API (1mm = 1000 microns)
-      // Note: Windows ignores landscape flag, use explicit dimensions instead
-      const pageSizes = {
-        '80mm': { width: 80000, height: 297000, landscape: false },    // 80mm x 297mm
-        'a4_portrait': { width: 210000, height: 297000, landscape: false },  // A4 portrait
-        'a5_landscape': { width: 210000, height: 148000, landscape: false }   // A5 landscape (210x148mm)
-      };
-      const pageSize = pageSizes[paperSize] || pageSizes['80mm'];
-      
       // Check if user wants to use print dialog - await the promise
       const usePrintDialogResult = await settingsService.get('use_print_dialog');
       const usePrintDialog = usePrintDialogResult?.data || false;
       
-      const printOptions = {
-        silent: !usePrintDialog, // Show dialog if setting is enabled
-        printBackground: true,
-        color: false,
-        // deviceName: defaultPrinter, // Removed - causes Windows to ignore all settings
-        scaleFactor: 100, // Prevent auto-scaling (100 = 100%)
-        preferCSSPageSize: true, // Respect CSS @page size
-        margins: {
-          marginType: 'none'
-        },
-        pageSize: {
-          width: pageSize.width,
-          height: pageSize.height
-        },
-        landscape: pageSize.landscape
-      };
-      
-      console.log('🖨️  Print options:', { ...printOptions, usePrintDialog });
-      
-      // Print using promise wrapper
-      return new Promise((resolve) => {
-        printWindow.webContents.print(printOptions, (success, errorType) => {
-          printWindow.close();
-          if (!success) {
-            console.error('❌ Print failed:', errorType);
-            resolve({ 
-              success: false, 
-              mode: 'print',
-              error: `Print failed: ${errorType}` 
-            });
-          } else {
-            console.log(`✅ Receipt sent to printer: ${defaultPrinter}`);
-            resolve({ success: true, mode: 'print' });
-          }
+      if (usePrintDialog) {
+        // Use Electron's print dialog
+        const printOptions = printUtils.getPrintOptions(paperSize, true, defaultPrinter);
+        console.log('🖨️  Print options (with dialog):', printOptions);
+        
+        return new Promise((resolve) => {
+          printWindow.webContents.print(printOptions, (success, errorType) => {
+            printWindow.close();
+            if (!success) {
+              console.error('❌ Print failed:', errorType);
+              resolve({ 
+                success: false, 
+                mode: 'print',
+                error: `Print failed: ${errorType}` 
+              });
+            } else {
+              console.log(`✅ Receipt sent to printer: ${defaultPrinter}`);
+              resolve({ success: true, mode: 'print' });
+            }
+          });
         });
-      });
+      } else {
+        // Silent printing - use same options as dialog mode but with silent:true
+        console.log('🖨️  Using Electron silent print mode');
+        
+        // Use the same standardized options as dialog mode for consistency
+        const printOptions = printUtils.getPrintOptions(paperSize, false, defaultPrinter);
+        
+        console.log('🖨️  Silent print options:', printOptions);
+        
+        return new Promise((resolve) => {
+          printWindow.webContents.print(printOptions, (success, errorType) => {
+            printWindow.close();
+            if (!success) {
+              console.error('❌ Silent print failed:', errorType);
+              resolve({ 
+                success: false, 
+                mode: 'print',
+                error: `Print failed: ${errorType}` 
+              });
+            } else {
+              console.log(`✅ Receipt sent to printer (silent): ${defaultPrinter}`);
+              resolve({ success: true, mode: 'print' });
+            }
+          });
+        });
+      }
     }
     
   } catch (error) {
@@ -1323,54 +1344,57 @@ ipcMain.handle('print:salesReceipt', async (event, salesId, options = {}) => {
       // Print to configured physical printer
       console.log(`🖨️  Printing to configured printer: ${defaultPrinter}`);
       
-      // Note: Windows ignores landscape flag, use explicit dimensions instead
-      const pageSizes = {
-        '80mm': { width: 80000, height: 297000, landscape: false },
-        'a4_portrait': { width: 210000, height: 297000, landscape: false },
-        'a5_landscape': { width: 210000, height: 148000, landscape: false }   // A5 landscape (210x148mm)
-      };
-      const pageSize = pageSizes[paperSize] || pageSizes['80mm'];
-      
       // Check if user wants to use print dialog - await the promise
       const usePrintDialogResult = await settingsService.get('use_print_dialog');
       const usePrintDialog = usePrintDialogResult?.data || false;
       
-      const printOptions = {
-        silent: !usePrintDialog, // Show dialog if setting is enabled
-        printBackground: true,
-        color: false,
-        // deviceName: defaultPrinter, // Removed - causes Windows to ignore all settings
-        scaleFactor: 100, // Prevent auto-scaling (100 = 100%)
-        preferCSSPageSize: true, // Respect CSS @page size
-        margins: {
-          marginType: 'none'
-        },
-        pageSize: {
-          width: pageSize.width,
-          height: pageSize.height
-        },
-        landscape: pageSize.landscape
-      };
-      
-      console.log('🖨️  Print options (Sales):', { ...printOptions, usePrintDialog });
-      
-      // Print using promise wrapper
-      return new Promise((resolve) => {
-        printWindow.webContents.print(printOptions, (success, errorType) => {
-          printWindow.close();
-          if (!success) {
-            console.error('❌ Print failed:', errorType);
-            resolve({ 
-              success: false, 
-              mode: 'print',
-              error: `Print failed: ${errorType}` 
-            });
-          } else {
-            console.log(`✅ Receipt sent to printer: ${defaultPrinter}`);
-            resolve({ success: true, mode: 'print' });
-          }
+      if (usePrintDialog) {
+        // Use Electron's print dialog
+        const printOptions = printUtils.getPrintOptions(paperSize, true, defaultPrinter);
+        console.log('🖨️  Print options (Sales with dialog):', printOptions);
+        
+        return new Promise((resolve) => {
+          printWindow.webContents.print(printOptions, (success, errorType) => {
+            printWindow.close();
+            if (!success) {
+              console.error('❌ Print failed:', errorType);
+              resolve({ 
+                success: false, 
+                mode: 'print',
+                error: `Print failed: ${errorType}` 
+              });
+            } else {
+              console.log(`✅ Receipt sent to printer: ${defaultPrinter}`);
+              resolve({ success: true, mode: 'print' });
+            }
+          });
         });
-      });
+      } else {
+        // Silent printing - use same options as dialog mode but with silent:true
+        console.log('🖨️  Using Electron silent print mode (Sales)');
+        
+        // Use the same standardized options as dialog mode for consistency
+        const printOptions = printUtils.getPrintOptions(paperSize, false, defaultPrinter);
+        
+        console.log('🖨️  Silent print options (Sales):', printOptions);
+        
+        return new Promise((resolve) => {
+          printWindow.webContents.print(printOptions, (success, errorType) => {
+            printWindow.close();
+            if (!success) {
+              console.error('❌ Silent print failed (Sales):', errorType);
+              resolve({ 
+                success: false, 
+                mode: 'print',
+                error: `Print failed: ${errorType}` 
+              });
+            } else {
+              console.log(`✅ Sales receipt sent to printer (silent): ${defaultPrinter}`);
+              resolve({ success: true, mode: 'print' });
+            }
+          });
+        });
+      }
     }
     
   } catch (error) {
@@ -1397,7 +1421,7 @@ ipcMain.handle('printer:getPrinters', async () => {
 ipcMain.handle('printer:testPrint', async () => {
   try {
     const settingsService = require('./services/settings');
-    const { generatePurchaseReceipt } = require('./utils/receiptTemplate');
+    const { generatePurchaseReceipt } = require('./utils/receiptTemplate_fixed');
     
     // Get print settings - await the promises
     const paperSizeResult = await settingsService.get('paper_size');
@@ -1406,8 +1430,13 @@ ipcMain.handle('printer:testPrint', async () => {
     const usePrintDialogResult = await settingsService.get('use_print_dialog');
     const usePrintDialog = usePrintDialogResult?.data || false;
     
+    // Get the default printer setting
+    const defaultPrinterResult = await settingsService.get('default_printer');
+    const defaultPrinter = defaultPrinterResult?.data || null;
+    
     console.log('🧪 Test Print - Paper size:', paperSize);
     console.log('🧪 Test Print - Use dialog:', usePrintDialog);
+    console.log('🧪 Test Print - Default printer:', defaultPrinter || 'None configured');
     
     // Generate mockup receipt data
     const mockupTransaction = {
@@ -1489,27 +1518,9 @@ ipcMain.handle('printer:testPrint', async () => {
     
     await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
     
-    // Page sizes in microns
-    const pageSizes = {
-      '80mm': { width: 80000, height: 297000, landscape: false },
-      'a4_portrait': { width: 210000, height: 297000, landscape: false },
-      'a5_landscape': { width: 210000, height: 148000, landscape: false }
-    };
-    const pageSize = pageSizes[paperSize] || pageSizes['80mm'];
-    
-    const printOptions = {
-      silent: !usePrintDialog, // Use dialog if enabled in settings
-      printBackground: true,
-      color: false,
-      scaleFactor: 100,
-      preferCSSPageSize: true,
-      margins: { marginType: 'none' },
-      pageSize: {
-        width: pageSize.width,
-        height: pageSize.height
-      },
-      landscape: pageSize.landscape
-    };
+    // Get print options from the printUtils module
+    // For test printing, we want to show the dialog to check settings
+    const printOptions = printUtils.getPrintOptions(paperSize, true, defaultPrinter);
     
     console.log('🧪 Test Print options:', printOptions);
     
@@ -1543,3 +1554,6 @@ process.on('uncaughtException', (error) => {
 process.on('unhandledRejection', (error) => {
   console.error('Unhandled Rejection:', error);
 });
+
+// Close the ipcMain conditional block
+}

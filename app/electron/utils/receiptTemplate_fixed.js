@@ -1,6 +1,6 @@
 /**
  * Generate HTML receipt for purchase transactions
- * Matches the physical receipt layout from BERKAT PADI SDN BHD
+ * Improved version with full-width printing
  */
 
 /**
@@ -16,8 +16,8 @@ function getPaperSizeConfig(paperSize) {
       receiptNumberSize: '16px',
       padding: '5mm',
       labelWidth: '120px',
-      maxContentWidth: '70mm',
-      usePageSize: false,  // Don't force page size - let printer decide
+      maxContentWidth: '100%', // Changed to 100% for full width
+      usePageSize: true,
       scale: 1
     },
     'a4_portrait': {
@@ -28,7 +28,7 @@ function getPaperSizeConfig(paperSize) {
       receiptNumberSize: '26px',
       padding: '10mm',
       labelWidth: '350px',
-      maxContentWidth: '190mm',
+      maxContentWidth: '100%', // Changed to 100% for full width
       usePageSize: true,
       scale: 1
     },
@@ -40,7 +40,7 @@ function getPaperSizeConfig(paperSize) {
       receiptNumberSize: '20px',
       padding: '5mm',
       labelWidth: '150px',
-      maxContentWidth: '200mm',
+      maxContentWidth: '100%', // Changed to 100% for full width
       usePageSize: true,
       scale: 1
     }
@@ -120,13 +120,18 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
     
     body {
       font-family: 'Courier New', monospace;
-      font-size: ${sizeConfig.usePageSize ? sizeConfig.fontSize : '14px'};
+      font-size: ${sizeConfig.fontSize};
       line-height: 1.4;
-      width: ${sizeConfig.usePageSize ? sizeConfig.maxContentWidth : '100%'};
-      max-width: 100%;
-      margin: 0 auto;
-      padding: ${sizeConfig.usePageSize ? '0' : '10mm'};
+      width: 100%; /* Changed to 100% */
+      margin: 0;
+      padding: 0;
       color: #000;
+    }
+    
+    .container {
+      width: 100%; /* Full width container */
+      margin: 0;
+      padding: 0;
     }
     
     .header {
@@ -134,6 +139,7 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
       margin-bottom: 8px;
       border-bottom: 1px solid #000;
       padding-bottom: 20px;
+      width: 100%; /* Full width header */
     }
     
     .company-name {
@@ -173,17 +179,20 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
     
     .details-section {
       margin-bottom: 8px;
+      width: 100%; /* Full width */
     }
     
     .row {
       display: flex;
       margin-bottom: 2px;
+      width: 100%;
     }
     
     .row-split {
       display: flex;
       justify-content: space-between;
       margin-bottom: 2px;
+      width: 100%;
     }
     
     .label {
@@ -204,12 +213,14 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
       border-top: 1px solid #000;
       border-bottom: 1px solid #000;
       padding: 5px 0;
+      width: 100%; /* Full width */
     }
     
     .weight-row {
       display: flex;
       justify-content: space-between;
       margin-bottom: 2px;
+      width: 100%;
     }
     
     .weight-label {
@@ -236,12 +247,14 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
     
     .footer {
       margin-top: 15px;
+      width: 100%; /* Full width footer */
     }
     
     .signature-row {
       display: flex;
       justify-content: space-between;
       margin-top: 20px;
+      width: 100%;
     }
     
     .signature-box {
@@ -267,151 +280,154 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
       body {
         margin: 0;
         padding: ${sizeConfig.padding};
+        width: 100%;
       }
     }
   </style>
 </head>
 <body>
-  <!-- Header -->
-  <div class="header">
-    <div class="company-name">${companyDetails.name || 'BERKAT PADI SDN BHD'}</div>
-    <div class="company-info">
-      ${companyDetails.address || 'LOT 14633 PKT 100 SAWAH, SUNGAI NIPAH<br>45300 SUNGAI BESAR, SELANGOR'}<br>
-      ${companyDetails.phone ? `Tel: ${companyDetails.phone}<br>` : ''}
-      Lesen Belian Padi : ${companyDetails.licence_no || companyDetails.license || 'E6380'}
-    </div>
-  </div>
-  
-  <div class="right-header">
-    ${totalDeductionPercent === 0 ? '<div class="bold" style="margin-bottom: 3px;">NOTA TIMBANG</div>' : ''}
-    <div class="location">Kawasan: ${season.location || companyDetails.location || 'PANCHANG BEDENA'}</div>
-    <div class="receipt-number" style="${totalDeductionPercent === 0 ? 'font-size: 12px;' : ''}">${transaction.receipt_number || transaction.receiptNumber || 'N/A'}</div>
-  </div>
-  
-  <div style="clear: both;"></div>
-  
-  <!-- Title -->
-  <div class="title">Resit Belian</div>
-  
-  <!-- Farmer Details (Left) and Transaction Details (Right) -->
-  <div class="details-section">
-    <div class="row-split">
-      <div style="width: 60%;">
-        <div class="row">
-          <span class="label">NAMA</span>
-          <span class="value">: ${farmer.full_name || ''}</span>
-        </div>
-        <div class="row">
-          <span class="label">NO K/P</span>
-          <span class="value">: ${farmer.ic_number || ''}</span>
-        </div>
-        <div class="row">
-          <span class="label">ALAMAT</span>
-          <span class="value">: ${farmer.address || farmer.farmer_address || ''}</span>
-        </div>
-        <div class="row">
-          <span class="label"></span>
-          <span class="value">: ${farmer.postcode || ''} ${farmer.city || ''}, ${farmer.state || ''}</span>
-        </div>
-      </div>
-      <div style="width: 38%; text-align: right;">
-        <div class="row">
-          <span class="bold">TARIKH MASUK: ${formatDate(transaction.transaction_date)}</span>
-        </div>
-        <div class="row">
-          <span>SUBSIDI</span>
-          <span>: ${transaction.subsidy_code || 'B001/D8858'}</span>
-        </div>
-        <div class="row">
-          <span>GIRO</span>
-          <span>: ${farmer.bank_name && farmer.bank_account_number ? `${farmer.bank_account_number}` : '-'}</span>
-        </div>
-        <div class="row">
-          <span>BPM</span>
-          <span>: ${farmer.bank2_name && farmer.bank2_account_number ? `${farmer.bank2_account_number}` : '.-'}</span>
-        </div>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="company-name">${companyDetails.name || 'BERKAT PADI SDN BHD'}</div>
+      <div class="company-info">
+        ${companyDetails.address || 'LOT 14633 PKT 100 SAWAH, SUNGAI NIPAH<br>45300 SUNGAI BESAR, SELANGOR'}<br>
+        Tel:${companyDetails.phone || '019249396301323396636'}<br>
+        Lesen Belian Padi : ${companyDetails.licence_no || companyDetails.license || 'E6380'}
       </div>
     </div>
     
-    <div class="row" style="margin-top: 5px;">
-      <span class="label">NO. LORI</span>
-      <span class="value">: ${transaction.vehicle_number || ''}</span>
+    <div class="right-header">
+      ${totalDeductionPercent === 0 ? '<div class="bold" style="margin-bottom: 3px;">NOTA TIMBANG</div>' : ''}
+      <div class="location">Kawasan: ${season.location || companyDetails.location || 'PANCHANG BEDENA'}</div>
+      <div class="receipt-number" style="${totalDeductionPercent === 0 ? 'font-size: 12px;' : ''}">${transaction.receipt_number || transaction.receiptNumber || 'N/A'}</div>
     </div>
-  </div>
-  
-  <!-- Weights Section -->
-  <div class="weights-section">
-    <div class="weight-row">
-      <div class="weight-label">
-        <span class="bold">BERAT MASUK</span>
-        <span>: ${formatNumber(transaction.gross_weight_kg, 2)} KG</span>
+    
+    <div style="clear: both;"></div>
+    
+    <!-- Title -->
+    <div class="title">Resit Belian</div>
+    
+    <!-- Farmer Details (Left) and Transaction Details (Right) -->
+    <div class="details-section">
+      <div class="row-split">
+        <div style="width: 60%;">
+          <div class="row">
+            <span class="label">NAMA</span>
+            <span class="value">: ${farmer.full_name || ''}</span>
+          </div>
+          <div class="row">
+            <span class="label">NO K/P</span>
+            <span class="value">: ${farmer.ic_number || ''}</span>
+          </div>
+          <div class="row">
+            <span class="label">ALAMAT</span>
+            <span class="value">: ${farmer.address || farmer.farmer_address || ''}</span>
+          </div>
+          <div class="row">
+            <span class="label"></span>
+            <span class="value">: ${farmer.postcode || ''} ${farmer.city || ''}, ${farmer.state || ''}</span>
+          </div>
+        </div>
+        <div style="width: 38%; text-align: right;">
+          <div class="row">
+            <span class="bold">TARIKH MASUK: ${formatDate(transaction.transaction_date)}</span>
+          </div>
+          <div class="row">
+            <span>SUBSIDI</span>
+            <span>: ${transaction.subsidy_code || 'B001/D8858'}</span>
+          </div>
+          <div class="row">
+            <span>GIRO</span>
+            <span>: ${farmer.bank_name && farmer.bank_account_number ? `${farmer.bank_account_number}` : '-'}</span>
+          </div>
+          <div class="row">
+            <span>BPM</span>
+            <span>: ${farmer.bank2_name && farmer.bank2_account_number ? `${farmer.bank2_account_number}` : '.-'}</span>
+          </div>
+        </div>
       </div>
-      <div class="weight-value">
-        <span class="bold">MASA MASUK</span>
-        <span>: ${timeIn}</span>
+      
+      <div class="row" style="margin-top: 5px;">
+        <span class="label">NO. LORI</span>
+        <span class="value">: ${transaction.vehicle_number || ''}</span>
       </div>
     </div>
     
-    <div class="weight-row">
-      <div class="weight-label">
-        <span class="bold">BERAT KELUAR</span>
-        <span>: ${formatNumber(transaction.tare_weight_kg, 2)} KG</span>
-      </div>
-      <div class="weight-value">
-        <span class="bold">MASA KELUAR</span>
-        <span>: ${timeOut}</span>
-      </div>
-    </div>
-    
-    <div class="weight-row">
-      <div class="weight-label">
-        <span class="bold">BERAT KASAR</span>
-        <span>: ${formatNumber(beratKasar, 2)} KG</span>
-      </div>
-      <div class="weight-value">
-        <span class="bold">HARGA/TAN</span>
-        <span>: RM ${formatNumber(transaction.base_price_per_kg * 1000, 2)}</span>
-      </div>
-    </div>
-    
-    ${totalDeductionPercent > 0 ? `
-    <div class="weight-row">
-      <div class="weight-label">
-        <span class="bold">POTONGAN</span>
-        <span>: ${formatNumber(totalDeductionPercent, 2)}%</span>
-        ${deductionText ? `<div class="deduction-note">(${deductionText})</div>` : ''}
-      </div>
-      <div class="weight-value">
-        <span class="bold">AMAUN</span>
-        <span>: RM ${formatNumber(transaction.total_amount, 2)}</span>
-      </div>
-    </div>
-    ` : ''}
-    
-    <div class="net-weight">
+    <!-- Weights Section -->
+    <div class="weights-section">
       <div class="weight-row">
         <div class="weight-label">
-          <span>BERAT BERSIH</span>
-          <span>: ${formatNumber(beratBersih, 2)} KG</span>
+          <span class="bold">BERAT MASUK</span>
+          <span>: ${formatNumber(transaction.gross_weight_kg, 2)} KG</span>
+        </div>
+        <div class="weight-value">
+          <span class="bold">MASA MASUK</span>
+          <span>: ${timeIn}</span>
+        </div>
+      </div>
+      
+      <div class="weight-row">
+        <div class="weight-label">
+          <span class="bold">BERAT KELUAR</span>
+          <span>: ${formatNumber(transaction.tare_weight_kg, 2)} KG</span>
+        </div>
+        <div class="weight-value">
+          <span class="bold">MASA KELUAR</span>
+          <span>: ${timeOut}</span>
+        </div>
+      </div>
+      
+      <div class="weight-row">
+        <div class="weight-label">
+          <span class="bold">BERAT KASAR</span>
+          <span>: ${formatNumber(beratKasar, 2)} KG</span>
+        </div>
+        <div class="weight-value">
+          <span class="bold">HARGA/TAN</span>
+          <span>: RM ${formatNumber(transaction.base_price_per_kg * 1000, 2)}</span>
+        </div>
+      </div>
+      
+      ${totalDeductionPercent > 0 ? `
+      <div class="weight-row">
+        <div class="weight-label">
+          <span class="bold">POTONGAN</span>
+          <span>: ${formatNumber(totalDeductionPercent, 2)}%</span>
+          ${deductionText ? `<div class="deduction-note">(${deductionText})</div>` : ''}
+        </div>
+        <div class="weight-value">
+          <span class="bold">AMAUN</span>
+          <span>: RM ${formatNumber(transaction.total_amount, 2)}</span>
+        </div>
+      </div>
+      ` : ''}
+      
+      <div class="net-weight">
+        <div class="weight-row">
+          <div class="weight-label">
+            <span>BERAT BERSIH</span>
+            <span>: ${formatNumber(beratBersih, 2)} KG</span>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-  
-  <!-- Footer Signatures -->
-  <div class="footer">
-    <div class="signature-row">
-      <div class="signature-box">
-        <div class="signature-line"></div>
-        <div class="signature-label">DITIMBANG OLEH</div>
-      </div>
-      <div class="signature-box">
-        <div class="signature-line"></div>
-        <div class="signature-label">PEMANDU LORI</div>
-      </div>
-      <div class="signature-box">
-        <div class="signature-line"></div>
-        <div class="signature-label">DITERIMA OLEH</div>
+    
+    <!-- Footer Signatures -->
+    <div class="footer">
+      <div class="signature-row">
+        <div class="signature-box">
+          <div class="signature-line"></div>
+          <div class="signature-label">DITIMBANG OLEH</div>
+        </div>
+        <div class="signature-box">
+          <div class="signature-line"></div>
+          <div class="signature-label">PEMANDU LORI</div>
+        </div>
+        <div class="signature-box">
+          <div class="signature-line"></div>
+          <div class="signature-label">DITERIMA OLEH</div>
+        </div>
       </div>
     </div>
   </div>
@@ -487,13 +503,18 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
     
     body {
       font-family: 'Courier New', monospace;
-      font-size: ${sizeConfig.usePageSize ? sizeConfig.fontSize : '14px'};
+      font-size: ${sizeConfig.fontSize};
       line-height: 1.4;
-      width: ${sizeConfig.usePageSize ? sizeConfig.maxContentWidth : '100%'};
-      max-width: 100%;
-      margin: 0 auto;
-      padding: ${sizeConfig.usePageSize ? '0' : '10mm'};
+      width: 100%; /* Changed to 100% */
+      margin: 0;
+      padding: 0;
       color: #000;
+    }
+    
+    .container {
+      width: 100%; /* Full width container */
+      margin: 0;
+      padding: 0;
     }
     
     .header {
@@ -501,6 +522,7 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
       margin-bottom: 10px;
       border-bottom: 2px solid #000;
       padding-bottom: 5px;
+      width: 100%;
     }
     
     .company-name {
@@ -531,6 +553,7 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
       display: flex;
       justify-content: space-between;
       margin-bottom: 15px;
+      width: 100%;
     }
     
     .left-section {
@@ -565,6 +588,7 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
     
     .purchase-receipts-section {
       margin: 10px 0;
+      width: 100%;
     }
     
     .purchase-table {
@@ -597,6 +621,7 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
     .footer {
       margin-top: 30px;
       page-break-inside: avoid;
+      width: 100%;
     }
     
     .signature-row {
@@ -604,6 +629,7 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
       justify-content: space-between;
       margin-top: 20px;
       page-break-inside: avoid;
+      width: 100%;
     }
     
     .signature-box {
@@ -634,103 +660,106 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
       body {
         margin: 0;
         padding: ${sizeConfig.padding};
+        width: 100%;
       }
     }
   </style>
 </head>
 <body>
-  <!-- Header -->
-  <div class="header">
-    <div class="company-name">${companyDetails.name || 'BERKAT PADI SDN BHD'}</div>
-    <div class="company-info">
-      ${companyDetails.address || 'LOT 14633 PKT 100, SUNGAI NIPAH, 45300 SUNGAI BESAR, SELANGOR'}${companyDetails.phone ? ` No Tel: ${companyDetails.phone}` : ''}
-    </div>
-    <div class="company-info">
-      (Lesen Beli Padi: ${companyDetails.licence_no || companyDetails.license || 'N/A'})
-    </div>
-  </div>
-  
-  <div class="page-title">NOTA PENGHANTARAN PADI</div>
-  
-  <!-- Main Section with Left and Right Columns -->
-  <div class="main-section">
-    <!-- Left Column -->
-    <div class="left-section">
-      <div class="bold" style="margin-bottom: 5px;">PENGHANTARAN PADI KE</div>
-      <div style="font-size: calc(${sizeConfig.fontSize} * 0.9);">
-        Pengurus,<br>
-        ${salesTransaction.manufacturer_name || 'KILANG BERAS RAKYAT SEKINCHAN'},<br>
-        ${salesTransaction.manufacturer_address || 'LOT 322'},<br>
-        ${salesTransaction.manufacturer_postcode || '45400'} ${salesTransaction.manufacturer_city || 'SEKINCHAN'}<br>
-        ${salesTransaction.manufacturer_state || 'SELANGOR'}
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="company-name">${companyDetails.name || 'BERKAT PADI SDN BHD'}</div>
+      <div class="company-info">
+        ${companyDetails.address || 'LOT 14633 PKT 100, SUNGAI NIPAH, 45300 SUNGAI BESAR, SELANGOR'} No Tel: ${companyDetails.phone || '019-2499963'}
       </div>
-      
-      <div class="receipt-info">
-        <div><span class="bold">NO RESIT PENGHANTARA</span> ${salesTransaction.sales_number || 'N/A'}</div>
-        <div><span class="bold">TARIKH :</span> ${formatDate(salesTransaction.sale_date)}</div>
-        <div><span class="bold">PRODUK :</span> ${salesTransaction.product_name || 'N/A'}</div>
+      <div class="company-info">
+        (Lesen Beli Padi: ${companyDetails.licence_no || companyDetails.license || 'N/A'})
       </div>
     </div>
     
-    <!-- Right Column with Boxed Sections -->
-    <div class="right-section">
-      <!-- Driver Info Box -->
-      <div class="info-box">
-        <div class="box-title">Maklumat Pemandu Penghantaran :</div>
-        <div class="info-row">Nama: ${salesTransaction.driver_name || ''}</div>
-        <div class="info-row">No KP: -</div>
-        <div class="info-row">No Pendaftaran Lori: ${salesTransaction.vehicle_number || ''}</div>
+    <div class="page-title">NOTA PENGHANTARAN PADI</div>
+    
+    <!-- Main Section with Left and Right Columns -->
+    <div class="main-section">
+      <!-- Left Column -->
+      <div class="left-section">
+        <div class="bold" style="margin-bottom: 5px;">PENGHANTARAN PADI KE</div>
+        <div style="font-size: calc(${sizeConfig.fontSize} * 0.9);">
+          Pengurus,<br>
+          ${salesTransaction.manufacturer_name || 'KILANG BERAS RAKYAT SEKINCHAN'},<br>
+          ${salesTransaction.manufacturer_address || 'LOT 322'},<br>
+          ${salesTransaction.manufacturer_postcode || '45400'} ${salesTransaction.manufacturer_city || 'SEKINCHAN'}<br>
+          ${salesTransaction.manufacturer_state || 'SELANGOR'}
+        </div>
+        
+        <div class="receipt-info">
+          <div><span class="bold">NO RESIT PENGHANTARA</span> ${salesTransaction.sales_number || 'N/A'}</div>
+          <div><span class="bold">TARIKH :</span> ${formatDate(salesTransaction.sale_date)}</div>
+          <div><span class="bold">PRODUK :</span> ${salesTransaction.product_name || 'N/A'}</div>
+        </div>
       </div>
       
-      <!-- Weighing Info Box -->
-      <div class="info-box">
-        <div class="box-title">Maklumat Timbangan :</div>
-        <div class="info-row"><span class="bold">TIMBANG MASUK : ${formatNumber(salesTransaction.tare_weight_kg, 2)} KG</span></div>
-        <div class="info-row"><span class="bold">TIMBANG KELUAR : ${formatNumber(salesTransaction.gross_weight_kg, 2)} KG</span></div>
-        <div class="info-row"><span class="bold">BERAT KASAR: ${formatNumber(salesTransaction.net_weight_kg, 2)} KG</span></div>
-        <div class="info-row" style="font-size: calc(${sizeConfig.fontSize} * 0.8);">Masa Masuk: ${formatTime(salesTransaction.sale_date)}</div>
-        <div class="info-row" style="font-size: calc(${sizeConfig.fontSize} * 0.8);">Masa Keluar: ${formatTime(salesTransaction.sale_date)}</div>
+      <!-- Right Column with Boxed Sections -->
+      <div class="right-section">
+        <!-- Driver Info Box -->
+        <div class="info-box">
+          <div class="box-title">Maklumat Pemandu Penghantaran :</div>
+          <div class="info-row">Nama: ${salesTransaction.driver_name || ''}</div>
+          <div class="info-row">No KP: -</div>
+          <div class="info-row">No Pendaftaran Lori: ${salesTransaction.vehicle_number || ''}</div>
+        </div>
+        
+        <!-- Weighing Info Box -->
+        <div class="info-box">
+          <div class="box-title">Maklumat Timbangan :</div>
+          <div class="info-row"><span class="bold">TIMBANG MASUK : ${formatNumber(salesTransaction.tare_weight_kg, 2)} KG</span></div>
+          <div class="info-row"><span class="bold">TIMBANG KELUAR : ${formatNumber(salesTransaction.gross_weight_kg, 2)} KG</span></div>
+          <div class="info-row"><span class="bold">BERAT KASAR: ${formatNumber(salesTransaction.net_weight_kg, 2)} KG</span></div>
+          <div class="info-row" style="font-size: calc(${sizeConfig.fontSize} * 0.8);">Masa Masuk: ${formatTime(salesTransaction.sale_date)}</div>
+          <div class="info-row" style="font-size: calc(${sizeConfig.fontSize} * 0.8);">Masa Keluar: ${formatTime(salesTransaction.sale_date)}</div>
+        </div>
       </div>
     </div>
-  </div>
-  
-  <!-- Purchase Receipts Table -->
-  <div class="purchase-receipts-section">
-    <table class="purchase-table">
-      <thead>
-        <tr>
-          <th style="width: 5%;"></th>
-          <th style="${hasDeductions ? 'width: 25%;' : 'width: 45%;'} text-align: left;">NO RESIT</th>
-          <th style="${hasDeductions ? 'width: 25%;' : 'width: 50%;'} text-align: right;">B. KASAR</th>
-          ${hasDeductions ? '<th style="width: 25%; text-align: right;">B. BERSIH</th>' : ''}
-          ${hasDeductions ? '<th style="width: 20%; text-align: right;">PTG</th>' : ''}
-        </tr>
-      </thead>
-      <tbody>
-        ${purchaseTableRows}
-        <tr class="total-row">
-          <td colspan="2" style="text-align: left; padding: 8px; border-top: 2px solid #000;"><span class="bold">Jumlah Berat Hantar</span></td>
-          <td style="text-align: right; padding: 8px; border-top: 2px solid #000;">${formatNumber(totalBeratKasar, 2)} KG</td>
-          ${hasDeductions ? `<td style="text-align: right; padding: 8px; border-top: 2px solid #000;">${formatNumber(totalBeratBersih, 2)} KG</td>` : ''}
-          ${hasDeductions ? '<td style="border-top: 2px solid #000;"></td>' : ''}
-        </tr>
-      </tbody>
-    </table>
-  </div>
-  
-  <!-- Footer Signatures -->
-  <div class="footer">
-    <div class="signature-row">
-      <div class="signature-box">
-        <div class="signature-title">Dihantar Oleh:</div>
-        <div class="signature-field">Tanda tangan : <span class="signature-line"></span></div>
-        <div class="signature-field">Nama : <span class="signature-line"></span></div>
-      </div>
-      <div class="signature-box">
-        <div class="signature-title">Diterima dan disemak oleh:</div>
-        <div class="signature-field">Tanda tangan : <span class="signature-line"></span></div>
-        <div class="signature-field">Nama : <span class="signature-line"></span></div>
-        <div class="signature-field">No KP : <span class="signature-line"></span></div>
+    
+    <!-- Purchase Receipts Table -->
+    <div class="purchase-receipts-section">
+      <table class="purchase-table">
+        <thead>
+          <tr>
+            <th style="width: 5%;"></th>
+            <th style="${hasDeductions ? 'width: 25%;' : 'width: 45%;'} text-align: left;">NO RESIT</th>
+            <th style="${hasDeductions ? 'width: 25%;' : 'width: 50%;'} text-align: right;">B. KASAR</th>
+            ${hasDeductions ? '<th style="width: 25%; text-align: right;">B. BERSIH</th>' : ''}
+            ${hasDeductions ? '<th style="width: 20%; text-align: right;">PTG</th>' : ''}
+          </tr>
+        </thead>
+        <tbody>
+          ${purchaseTableRows}
+          <tr class="total-row">
+            <td colspan="2" style="text-align: left; padding: 8px; border-top: 2px solid #000;"><span class="bold">Jumlah Berat Hantar</span></td>
+            <td style="text-align: right; padding: 8px; border-top: 2px solid #000;">${formatNumber(totalBeratKasar, 2)} KG</td>
+            ${hasDeductions ? `<td style="text-align: right; padding: 8px; border-top: 2px solid #000;">${formatNumber(totalBeratBersih, 2)} KG</td>` : ''}
+            ${hasDeductions ? '<td style="border-top: 2px solid #000;"></td>' : ''}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- Footer Signatures -->
+    <div class="footer">
+      <div class="signature-row">
+        <div class="signature-box">
+          <div class="signature-title">Dihantar Oleh:</div>
+          <div class="signature-field">Tanda tangan : <span class="signature-line"></span></div>
+          <div class="signature-field">Nama : <span class="signature-line"></span></div>
+        </div>
+        <div class="signature-box">
+          <div class="signature-title">Diterima dan disemak oleh:</div>
+          <div class="signature-field">Tanda tangan : <span class="signature-line"></span></div>
+          <div class="signature-field">Nama : <span class="signature-line"></span></div>
+          <div class="signature-field">No KP : <span class="signature-line"></span></div>
+        </div>
       </div>
     </div>
   </div>
