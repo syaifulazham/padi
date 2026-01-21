@@ -289,7 +289,7 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
       <div class="company-name">${companyDetails.name || 'BERKAT PADI SDN BHD'}</div>
       <div class="company-info">
         ${companyDetails.address || 'LOT 14633 PKT 100 SAWAH, SUNGAI NIPAH<br>45300 SUNGAI BESAR, SELANGOR'}<br>
-        Tel:${companyDetails.phone || '019249396301323396636'}<br>
+        Tel: ${companyDetails.phone || '019-2499963'}<br>
         Lesen Belian Padi : ${companyDetails.licence_no || companyDetails.license || 'E6380'}
       </div>
     </div>
@@ -303,7 +303,7 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
     <div style="clear: both;"></div>
     
     <!-- Title -->
-    <div class="title">Resit Belian</div>
+    <div class="title">${totalDeductionPercent === 0 ? 'NOTA TIMBANG' : 'RESIT BELIAN'}</div>
     
     <!-- Farmer Details (Left) and Transaction Details (Right) -->
     <div class="details-section">
@@ -451,14 +451,37 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
     return sum + parseFloat(r.effective_weight_kg || r.net_weight_kg || 0);
   }, 0);
   
-  // Check if all deductions are 0
-  const hasDeductions = purchaseReceipts.some(r => parseFloat(r.total_deduction_rate || 0) > 0);
+  // Check if ALL receipts have deductions configured (not just some)
+  const hasDeductions = purchaseReceipts.length > 0 && purchaseReceipts.every(r => {
+    const deductionConfig = r.deduction_config;
+    // Check if deduction_config exists and is not empty/null
+    if (!deductionConfig || deductionConfig === '[]' || deductionConfig === '') return false;
+    try {
+      const deductions = typeof deductionConfig === 'string' ? JSON.parse(deductionConfig) : deductionConfig;
+      return Array.isArray(deductions) && deductions.length > 0;
+    } catch {
+      return false;
+    }
+  });
   
   // Generate purchase receipts table rows conditionally
   const purchaseTableRows = purchaseReceipts.map((receipt, index) => {
     const beratKasar = parseFloat(receipt.original_weight || receipt.gross_weight_kg - receipt.tare_weight_kg || 0);
     const beratBersih = parseFloat(receipt.effective_weight_kg || receipt.net_weight_kg || 0);
-    const ptg = parseFloat(receipt.total_deduction_rate || 0);
+    
+    // Calculate PTG from deduction_config
+    let ptg = 0;
+    try {
+      const deductionConfig = receipt.deduction_config;
+      if (deductionConfig) {
+        const deductions = typeof deductionConfig === 'string' ? JSON.parse(deductionConfig) : deductionConfig;
+        if (Array.isArray(deductions)) {
+          ptg = deductions.reduce((sum, d) => sum + parseFloat(d.value || 0), 0);
+        }
+      }
+    } catch (error) {
+      console.error('Error parsing deduction_config for receipt:', receipt.receipt_number, error);
+    }
     
     if (hasDeductions) {
       return `

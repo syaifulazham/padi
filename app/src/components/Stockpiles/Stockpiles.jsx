@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Row, Col, Statistic, Table, Tag, Space, Button, message, Alert, Progress } from 'antd';
-import { ReloadOutlined, EyeOutlined, WarningOutlined, InboxOutlined, ShoppingCartOutlined, ShopOutlined, TableOutlined, BarChartOutlined } from '@ant-design/icons';
+import { ReloadOutlined, EyeOutlined, WarningOutlined, InboxOutlined, ShoppingCartOutlined, ShopOutlined, TableOutlined, BarChartOutlined, PrinterOutlined, FileExcelOutlined } from '@ant-design/icons';
+import * as XLSX from 'xlsx';
+import dayjs from 'dayjs';
 
 const Stockpiles = () => {
   const navigate = useNavigate();
@@ -85,6 +87,174 @@ const Stockpiles = () => {
 
   const viewMovements = (product) => {
     navigate(`/stockpiles/movements?productId=${product.product_id}&productName=${encodeURIComponent(product.product_name)}&productCode=${encodeURIComponent(product.product_code)}`);
+  };
+
+  const handleExport = () => {
+    try {
+      if (!stockpiles || stockpiles.length === 0) {
+        message.warning('No data to export');
+        return;
+      }
+
+      // Prepare data for Excel
+      const data = stockpiles.map(item => ({
+        'Product Code': item.product_code,
+        'Product Name': item.product_name,
+        'Type': item.product_type,
+        'Variety': item.variety,
+        'Purchased (kg)': parseFloat(item.total_purchased_kg).toFixed(2),
+        'Purchased (ton)': parseFloat(item.total_purchased_ton).toFixed(3),
+        'Purchase Count': item.purchase_count,
+        'Sold (kg)': parseFloat(item.total_sold_kg).toFixed(2),
+        'Sold (ton)': parseFloat(item.total_sold_ton).toFixed(3),
+        'Sales Count': item.sales_count,
+        'Current Stock (kg)': parseFloat(item.current_stock_kg).toFixed(2),
+        'Current Stock (ton)': parseFloat(item.current_stock_ton).toFixed(3),
+        'Stock Value (RM)': item.stock_value ? parseFloat(item.stock_value).toFixed(2) : '0.00'
+      }));
+
+      // Add summary row
+      if (stats) {
+        data.push({});
+        data.push({
+          'Product Code': 'TOTAL',
+          'Product Name': '',
+          'Type': '',
+          'Variety': '',
+          'Purchased (kg)': parseFloat(stats.total_purchased_kg).toFixed(2),
+          'Purchased (ton)': parseFloat(stats.total_purchased_ton).toFixed(3),
+          'Purchase Count': stats.total_purchase_transactions,
+          'Sold (kg)': parseFloat(stats.total_sold_kg).toFixed(2),
+          'Sold (ton)': parseFloat(stats.total_sold_ton).toFixed(3),
+          'Sales Count': stats.total_sale_transactions,
+          'Current Stock (kg)': parseFloat(stats.current_stock_kg).toFixed(2),
+          'Current Stock (ton)': parseFloat(stats.current_stock_ton).toFixed(3),
+          'Stock Value (RM)': ''
+        });
+      }
+
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Stockpiles');
+
+      const filename = `Stockpiles_${activeSeason?.season_name || 'Report'}_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`;
+      XLSX.writeFile(wb, filename);
+      message.success('Stockpiles exported successfully');
+    } catch (error) {
+      console.error('Error exporting stockpiles:', error);
+      message.error('Failed to export stockpiles');
+    }
+  };
+
+  const handlePrint = () => {
+    try {
+      if (!stockpiles || stockpiles.length === 0) {
+        message.warning('No data to print');
+        return;
+      }
+
+      // Create print content
+      const printWindow = window.open('', '', 'width=800,height=600');
+      
+      const printContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Stockpiles Report</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { text-align: center; margin-bottom: 10px; }
+            .subtitle { text-align: center; color: #666; margin-bottom: 20px; }
+            .stats { display: flex; justify-content: space-around; margin-bottom: 30px; }
+            .stat-box { text-align: center; padding: 10px; }
+            .stat-label { font-size: 12px; color: #666; }
+            .stat-value { font-size: 24px; font-weight: bold; margin-top: 5px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 11px; }
+            th { background-color: #f2f2f2; font-weight: bold; }
+            .text-right { text-align: right; }
+            .total-row { font-weight: bold; background-color: #f9f9f9; }
+            @media print {
+              body { padding: 10px; }
+              button { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>📦 Stockpiles Report</h1>
+          <div class="subtitle">
+            Season: ${activeSeason?.season_name || `${activeSeason?.season_number}/${activeSeason?.year}`} | 
+            Generated: ${dayjs().format('DD/MM/YYYY HH:mm')}
+          </div>
+          
+          ${stats ? `
+          <div class="stats">
+            <div class="stat-box">
+              <div class="stat-label">Total Purchased</div>
+              <div class="stat-value" style="color: #52c41a;">${stats.total_purchased_ton.toFixed(3)} ton</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Total Sold</div>
+              <div class="stat-value" style="color: #ff4d4f;">${stats.total_sold_ton.toFixed(3)} ton</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Current Stock</div>
+              <div class="stat-value" style="color: #1890ff;">${stats.current_stock_ton.toFixed(3)} ton</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Turnover Rate</div>
+              <div class="stat-value">${stats.turnover_rate.toFixed(2)}%</div>
+            </div>
+          </div>
+          ` : ''}
+          
+          <table>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Type</th>
+                <th>Variety</th>
+                <th class="text-right">Purchased (ton)</th>
+                <th class="text-right">Sold (ton)</th>
+                <th class="text-right">Current Stock (ton)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${stockpiles.map(item => `
+                <tr>
+                  <td>${item.product_code} - ${item.product_name}</td>
+                  <td>${item.product_type}</td>
+                  <td>${item.variety}</td>
+                  <td class="text-right">${item.total_purchased_ton.toFixed(3)}</td>
+                  <td class="text-right">${item.total_sold_ton.toFixed(3)}</td>
+                  <td class="text-right">${item.current_stock_ton.toFixed(3)}</td>
+                </tr>
+              `).join('')}
+              ${stats ? `
+                <tr class="total-row">
+                  <td colspan="3">TOTAL</td>
+                  <td class="text-right">${stats.total_purchased_ton.toFixed(3)}</td>
+                  <td class="text-right">${stats.total_sold_ton.toFixed(3)}</td>
+                  <td class="text-right">${stats.current_stock_ton.toFixed(3)}</td>
+                </tr>
+              ` : ''}
+            </tbody>
+          </table>
+        </body>
+        </html>
+      `;
+      
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.focus();
+      
+      setTimeout(() => {
+        printWindow.print();
+      }, 250);
+    } catch (error) {
+      console.error('Error printing stockpiles:', error);
+      message.error('Failed to print stockpiles');
+    }
   };
 
   const columns = [
@@ -216,6 +386,20 @@ const Stockpiles = () => {
               </Col>
               <Col>
                 <Space>
+                  <Button
+                    icon={<PrinterOutlined />}
+                    onClick={handlePrint}
+                    disabled={!stockpiles || stockpiles.length === 0}
+                  >
+                    Print
+                  </Button>
+                  <Button
+                    icon={<FileExcelOutlined />}
+                    onClick={handleExport}
+                    disabled={!stockpiles || stockpiles.length === 0}
+                  >
+                    Export
+                  </Button>
                   <Button
                     icon={viewMode === 'table' ? <BarChartOutlined /> : <TableOutlined />}
                     onClick={() => setViewMode(viewMode === 'table' ? 'chart' : 'table')}

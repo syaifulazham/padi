@@ -3,12 +3,14 @@ import { Modal, Upload, Button, Steps, Table, Select, message, Alert, Space } fr
 import { UploadOutlined, DownloadOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import * as XLSX from 'xlsx';
 import { useI18n } from '../../i18n/I18nProvider';
+import { useAuth } from '../../contexts/AuthContext';
 
 const { Step } = Steps;
 const { Option } = Select;
 
 const BulkUploadModal = ({ open, onClose, onSuccess }) => {
   const { t } = useI18n();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [fileData, setFileData] = useState(null);
   const [headers, setHeaders] = useState([]);
@@ -214,6 +216,7 @@ const BulkUploadModal = ({ open, onClose, onSuccess }) => {
         // Set defaults
         if (!farmer.status) farmer.status = 'active';
         if (!farmer.farm_size_acres) farmer.farm_size_acres = 0;
+        farmer.created_by = user?.user_id;
         
         return farmer;
       });

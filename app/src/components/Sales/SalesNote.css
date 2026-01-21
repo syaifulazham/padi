@@ -1,0 +1,7 @@
+.sales-note-complete {
+  background-color: #f6ffed !important;
+}
+
+.sales-note-complete:hover > td {
+  background-color: #d9f7be !important;
+}

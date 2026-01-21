@@ -12,6 +12,7 @@ import {
   ScissorOutlined
 } from '@ant-design/icons';
 import { useI18n } from '../../i18n/I18nProvider';
+import { useAuth } from '../../contexts/AuthContext';
 import './SalesWeighOutWizard.css';
 
 const SalesWeighOutWizard = ({ 
@@ -24,6 +25,7 @@ const SalesWeighOutWizard = ({
   onReloadReceipts
 }) => {
   const { t } = useI18n();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [visitedSteps, setVisitedSteps] = useState([0]);
   const [wizardData, setWizardData] = useState({
@@ -351,7 +353,7 @@ const SalesWeighOutWizard = ({
       const result = await window.electronAPI.purchases.createSplit(
         receiptToSplit.transaction_id,
         values.split_weight,
-        1 // TODO: Get actual user ID from session
+        user?.user_id
       );
 
       if (!result.success) {

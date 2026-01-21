@@ -121,46 +121,49 @@ const PaymentModalContent = ({ transaction, form, seasonDeductionConfig }) => {
         <Form.List name="deductions">
           {(fields, { add, remove }) => (
             <>
-              {fields.map((field, index) => (
-                <Space key={field.key} style={{ display: 'flex', marginBottom: 6 }} align="baseline" size="small">
-                  <Form.Item
-                    {...field}
-                    label={index === 0 ? t('purchasesPayment.modal.deductions.typeLabel') : ''}
-                    name={[field.name, 'deduction']}
-                    rules={[{ required: true, message: t('purchasesPayment.validations.required') }]}
-                    style={{ width: 180, marginBottom: 0 }}
-                  >
-                    <Input placeholder={t('purchasesPayment.modal.deductions.typePlaceholder')} size="small" />
-                  </Form.Item>
-                  <Form.Item
-                    {...field}
-                    label={index === 0 ? t('purchasesPayment.modal.deductions.rateLabel') : ''}
-                    name={[field.name, 'value']}
-                    rules={[
-                      { required: true, message: t('purchasesPayment.validations.required') },
-                      { type: 'number', min: 0, max: 100, message: t('purchasesPayment.validations.zeroToHundredPercent') }
-                    ]}
-                    style={{ width: 100, marginBottom: 0 }}
-                  >
-                    <InputNumber
-                      placeholder={t('purchasesPayment.modal.deductions.ratePlaceholder')}
-                      precision={2}
-                      min={0}
-                      max={100}
-                      step={0.5}
-                      size="small"
-                      style={{ width: '100%' }}
-                      addonAfter={t('purchasesPayment.misc.percent')}
-                    />
-                  </Form.Item>
-                  {fields.length > 0 && (
-                    <MinusCircleOutlined
-                      style={{ fontSize: 16, color: '#ff4d4f', cursor: 'pointer', marginTop: index === 0 ? 22 : 0 }}
-                      onClick={() => remove(field.name)}
-                    />
-                  )}
-                </Space>
-              ))}
+              {fields.map((field, index) => {
+                const { key, ...restField } = field;
+                return (
+                  <Space key={key} style={{ display: 'flex', marginBottom: 6 }} align="baseline" size="small">
+                    <Form.Item
+                      {...restField}
+                      label={index === 0 ? t('purchasesPayment.modal.deductions.typeLabel') : ''}
+                      name={[field.name, 'deduction']}
+                      rules={[{ required: true, message: t('purchasesPayment.validations.required') }]}
+                      style={{ width: 180, marginBottom: 0 }}
+                    >
+                      <Input placeholder={t('purchasesPayment.modal.deductions.typePlaceholder')} size="small" />
+                    </Form.Item>
+                    <Form.Item
+                      {...restField}
+                      label={index === 0 ? t('purchasesPayment.modal.deductions.rateLabel') : ''}
+                      name={[field.name, 'value']}
+                      rules={[
+                        { required: true, message: t('purchasesPayment.validations.required') },
+                        { type: 'number', min: 0, max: 100, message: t('purchasesPayment.validations.zeroToHundredPercent') }
+                      ]}
+                      style={{ width: 100, marginBottom: 0 }}
+                    >
+                      <InputNumber
+                        placeholder={t('purchasesPayment.modal.deductions.ratePlaceholder')}
+                        precision={2}
+                        min={0}
+                        max={100}
+                        step={0.5}
+                        size="small"
+                        style={{ width: '100%' }}
+                        addonAfter={t('purchasesPayment.misc.percent')}
+                      />
+                    </Form.Item>
+                    {fields.length > 0 && (
+                      <MinusCircleOutlined
+                        style={{ fontSize: 16, color: '#ff4d4f', cursor: 'pointer', marginTop: index === 0 ? 22 : 0 }}
+                        onClick={() => remove(field.name)}
+                      />
+                    )}
+                  </Space>
+                );
+              })}
               <Form.Item style={{ marginTop: 8, marginBottom: 0 }}>
                 <Button
                   type="dashed"
@@ -260,8 +263,12 @@ const Payment = () => {
   const { t } = useI18n();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [dateRange, setDateRange] = useState([dayjs().startOf('month'), dayjs().endOf('day')]);
+  const [dateRange, setDateRange] = useState([dayjs().startOf('day'), dayjs().endOf('day')]);
   const [activeSeason, setActiveSeason] = useState(null);
+  const [dateRangeLoaded, setDateRangeLoaded] = useState(false);
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState('');
+  const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [form] = Form.useForm();
@@ -271,10 +278,16 @@ const Payment = () => {
   }, []);
 
   useEffect(() => {
-    if (activeSeason) {
+    if (activeSeason && !dateRangeLoaded) {
+      loadSeasonDateRange();
+    }
+  }, [activeSeason]);
+
+  useEffect(() => {
+    if (activeSeason && dateRangeLoaded) {
       loadTransactions();
     }
-  }, [dateRange, activeSeason]);
+  }, [dateRange, activeSeason, dateRangeLoaded]);
 
   const loadActiveSeason = async () => {
     try {
@@ -288,9 +301,27 @@ const Payment = () => {
     }
   };
 
+  const loadSeasonDateRange = async () => {
+    try {
+      const result = await window.electronAPI.purchases?.getSeasonDateRange(activeSeason.season_id);
+      if (result?.success && result.data) {
+        const { earliest_date, latest_date } = result.data;
+        setDateRange([
+          dayjs(earliest_date).startOf('day'),
+          dayjs(latest_date).endOf('day')
+        ]);
+        setDateRangeLoaded(true);
+        console.log('✅ Season date range loaded for receipts:', earliest_date, 'to', latest_date);
+      }
+    } catch (error) {
+      console.error('Failed to load season date range:', error);
+      setDateRangeLoaded(true);
+    }
+  };
+
   const loadTransactions = async () => {
-    if (!activeSeason) {
-      console.log('⏳ Waiting for active season to load...');
+    if (!activeSeason || !dateRangeLoaded) {
+      console.log('⏳ Waiting for active season and date range to load...');
       return;
     }
     
@@ -423,13 +454,40 @@ const Payment = () => {
       .reduce((sum, p) => sum + (parseFloat(p.total_amount) || 0), 0)
   };
 
+  const handleReceiptPreview = async (record) => {
+    try {
+      console.log('👁️  Previewing receipt:', record.receipt_number);
+      setSelectedReceipt(record);
+      
+      const previewResult = await window.electronAPI.printer?.purchaseReceipt(record.transaction_id, { preview: true });
+      
+      if (previewResult?.success && previewResult.html) {
+        setPreviewHtml(previewResult.html);
+        setPreviewModalOpen(true);
+      } else {
+        message.error('Failed to generate receipt preview');
+      }
+    } catch (error) {
+      console.error('Error previewing receipt:', error);
+      message.error('Failed to preview receipt');
+    }
+  };
+
   const columns = [
     {
       title: t('purchasesPayment.table.receipt'),
       dataIndex: 'receipt_number',
       key: 'receipt_number',
       width: 150,
-      render: (text) => <Tag color="blue">{text}</Tag>
+      render: (text, record) => (
+        <Tag 
+          color="blue" 
+          style={{ cursor: 'pointer' }}
+          onClick={() => handleReceiptPreview(record)}
+        >
+          {text}
+        </Tag>
+      )
     },
     {
       title: t('purchasesPayment.table.date'),
@@ -703,6 +761,41 @@ const Payment = () => {
             seasonDeductionConfig={activeSeason?.deduction_config || []}
           />
         )}
+      </Modal>
+
+      {/* Receipt Preview Modal */}
+      <Modal
+        title={`Receipt Preview: ${selectedReceipt?.receipt_number || ''}`}
+        open={previewModalOpen}
+        onCancel={() => {
+          setPreviewModalOpen(false);
+          setPreviewHtml('');
+          setSelectedReceipt(null);
+        }}
+        footer={[
+          <Button 
+            key="print" 
+            type="primary" 
+            icon={<PrinterOutlined />} 
+            onClick={() => {
+              window.electronAPI.printer?.purchaseReceipt(selectedReceipt.transaction_id, { forcePrint: true });
+              setPreviewModalOpen(false);
+            }}
+          >
+            Print
+          </Button>,
+          <Button key="close" onClick={() => {
+            setPreviewModalOpen(false);
+            setPreviewHtml('');
+            setSelectedReceipt(null);
+          }}>
+            Close
+          </Button>
+        ]}
+        width={900}
+        bodyStyle={{ padding: 0, maxHeight: '80vh', overflow: 'auto' }}
+      >
+        <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
       </Modal>
     </Card>
   );

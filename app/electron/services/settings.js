@@ -258,6 +258,7 @@ const getCompanyDetails = async () => {
       data: {
         name: company.name || '',
         address: company.address || '',
+        phone: company.phone || '',
         registration_no: company.registration_no || '',
         licence_no: company.paddy_purchasing_licence_no || '',
         location: company.location || ''

@@ -398,6 +398,11 @@ const AppLayout = ({ children }) => {
           icon: <UnorderedListOutlined />,
           label: t('menu.history'),
         },
+        {
+          key: '/sales/note',
+          icon: <DollarOutlined />,
+          label: 'Sales Note',
+        },
       ],
     },
     {

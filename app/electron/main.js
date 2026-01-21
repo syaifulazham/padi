@@ -115,7 +115,7 @@ function createWindow() {
   if (isDev) {
     console.log('   Loading from: http://localhost:5173');
     mainWindow.loadURL('http://localhost:5173');
-    mainWindow.webContents.openDevTools();
+    // mainWindow.webContents.openDevTools(); // Auto-open disabled - press F12 to open manually
     
     // Add more detailed logging
     mainWindow.webContents.on('did-finish-load', () => {
@@ -954,6 +954,12 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId, options = {
     const receiptHTML = generatePurchaseReceipt(transaction, farmer, season, companyDetails, paperSize);
     console.log(`✅ Receipt HTML generated (${receiptHTML.length} chars)`);
     
+    // If preview mode, just return the HTML
+    if (options.preview) {
+      console.log('👁️  Preview mode - returning HTML');
+      return { success: true, html: receiptHTML, mode: 'preview' };
+    }
+    
     // Create hidden window for printing/PDF - larger size for A4/A5
     const printWindow = new BrowserWindow({
       width: 1200,
@@ -1254,6 +1260,12 @@ ipcMain.handle('print:salesReceipt', async (event, salesId, options = {}) => {
     
     // Generate sales receipt HTML with paper size
     const receiptHTML = generateSalesReceipt(salesTransaction, season, companyDetails, paperSize);
+    
+    // If preview mode, just return the HTML
+    if (options.preview) {
+      console.log('👁️  Preview mode - returning HTML');
+      return { success: true, html: receiptHTML, mode: 'preview' };
+    }
     
     // Create hidden window for printing/PDF - larger size for A4/A5
     const printWindow = new BrowserWindow({

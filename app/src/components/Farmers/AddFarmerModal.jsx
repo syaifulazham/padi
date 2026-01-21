@@ -3,12 +3,14 @@ import { Modal, Form, Input, Select, DatePicker, InputNumber, Row, Col, message,
 import dayjs from 'dayjs';
 import SubsidyCardUpload from './SubsidyCardUpload';
 import { useI18n } from '../../i18n/I18nProvider';
+import { useAuth } from '../../contexts/AuthContext';
 
 const { TextArea } = Input;
 const { Option } = Select;
 
 const AddFarmerModal = ({ open, onClose, onSuccess, editingFarmer = null }) => {
   const { t } = useI18n();
+  const { user } = useAuth();
   const [form] = Form.useForm();
   const [loading, setLoading] = React.useState(false);
   const isEditMode = !!editingFarmer;
@@ -60,6 +62,7 @@ const AddFarmerModal = ({ open, onClose, onSuccess, editingFarmer = null }) => {
       const data = {
         ...values,
         date_of_birth: values.date_of_birth ? dayjs(values.date_of_birth).format('YYYY-MM-DD') : null,
+        created_by: user?.user_id
       };
 
       let result;

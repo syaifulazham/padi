@@ -2,12 +2,14 @@ import React from 'react';
 import { Modal, Form, Input, InputNumber, Select, DatePicker, Row, Col, message } from 'antd';
 import dayjs from 'dayjs';
 import { useI18n } from '../../i18n/I18nProvider';
+import { useAuth } from '../../contexts/AuthContext';
 
 const { TextArea } = Input;
 const { Option } = Select;
 
 const AddManufacturerModal = ({ open, onClose, onSuccess, editingManufacturer = null }) => {
   const { t } = useI18n();
+  const { user } = useAuth();
   const [form] = Form.useForm();
   const [loading, setLoading] = React.useState(false);
   const isEditMode = !!editingManufacturer;
@@ -39,6 +41,7 @@ const AddManufacturerModal = ({ open, onClose, onSuccess, editingManufacturer = 
         ...values,
         contract_start_date: values.contract_start_date ? dayjs(values.contract_start_date).format('YYYY-MM-DD') : null,
         contract_end_date: values.contract_end_date ? dayjs(values.contract_end_date).format('YYYY-MM-DD') : null,
+        created_by: user?.user_id
       };
 
       let result;

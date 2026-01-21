@@ -9,6 +9,7 @@ import PurchaseHistory from './components/Purchases/PurchaseHistory';
 import Payment from './components/Purchases/Payment';
 import Sales from './components/Sales/Sales';
 import SalesHistory from './components/Sales/SalesHistory';
+import SalesNote from './components/Sales/SalesNote';
 import Inventory from './components/Inventory/Inventory';
 import Stockpiles from './components/Stockpiles/Stockpiles';
 import StockMovements from './components/Stockpiles/StockMovements';
@@ -164,6 +165,7 @@ function App() {
             <Route path="/purchases/payment" element={<Payment />} />
             <Route path="/sales" element={<Sales />} />
             <Route path="/sales/history" element={<SalesHistory />} />
+            <Route path="/sales/note" element={<SalesNote />} />
             <Route path="/stockpiles" element={<Stockpiles />} />
             <Route path="/stockpiles/movements" element={<StockMovements />} />
             <Route path="/inventory" element={<Inventory />} />

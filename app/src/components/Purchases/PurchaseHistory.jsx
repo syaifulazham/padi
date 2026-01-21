@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Statistic, Row, Col, Button, Space, Tag, DatePicker, message, Tooltip } from 'antd';
+import { Card, Table, Statistic, Row, Col, Button, Space, Tag, DatePicker, message, Tooltip, Modal } from 'antd';
 import { ReloadOutlined, PrinterOutlined, FileExcelOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useI18n } from '../../i18n/I18nProvider';
@@ -13,6 +13,9 @@ const PurchaseHistory = () => {
   const [dateRange, setDateRange] = useState([dayjs().startOf('day'), dayjs().endOf('day')]);
   const [activeSeason, setActiveSeason] = useState(null);
   const [dateRangeLoaded, setDateRangeLoaded] = useState(false);
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState('');
+  const [selectedReceipt, setSelectedReceipt] = useState(null);
 
   useEffect(() => {
     loadActiveSeason();
@@ -130,6 +133,25 @@ const PurchaseHistory = () => {
     }
   };
 
+  const handleReceiptPreview = async (record) => {
+    try {
+      console.log('👁️  Previewing receipt:', record.receipt_number);
+      setSelectedReceipt(record);
+      
+      const previewResult = await window.electronAPI.printer?.purchaseReceipt(record.transaction_id, { preview: true });
+      
+      if (previewResult?.success && previewResult.html) {
+        setPreviewHtml(previewResult.html);
+        setPreviewModalOpen(true);
+      } else {
+        message.error('Failed to generate receipt preview');
+      }
+    } catch (error) {
+      console.error('Error previewing receipt:', error);
+      message.error('Failed to preview receipt');
+    }
+  };
+
   // Calculate statistics
   const stats = {
     total: transactions.length,
@@ -142,7 +164,15 @@ const PurchaseHistory = () => {
       dataIndex: 'receipt_number',
       key: 'receipt_number',
       width: 150,
-      render: (text) => <Tag color="blue">{text}</Tag>
+      render: (text, record) => (
+        <Tag 
+          color="blue" 
+          style={{ cursor: 'pointer' }}
+          onClick={() => handleReceiptPreview(record)}
+        >
+          {text}
+        </Tag>
+      )
     },
     {
       title: t('purchasesHistory.table.dateTime'),
@@ -343,6 +373,41 @@ const PurchaseHistory = () => {
           }}
           scroll={{ x: 1500 }}
         />
+
+        {/* Receipt Preview Modal */}
+        <Modal
+          title={`Receipt Preview: ${selectedReceipt?.receipt_number || ''}`}
+          open={previewModalOpen}
+          onCancel={() => {
+            setPreviewModalOpen(false);
+            setPreviewHtml('');
+            setSelectedReceipt(null);
+          }}
+          footer={[
+            <Button 
+              key="print" 
+              type="primary" 
+              icon={<PrinterOutlined />} 
+              onClick={() => {
+                handleReprint(selectedReceipt);
+                setPreviewModalOpen(false);
+              }}
+            >
+              Print
+            </Button>,
+            <Button key="close" onClick={() => {
+              setPreviewModalOpen(false);
+              setPreviewHtml('');
+              setSelectedReceipt(null);
+            }}>
+              Close
+            </Button>
+          ]}
+          width={900}
+          bodyStyle={{ padding: 0, maxHeight: '80vh', overflow: 'auto' }}
+        >
+          <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
+        </Modal>
       </Space>
     </Card>
   );

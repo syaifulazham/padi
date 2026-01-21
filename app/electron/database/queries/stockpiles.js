@@ -13,35 +13,56 @@ async function getStockpileSummary(seasonId) {
         p.product_type,
         p.variety,
         
-        -- Purchase metrics
-        COALESCE(SUM(pt.net_weight_kg), 0) as total_purchased_kg,
-        COALESCE(COUNT(DISTINCT pt.transaction_id), 0) as purchase_count,
+        -- Purchase metrics (from parent receipts only)
+        COALESCE(purchases.total_purchased_kg, 0) as total_purchased_kg,
+        COALESCE(purchases.purchase_count, 0) as purchase_count,
+        COALESCE(purchases.last_purchase_date, NULL) as last_purchase_date,
         
-        -- Sales metrics (via mapping table to get product_id)
-        COALESCE(SUM(spm.quantity_kg), 0) as total_sold_kg,
-        COALESCE(COUNT(DISTINCT st.sales_id), 0) as sales_count,
+        -- Sales metrics (from ALL receipts - parent and children)
+        COALESCE(sales.total_sold_kg, 0) as total_sold_kg,
+        COALESCE(sales.sales_count, 0) as sales_count,
+        COALESCE(sales.last_sale_date, NULL) as last_sale_date,
         
         -- Stock calculation
-        COALESCE(SUM(pt.net_weight_kg), 0) - COALESCE(SUM(spm.quantity_kg), 0) as current_stock_kg,
+        COALESCE(purchases.total_purchased_kg, 0) - COALESCE(sales.total_sold_kg, 0) as current_stock_kg,
         
         -- Price info
-        spp.current_price_per_ton,
-        
-        -- Latest transaction dates
-        MAX(pt.created_at) as last_purchase_date,
-        MAX(st.created_at) as last_sale_date
+        spp.current_price_per_ton
         
       FROM paddy_products p
-      LEFT JOIN purchase_transactions pt ON p.product_id = pt.product_id 
-        AND pt.season_id = ?
-        AND pt.parent_transaction_id IS NULL
-      LEFT JOIN sales_purchase_mapping spm ON pt.transaction_id = spm.transaction_id
-      LEFT JOIN sales_transactions st ON spm.sales_id = st.sales_id
-        AND st.season_id = ?
+      
+      -- Purchases subquery (parent receipts only)
+      LEFT JOIN (
+        SELECT 
+          product_id,
+          SUM(net_weight_kg) as total_purchased_kg,
+          COUNT(transaction_id) as purchase_count,
+          MAX(created_at) as last_purchase_date
+        FROM purchase_transactions
+        WHERE season_id = ?
+          AND parent_transaction_id IS NULL
+        GROUP BY product_id
+      ) as purchases ON p.product_id = purchases.product_id
+      
+      -- Sales subquery (via sales transactions to avoid multiplication)
+      LEFT JOIN (
+        SELECT 
+          pt.product_id,
+          SUM(spm.quantity_kg) as total_sold_kg,
+          COUNT(DISTINCT spm.sales_id) as sales_count,
+          MAX(st.created_at) as last_sale_date
+        FROM sales_transactions st
+        INNER JOIN sales_purchase_mapping spm ON st.sales_id = spm.sales_id
+        INNER JOIN purchase_transactions pt ON spm.transaction_id = pt.transaction_id
+        WHERE st.season_id = ?
+        GROUP BY pt.product_id
+      ) as sales ON p.product_id = sales.product_id
+      
+      -- Price info
       LEFT JOIN season_product_prices spp ON p.product_id = spp.product_id 
         AND spp.season_id = ?
+        
       WHERE p.is_active = 1
-      GROUP BY p.product_id, p.product_code, p.product_name, p.product_type, p.variety, spp.current_price_per_ton
       ORDER BY p.product_type, p.variety
     `;
 
@@ -191,6 +212,7 @@ async function getStockpileStats(seasonId) {
           0 as total_sale_transactions
         FROM purchase_transactions
         WHERE season_id = ?
+          AND parent_transaction_id IS NULL
         
         UNION ALL
         

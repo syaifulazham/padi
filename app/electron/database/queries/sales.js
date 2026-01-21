@@ -212,7 +212,7 @@ async function getAll(filters = {}) {
         st.tare_weight_kg,
         st.net_weight_kg,
         st.sale_price_per_kg,
-        st.total_amount,
+        COALESCE(SUM(pt.total_amount), 0) as total_amount,
         st.payment_status,
         st.status,
         st.notes,
@@ -221,12 +221,19 @@ async function getAll(filters = {}) {
         hs.season_name,
         pp.product_name,
         COUNT(DISTINCT spm.transaction_id) as purchase_receipts_count,
+        COUNT(DISTINCT spm.transaction_id) as receipts_count,
+        SUM(CASE WHEN pt.deduction_config IS NOT NULL 
+                 AND pt.deduction_config != '' 
+                 AND pt.deduction_config != '[]' 
+                 AND JSON_LENGTH(pt.deduction_config) > 0 
+            THEN 1 ELSE 0 END) as receipts_with_deductions,
         st.created_at
       FROM sales_transactions st
       JOIN manufacturers m ON st.manufacturer_id = m.manufacturer_id
       JOIN harvesting_seasons hs ON st.season_id = hs.season_id
       LEFT JOIN paddy_products pp ON st.product_id = pp.product_id
       LEFT JOIN sales_purchase_mapping spm ON st.sales_id = spm.sales_id
+      LEFT JOIN purchase_transactions pt ON spm.transaction_id = pt.transaction_id
       WHERE 1=1
     `;
     
@@ -318,12 +325,21 @@ async function getById(salesId) {
     // Get purchase receipts mapping
     const purchaseReceipts = await db.query(`
       SELECT 
+        pt.transaction_id,
         spm.quantity_kg,
         pt.receipt_number,
         pt.transaction_date,
-        pt.net_weight_kg as original_weight,
+        pt.net_weight_kg,
+        pt.effective_weight_kg,
         pt.gross_weight_kg,
         pt.tare_weight_kg,
+        pt.base_price_per_kg,
+        pt.final_price_per_kg,
+        pt.deduction_config,
+        pt.total_amount,
+        pt.payment_status,
+        pt.parent_transaction_id,
+        pt.is_split_parent,
         f.full_name as farmer_name,
         f.farmer_code,
         pg.grade_name
