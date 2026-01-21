@@ -132,7 +132,6 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
     .header {
       text-align: left;
       margin-bottom: 8px;
-      border-bottom: 1px solid #000;
       padding-bottom: 20px;
     }
     
@@ -187,7 +186,7 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
     }
     
     .label {
-      width: ${sizeConfig.labelWidth};
+      width: 100px;
       display: inline-block;
     }
     
@@ -201,8 +200,6 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
     
     .weights-section {
       margin: 10px 0;
-      border-top: 1px solid #000;
-      border-bottom: 1px solid #000;
       padding: 5px 0;
     }
     
@@ -250,7 +247,6 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
     }
     
     .signature-line {
-      border-bottom: 1px solid #000;
       height: 30px;
       margin-bottom: 3px;
     }

@@ -31,6 +31,7 @@ const Purchases = () => {
   const [loading, setLoading] = useState(false);
   const [lorryModalOpen, setLorryModalOpen] = useState(false);
   const [recallModalOpen, setRecallModalOpen] = useState(false);
+  const [selectedLorryIndex, setSelectedLorryIndex] = useState(0);
   const [farmerSearchModal, setFarmerSearchModal] = useState(false);
   const [scanMethod, setScanMethod] = useState(() => {
     // Load preference from localStorage
@@ -50,6 +51,8 @@ const Purchases = () => {
   const [farmerOptions, setFarmerOptions] = useState([]);
   const [farmerSearchText, setFarmerSearchText] = useState('');
   const [selectedFarmer, setSelectedFarmer] = useState(null);
+  const [selectedFarmerResultIndex, setSelectedFarmerResultIndex] = useState(0);
+  const [isNavigatingFarmerResults, setIsNavigatingFarmerResults] = useState(false);
   const [activeSeason, setActiveSeason] = useState(null);
   const [seasonLoading, setSeasonLoading] = useState(true);
   const [products, setProducts] = useState([]);
@@ -60,6 +63,7 @@ const Purchases = () => {
   const [weightForm] = Form.useForm();
   const [finalForm] = Form.useForm();
   const lorryInputRef = useRef(null);
+  const farmerSearchInputRef = useRef(null);
 
   // Filter pending sessions by active season
   const seasonPendingSessions = pendingSessions.filter(
@@ -120,6 +124,52 @@ const Purchases = () => {
   // Add keyboard shortcuts (F2: Recall, F3: New Purchase)
   useEffect(() => {
     const handleKeyPress = (e) => {
+      // Farmer search results navigation
+      if (farmerSearchModal && isNavigatingFarmerResults && farmerOptions.length > 0) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setSelectedFarmerResultIndex(prev => 
+            prev < farmerOptions.length - 1 ? prev + 1 : prev
+          );
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setSelectedFarmerResultIndex(prev => prev > 0 ? prev - 1 : prev);
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (farmerOptions[selectedFarmerResultIndex]) {
+            selectFarmer(farmerOptions[selectedFarmerResultIndex]);
+          }
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          setIsNavigatingFarmerResults(false);
+          farmerSearchInputRef.current?.focus();
+        }
+        return;
+      }
+
+      // Recall modal keyboard navigation
+      if (recallModalOpen) {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          setSelectedLorryIndex(prev => 
+            prev < seasonPendingSessions.length - 1 ? prev + 1 : prev
+          );
+        } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+          e.preventDefault();
+          setSelectedLorryIndex(prev => prev > 0 ? prev - 1 : prev);
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (seasonPendingSessions[selectedLorryIndex]) {
+            recallLorry(seasonPendingSessions[selectedLorryIndex]);
+          }
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          setRecallModalOpen(false);
+        }
+        return;
+      }
+
+      // Global shortcuts
       if (e.key === 'F2') {
         e.preventDefault();
         showRecallModal();
@@ -133,7 +183,7 @@ const Purchases = () => {
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [pendingSessions, weightInMode, activeSession, seasonLoading]);
+  }, [farmerSearchModal, isNavigatingFarmerResults, farmerOptions, selectedFarmerResultIndex, recallModalOpen, selectedLorryIndex, seasonPendingSessions, pendingSessions, weightInMode, activeSession, seasonLoading]);
 
   const loadActiveSeason = async () => {
     try {
@@ -489,6 +539,7 @@ const Purchases = () => {
       message.warning(t('purchasesWeighIn.messages.noPendingLorriesForSeason'));
       return;
     }
+    setSelectedLorryIndex(0); // Reset to first lorry
     setRecallModalOpen(true);
   };
 
@@ -1076,6 +1127,7 @@ const Purchases = () => {
             <Button
               key={index}
               size="large"
+              type={selectedLorryIndex === index ? 'primary' : 'default'}
               style={{
                 height: '100px',
                 display: 'flex',
@@ -1083,7 +1135,9 @@ const Purchases = () => {
                 justifyContent: 'flex-start',
                 alignItems: 'center',
                 padding: '16px',
-                textAlign: 'left'
+                textAlign: 'left',
+                border: selectedLorryIndex === index ? '2px solid #1890ff' : undefined,
+                boxShadow: selectedLorryIndex === index ? '0 0 8px rgba(24, 144, 255, 0.5)' : undefined
               }}
               onClick={() => recallLorry(session)}
             >
@@ -1092,10 +1146,10 @@ const Purchases = () => {
                 <div style={{ fontSize: '18px', fontWeight: 'bold' }}>
                   {session.lorry_reg_no}
                 </div>
-                <div style={{ fontSize: '12px', color: '#666' }}>
+                <div style={{ fontSize: '12px', color: selectedLorryIndex === index ? '#fff' : '#666' }}>
                   {t('purchasesWeighIn.recallModal.lorryCard.weighInLabel')} {session.weight_with_load} {t('purchasesWeighIn.misc.kg')}
                 </div>
-                <div style={{ fontSize: '10px', color: '#999' }}>
+                <div style={{ fontSize: '10px', color: selectedLorryIndex === index ? 'rgba(255,255,255,0.8)' : '#999' }}>
                   {dayjs(session.timestamp).format('HH:mm:ss')}
                 </div>
               </div>
@@ -1119,6 +1173,11 @@ const Purchases = () => {
         }}
         footer={null}
         width={900}
+        afterOpenChange={(open) => {
+          if (open && farmerSearchInputRef.current) {
+            setTimeout(() => farmerSearchInputRef.current?.focus(), 100);
+          }
+        }}
         afterClose={() => {
           stopCamera();
         }}
@@ -1130,6 +1189,7 @@ const Purchases = () => {
               <SearchOutlined /> {t('purchasesWeighIn.farmerSearchModal.manualSearch.title')}
             </div>
             <Input
+              ref={farmerSearchInputRef}
               size="large"
               placeholder={t('purchasesWeighIn.farmerSearchModal.manualSearch.placeholder')}
               prefix={<SearchOutlined />}
@@ -1137,10 +1197,107 @@ const Purchases = () => {
               onChange={(e) => {
                 setFarmerSearchText(e.target.value);
                 searchFarmers(e.target.value);
+                setIsNavigatingFarmerResults(false);
+                setSelectedFarmerResultIndex(0);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Tab' && farmerOptions.length > 0) {
+                  e.preventDefault();
+                  setIsNavigatingFarmerResults(true);
+                  setSelectedFarmerResultIndex(0);
+                }
               }}
               allowClear
               autoFocus
             />
+            
+            {/* Search Results - Directly beneath search box */}
+            {farmerSearchText.length > 0 && farmerSearchText.length < 2 && (
+              <Alert
+                message={t('purchasesWeighIn.farmerSearchModal.manualSearch.minChars')}
+                type="info"
+                showIcon
+                style={{ marginTop: 16 }}
+              />
+            )}
+
+            {farmerSearchText.length >= 2 && farmerOptions.length === 0 && (
+              <Alert
+                message={t('purchasesWeighIn.farmerSearchModal.manualSearch.noFarmersFound')}
+                description={t('purchasesWeighIn.farmerSearchModal.manualSearch.tryDifferentTerms')}
+                type="warning"
+                showIcon
+                style={{ marginTop: 16 }}
+              />
+            )}
+
+            {farmerOptions.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <Alert
+                  message={t('purchasesWeighIn.farmerSearchModal.results.foundCount').replace('{count}', farmerOptions.length)}
+                  type="success"
+                  showIcon
+                  style={{ marginBottom: 12 }}
+                />
+                
+                <Table
+                  dataSource={farmerOptions}
+                  rowKey="farmer_id"
+                  pagination={false}
+                  size="small"
+                  scroll={{ y: 400 }}
+                  onRow={(record, index) => ({
+                    onClick: () => selectFarmer(record),
+                    style: { 
+                      cursor: 'pointer',
+                      backgroundColor: isNavigatingFarmerResults && index === selectedFarmerResultIndex ? '#e6f7ff' : undefined,
+                      fontWeight: isNavigatingFarmerResults && index === selectedFarmerResultIndex ? 'bold' : undefined
+                    }
+                  })}
+                  columns={[
+                    {
+                      title: t('purchasesWeighIn.farmerSearchModal.results.columns.subsidyNo'),
+                      dataIndex: 'farmer_code',
+                      key: 'farmer_code',
+                      width: 150,
+                      render: (text) => <Tag color="blue">{text}</Tag>
+                    },
+                    {
+                      title: t('purchasesWeighIn.farmerSearchModal.results.columns.name'),
+                      dataIndex: 'full_name',
+                      key: 'full_name',
+                      render: (text) => <strong>{text}</strong>
+                    },
+                    {
+                      title: t('purchasesWeighIn.farmerSearchModal.results.columns.icNumber'),
+                      dataIndex: 'ic_number',
+                      key: 'ic_number',
+                      width: 150
+                    },
+                    {
+                      title: t('purchasesWeighIn.farmerSearchModal.results.columns.phone'),
+                      dataIndex: 'phone_number',
+                      key: 'phone_number',
+                      width: 130
+                    },
+                    {
+                      title: t('purchasesWeighIn.farmerSearchModal.results.columns.action'),
+                      key: 'action',
+                      width: 100,
+                      render: (_, record) => (
+                        <Button
+                          type="primary"
+                          size="small"
+                          onClick={() => selectFarmer(record)}
+                        >
+                          {t('purchasesWeighIn.farmerSearchModal.results.actions.select')}
+                        </Button>
+                      )
+                    }
+                  ]}
+                />
+              </div>
+            )}
           </div>
 
           <Divider>{t('purchasesWeighIn.farmerSearchModal.orDivider')}</Divider>
@@ -1284,86 +1441,6 @@ const Purchases = () => {
                 </div>
               )}
             </div>
-          )}
-
-          {farmerSearchText.length > 0 && farmerSearchText.length < 2 && (
-            <Alert
-              message={t('purchasesWeighIn.farmerSearchModal.manualSearch.minChars')}
-              type="info"
-              showIcon
-            />
-          )}
-
-          {farmerSearchText.length >= 2 && farmerOptions.length === 0 && (
-            <Alert
-              message={t('purchasesWeighIn.farmerSearchModal.manualSearch.noFarmersFound')}
-              description={t('purchasesWeighIn.farmerSearchModal.manualSearch.tryDifferentTerms')}
-              type="warning"
-              showIcon
-            />
-          )}
-
-          {farmerOptions.length > 0 && (
-            <>
-              <Alert
-                message={t('purchasesWeighIn.farmerSearchModal.results.foundCount').replace('{count}', farmerOptions.length)}
-                type="success"
-                showIcon
-              />
-              
-              <Table
-                dataSource={farmerOptions}
-                rowKey="farmer_id"
-                pagination={false}
-                size="small"
-                scroll={{ y: 400 }}
-                onRow={(record) => ({
-                  onClick: () => selectFarmer(record),
-                  style: { cursor: 'pointer' }
-                })}
-                columns={[
-                  {
-                    title: t('purchasesWeighIn.farmerSearchModal.results.columns.subsidyNo'),
-                    dataIndex: 'farmer_code',
-                    key: 'farmer_code',
-                    width: 150,
-                    render: (text) => <Tag color="blue">{text}</Tag>
-                  },
-                  {
-                    title: t('purchasesWeighIn.farmerSearchModal.results.columns.name'),
-                    dataIndex: 'full_name',
-                    key: 'full_name',
-                    render: (text) => <strong>{text}</strong>
-                  },
-                  {
-                    title: t('purchasesWeighIn.farmerSearchModal.results.columns.icNumber'),
-                    dataIndex: 'ic_number',
-                    key: 'ic_number',
-                    width: 150
-                  },
-                  {
-                    title: t('purchasesWeighIn.farmerSearchModal.results.columns.phone'),
-                    dataIndex: 'phone_number',
-                    key: 'phone_number',
-                    width: 130
-                  },
-                  {
-                    title: t('purchasesWeighIn.farmerSearchModal.results.columns.action'),
-                    key: 'action',
-                    width: 100,
-                    render: (_, record) => (
-                      <Button
-                        type="primary"
-                        size="small"
-                        onClick={() => selectFarmer(record)}
-                      >
-                        {t('purchasesWeighIn.farmerSearchModal.results.actions.select')}
-                      </Button>
-                    )
-                  }
-                ]}
-              />
-            </>
           )}
         </Space>
       </Modal>

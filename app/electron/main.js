@@ -865,6 +865,8 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId, options = {
     const pdfAutoOpen = pdfAutoOpenResult?.data || false;
     const paperSizeResult = await settingsService.get('paper_size');
     let paperSize = paperSizeResult?.data || '80mm';
+    const usePrintDialogResult = await settingsService.get('use_print_dialog');
+    const usePrintDialog = usePrintDialogResult?.data || false;
     
     // Validate paper size
     const validSizes = ['80mm', 'a4_portrait', 'a5_landscape'];
@@ -879,6 +881,7 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId, options = {
       pdfSavePath,
       pdfAutoOpen,
       paperSize,
+      usePrintDialog,
       paperSizeRaw: paperSizeResult,
       forcePrint: options.forcePrint
     });
@@ -897,16 +900,22 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId, options = {
       console.warn('⚠️  No default printer configured in settings');
     }
     
-    // Decide: Print to PDF if explicitly enabled OR if no printer configured/available
+    // Decide: If use_print_dialog is ON, always show dialog (user can choose printer/PDF)
+    // Otherwise, print to PDF if explicitly enabled OR if no printer configured/available
     // BUT if forcePrint is true (e.g., for reprints), try to print to physical printer
-    const shouldPrintToPdf = options.forcePrint 
-      ? (!defaultPrinter || !printerAvailable)  // Only PDF if no printer available
-      : (printToPdf || !defaultPrinter || !printerAvailable);  // Respect print_to_pdf setting
+    const shouldUsePrintDialog = usePrintDialog && !options.forcePrint;
+    const shouldPrintToPdf = !shouldUsePrintDialog && (
+      options.forcePrint 
+        ? (!defaultPrinter || !printerAvailable)  // Only PDF if no printer available
+        : (printToPdf || !defaultPrinter || !printerAvailable)  // Respect print_to_pdf setting
+    );
     
-    console.log(`💡 Decision: shouldPrintToPdf = ${shouldPrintToPdf}`, {
-      reason: shouldPrintToPdf 
-        ? (options.forcePrint ? 'no_printer' : (printToPdf ? 'pdf_enabled' : (!defaultPrinter ? 'no_printer_configured' : 'printer_not_found')))
-        : 'print_to_physical_printer'
+    console.log(`💡 Decision: shouldUsePrintDialog = ${shouldUsePrintDialog}, shouldPrintToPdf = ${shouldPrintToPdf}`, {
+      reason: shouldUsePrintDialog 
+        ? 'use_print_dialog_enabled'
+        : (shouldPrintToPdf 
+          ? (options.forcePrint ? 'no_printer' : (printToPdf ? 'pdf_enabled' : (!defaultPrinter ? 'no_printer_configured' : 'printer_not_found')))
+          : 'print_to_physical_printer')
     });
     
     // Fetch transaction details
@@ -960,10 +969,43 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId, options = {
     // Load the receipt HTML
     await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(receiptHTML)}`);
     
-    // Small delay to ensure rendering is complete
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Wait for content to fully render
+    console.log('⏳ Waiting for content to render...');
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
-    if (shouldPrintToPdf) {
+    // Verify content loaded
+    const bodyLength = await printWindow.webContents.executeJavaScript('document.body ? document.body.innerHTML.length : 0');
+    console.log(`📏 Rendered content size: ${bodyLength} characters`);
+    
+    if (bodyLength === 0) {
+      console.error('❌ ERROR: Receipt HTML failed to render - body is empty');
+      printWindow.close();
+      return { success: false, error: 'Receipt HTML failed to render' };
+    }
+    
+    if (shouldUsePrintDialog) {
+      // Use Electron's print dialog - user can choose printer or save as PDF
+      console.log('🖨️  Showing print dialog (user choice)');
+      const printOptions = printUtils.getPrintOptions(paperSize, true, defaultPrinter);
+      console.log('🖨️  Print options (with dialog):', printOptions);
+      
+      return new Promise((resolve) => {
+        printWindow.webContents.print(printOptions, (success, errorType) => {
+          printWindow.close();
+          if (!success) {
+            console.error('❌ Print dialog cancelled or failed:', errorType);
+            resolve({ 
+              success: false, 
+              mode: 'dialog',
+              error: errorType === 'cancelled' ? 'Print cancelled by user' : `Print failed: ${errorType}` 
+            });
+          } else {
+            console.log('✅ Print dialog completed successfully');
+            resolve({ success: true, mode: 'dialog' });
+          }
+        });
+      });
+    } else if (shouldPrintToPdf) {
       // Save as PDF
       const fs = require('fs');
       const pathModule = require('path');
@@ -981,8 +1023,9 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId, options = {
         fs.mkdirSync(finalPdfPath, { recursive: true });
       }
       
-      // Generate filename
-      const filename = `Receipt_${transaction.receipt_number}_${Date.now()}.pdf`;
+      // Generate filename - sanitize receipt number to avoid path issues
+      const sanitizedReceiptNumber = (transaction.receipt_number || 'unknown').replace(/[\/\\]/g, '_');
+      const filename = `Receipt_${sanitizedReceiptNumber}_${Date.now()}.pdf`;
       const pdfPath = pathModule.join(finalPdfPath, filename);
       
       // Get page size based on paper size setting
@@ -1002,13 +1045,10 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId, options = {
           }
         };
       } else if (paperSize === 'a5_landscape') {
-        // Use explicit landscape dimensions without landscape flag
-        // CSS defines 210mm x 148mm, PDF must match without rotation
+        // Use standard A5 page size with landscape flag
         pdfOptions = {
-          pageSize: {
-            width: 595.28,   // 210mm in points
-            height: 419.53   // 148mm in points
-          },
+          pageSize: 'A5',
+          landscape: true,
           printBackground: true,
           margin: {
             top: 0,
@@ -1062,60 +1102,33 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId, options = {
       };
       
     } else {
-      // Print to configured physical printer
-      console.log(`🖨️  Printing to configured printer: ${defaultPrinter}`);
+      // Print to configured physical printer (silent mode)
+      console.log(`🖨️  Printing to configured printer (silent): ${defaultPrinter}`);
       
-      // Check if user wants to use print dialog - await the promise
-      const usePrintDialogResult = await settingsService.get('use_print_dialog');
-      const usePrintDialog = usePrintDialogResult?.data || false;
+      // Silent printing - use same options as dialog mode but with silent:true
+      console.log('🖨️  Using Electron silent print mode');
       
-      if (usePrintDialog) {
-        // Use Electron's print dialog
-        const printOptions = printUtils.getPrintOptions(paperSize, true, defaultPrinter);
-        console.log('🖨️  Print options (with dialog):', printOptions);
-        
-        return new Promise((resolve) => {
-          printWindow.webContents.print(printOptions, (success, errorType) => {
-            printWindow.close();
-            if (!success) {
-              console.error('❌ Print failed:', errorType);
-              resolve({ 
-                success: false, 
-                mode: 'print',
-                error: `Print failed: ${errorType}` 
-              });
-            } else {
-              console.log(`✅ Receipt sent to printer: ${defaultPrinter}`);
-              resolve({ success: true, mode: 'print' });
-            }
-          });
+      // Use the same standardized options as dialog mode for consistency
+      const printOptions = printUtils.getPrintOptions(paperSize, false, defaultPrinter);
+      
+      console.log('🖨️  Silent print options:', printOptions);
+      
+      return new Promise((resolve) => {
+        printWindow.webContents.print(printOptions, (success, errorType) => {
+          printWindow.close();
+          if (!success) {
+            console.error('❌ Silent print failed:', errorType);
+            resolve({ 
+              success: false, 
+              mode: 'print',
+              error: `Print failed: ${errorType}` 
+            });
+          } else {
+            console.log(`✅ Receipt sent to printer (silent): ${defaultPrinter}`);
+            resolve({ success: true, mode: 'print' });
+          }
         });
-      } else {
-        // Silent printing - use same options as dialog mode but with silent:true
-        console.log('🖨️  Using Electron silent print mode');
-        
-        // Use the same standardized options as dialog mode for consistency
-        const printOptions = printUtils.getPrintOptions(paperSize, false, defaultPrinter);
-        
-        console.log('🖨️  Silent print options:', printOptions);
-        
-        return new Promise((resolve) => {
-          printWindow.webContents.print(printOptions, (success, errorType) => {
-            printWindow.close();
-            if (!success) {
-              console.error('❌ Silent print failed:', errorType);
-              resolve({ 
-                success: false, 
-                mode: 'print',
-                error: `Print failed: ${errorType}` 
-              });
-            } else {
-              console.log(`✅ Receipt sent to printer (silent): ${defaultPrinter}`);
-              resolve({ success: true, mode: 'print' });
-            }
-          });
-        });
-      }
+      });
     }
     
   } catch (error) {
@@ -1139,6 +1152,8 @@ ipcMain.handle('print:salesReceipt', async (event, salesId, options = {}) => {
     const pdfAutoOpen = pdfAutoOpenResult?.data || false;
     const paperSizeResult = await settingsService.get('paper_size');
     let paperSize = paperSizeResult?.data || '80mm';
+    const usePrintDialogResult = await settingsService.get('use_print_dialog');
+    const usePrintDialog = usePrintDialogResult?.data || false;
     
     // Validate paper size
     const validSizes = ['80mm', 'a4_portrait', 'a5_landscape'];
@@ -1153,6 +1168,7 @@ ipcMain.handle('print:salesReceipt', async (event, salesId, options = {}) => {
       pdfSavePath,
       pdfAutoOpen,
       paperSize,
+      usePrintDialog,
       paperSizeRaw: paperSizeResult,
       forcePrint: options.forcePrint
     });
@@ -1171,16 +1187,22 @@ ipcMain.handle('print:salesReceipt', async (event, salesId, options = {}) => {
       console.warn('⚠️  No default printer configured in settings');
     }
     
-    // Decide: Print to PDF if explicitly enabled OR if no printer configured/available
+    // Decide: If use_print_dialog is ON, always show dialog (user can choose printer/PDF)
+    // Otherwise, print to PDF if explicitly enabled OR if no printer configured/available
     // BUT if forcePrint is true (e.g., for reprints), try to print to physical printer
-    const shouldPrintToPdf = options.forcePrint 
-      ? (!defaultPrinter || !printerAvailable)  // Only PDF if no printer available
-      : (printToPdf || !defaultPrinter || !printerAvailable);  // Respect print_to_pdf setting
+    const shouldUsePrintDialog = usePrintDialog && !options.forcePrint;
+    const shouldPrintToPdf = !shouldUsePrintDialog && (
+      options.forcePrint 
+        ? (!defaultPrinter || !printerAvailable)  // Only PDF if no printer available
+        : (printToPdf || !defaultPrinter || !printerAvailable)  // Respect print_to_pdf setting
+    );
     
-    console.log(`💡 Decision: shouldPrintToPdf = ${shouldPrintToPdf}`, {
-      reason: shouldPrintToPdf 
-        ? (options.forcePrint ? 'no_printer' : (printToPdf ? 'pdf_enabled' : (!defaultPrinter ? 'no_printer_configured' : 'printer_not_found')))
-        : 'print_to_physical_printer'
+    console.log(`💡 Decision (Sales): shouldUsePrintDialog = ${shouldUsePrintDialog}, shouldPrintToPdf = ${shouldPrintToPdf}`, {
+      reason: shouldUsePrintDialog 
+        ? 'use_print_dialog_enabled'
+        : (shouldPrintToPdf 
+          ? (options.forcePrint ? 'no_printer' : (printToPdf ? 'pdf_enabled' : (!defaultPrinter ? 'no_printer_configured' : 'printer_not_found')))
+          : 'print_to_physical_printer')
     });
     
     // Fetch sales transaction details with purchase receipts
@@ -1248,10 +1270,43 @@ ipcMain.handle('print:salesReceipt', async (event, salesId, options = {}) => {
     // Load the receipt HTML
     await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(receiptHTML)}`);
     
-    // Small delay to ensure rendering is complete
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Wait for content to fully render
+    console.log('⏳ Waiting for content to render...');
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
-    if (shouldPrintToPdf) {
+    // Verify content loaded
+    const bodyLength = await printWindow.webContents.executeJavaScript('document.body ? document.body.innerHTML.length : 0');
+    console.log(`📏 Rendered content size: ${bodyLength} characters`);
+    
+    if (bodyLength === 0) {
+      console.error('❌ ERROR: Receipt HTML failed to render - body is empty');
+      printWindow.close();
+      return { success: false, error: 'Receipt HTML failed to render' };
+    }
+    
+    if (shouldUsePrintDialog) {
+      // Use Electron's print dialog - user can choose printer or save as PDF
+      console.log('🖨️  Showing print dialog (user choice)');
+      const printOptions = printUtils.getPrintOptions(paperSize, true, defaultPrinter);
+      console.log('🖨️  Print options (with dialog):', printOptions);
+      
+      return new Promise((resolve) => {
+        printWindow.webContents.print(printOptions, (success, errorType) => {
+          printWindow.close();
+          if (!success) {
+            console.error('❌ Print dialog cancelled or failed:', errorType);
+            resolve({ 
+              success: false, 
+              mode: 'dialog',
+              error: errorType === 'cancelled' ? 'Print cancelled by user' : `Print failed: ${errorType}` 
+            });
+          } else {
+            console.log('✅ Print dialog completed successfully');
+            resolve({ success: true, mode: 'dialog' });
+          }
+        });
+      });
+    } else if (shouldPrintToPdf) {
       // Save as PDF
       const fs = require('fs');
       const pathModule = require('path');
@@ -1269,9 +1324,10 @@ ipcMain.handle('print:salesReceipt', async (event, salesId, options = {}) => {
         fs.mkdirSync(finalPdfPath, { recursive: true });
       }
       
-      // Generate filename
+      // Generate filename - sanitize sales number to avoid path issues
       const salesNum = salesTransaction.sales_number || `ID${salesId}`;
-      const filename = `SalesReceipt_${salesNum}_${Date.now()}.pdf`;
+      const sanitizedSalesNum = salesNum.replace(/[\/\\]/g, '_');
+      const filename = `SalesReceipt_${sanitizedSalesNum}_${Date.now()}.pdf`;
       const pdfPath = pathModule.join(finalPdfPath, filename);
       
       // Get page size based on paper size setting
@@ -1290,13 +1346,10 @@ ipcMain.handle('print:salesReceipt', async (event, salesId, options = {}) => {
           }
         };
       } else if (paperSize === 'a5_landscape') {
-        // Use explicit landscape dimensions without landscape flag
-        // CSS defines 210mm x 148mm, PDF must match without rotation
+        // Use standard A5 page size with landscape flag
         pdfOptions = {
-          pageSize: {
-            width: 595.28,   // 210mm in points
-            height: 419.53   // 148mm in points
-          },
+          pageSize: 'A5',
+          landscape: true,
           printBackground: true,
           margin: {
             top: 0,

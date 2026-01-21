@@ -968,6 +968,12 @@ async function updatePayment(updateData) {
 
       const transaction = current[0];
       
+      // Calculate total deduction rate first
+      let totalDeductionRate = 0;
+      if (deduction_config && deduction_config.length > 0) {
+        totalDeductionRate = deduction_config.reduce((sum, d) => sum + parseFloat(d.value || 0), 0);
+      }
+      
       // Use provided values (already rounded from frontend) or calculate with rounding
       let effectiveWeight;
       let newTotalAmount;
@@ -980,11 +986,6 @@ async function updatePayment(updateData) {
         // Fallback: calculate with rounding
         const netWeight = parseFloat(transaction.net_weight_kg);
         const finalPricePerKg = parseFloat(transaction.final_price_per_kg) || parseFloat(transaction.base_price_per_kg);
-        
-        let totalDeductionRate = 0;
-        if (deduction_config && deduction_config.length > 0) {
-          totalDeductionRate = deduction_config.reduce((sum, d) => sum + parseFloat(d.value || 0), 0);
-        }
         
         effectiveWeight = Math.round(netWeight * (1 - totalDeductionRate / 100));
         newTotalAmount = effectiveWeight * finalPricePerKg;

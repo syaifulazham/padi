@@ -46,6 +46,7 @@ const WeighOutWizard = ({
   const [cancelPasscodeModalOpen, setCancelPasscodeModalOpen] = useState(false);
   const [generatedPasscode, setGeneratedPasscode] = useState('');
   const [passcodeForm] = Form.useForm();
+  const [selectedProductIndex, setSelectedProductIndex] = useState(0);
   
   // Refs for auto-focus
   const productRefs = useRef([]);
@@ -56,8 +57,12 @@ const WeighOutWizard = ({
   useEffect(() => {
     if (currentStep === 0 && tareWeightRef.current) {
       setTimeout(() => tareWeightRef.current?.focus(), 100);
-    } else if (currentStep === 2 && productRefs.current[0]) {
-      setTimeout(() => productRefs.current[0]?.focus(), 100);
+    } else if (currentStep === 2) {
+      // Reset product selection to first item when entering product stage
+      setSelectedProductIndex(0);
+      if (productRefs.current[0]) {
+        setTimeout(() => productRefs.current[0]?.focus(), 100);
+      }
     } else if (currentStep === 3) {
       // Deductions stage - ensure form is initialized
       console.log('Deductions stage - wizardData.deductions:', wizardData.deductions);
@@ -76,6 +81,32 @@ const WeighOutWizard = ({
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e) => {
+      // Product selection navigation (Step 2)
+      if (currentStep === 2 && products.length > 0) {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          setSelectedProductIndex(prev => 
+            prev < products.length - 1 ? prev + 1 : prev
+          );
+        } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+          e.preventDefault();
+          setSelectedProductIndex(prev => prev > 0 ? prev - 1 : prev);
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (products[selectedProductIndex]) {
+            handleProductSelect(products[selectedProductIndex]);
+          }
+        }
+        return;
+      }
+
+      // Deductions stage (Step 3) - Enter to continue to review
+      if (currentStep === 3 && e.key === 'Enter') {
+        e.preventDefault();
+        moveToStep(4);
+        return;
+      }
+
       // Escape to go back
       if (e.key === 'Escape') {
         if (currentStep > 0) {
@@ -89,7 +120,7 @@ const WeighOutWizard = ({
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [currentStep, onCancel]);
+  }, [currentStep, products, selectedProductIndex, onCancel]);
 
   const handleProductSelect = async (product) => {
     setLoading(true);
@@ -569,7 +600,9 @@ const WeighOutWizard = ({
                   }}
                   style={{
                     cursor: 'pointer',
-                    border: '2px solid #d9d9d9',
+                    border: selectedProductIndex === index ? '2px solid #1890ff' : '2px solid #d9d9d9',
+                    backgroundColor: selectedProductIndex === index ? '#e6f7ff' : undefined,
+                    boxShadow: selectedProductIndex === index ? '0 0 8px rgba(24, 144, 255, 0.5)' : undefined,
                     transition: 'all 0.3s'
                   }}
                   bodyStyle={{ padding: 16 }}
