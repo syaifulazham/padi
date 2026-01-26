@@ -844,7 +844,10 @@ const DICTS = {
       },
       recallModal: {
         title: 'Recall Pending Container',
-        description: 'Click on a container to complete the weigh-out process (after loading). Press F2 anytime to open this modal.',
+        alert: {
+          message: 'Select Container to Complete Weighing',
+          description: 'Click on a container to complete the weigh-out process (after loading). Press F2 anytime to open this modal.'
+        },
         containerCard: {
           tareLabel: 'Tare:'
         }

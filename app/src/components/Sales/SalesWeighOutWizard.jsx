@@ -26,6 +26,8 @@ const SalesWeighOutWizard = ({
 }) => {
   const { t } = useI18n();
   const { user } = useAuth();
+  const manufacturerSearchInputRef = useRef(null);
+  const productSearchInputRef = useRef(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [visitedSteps, setVisitedSteps] = useState([0]);
   const [wizardData, setWizardData] = useState({
@@ -42,9 +44,13 @@ const SalesWeighOutWizard = ({
   const [manufacturerSearchModal, setManufacturerSearchModal] = useState(false);
   const [manufacturerSearchText, setManufacturerSearchText] = useState('');
   const [manufacturerOptions, setManufacturerOptions] = useState([]);
+  const [selectedManufacturerIndex, setSelectedManufacturerIndex] = useState(0);
+  const [manufacturerTableFocused, setManufacturerTableFocused] = useState(false);
   const [products, setProducts] = useState([]);
   const [productSearchModal, setProductSearchModal] = useState(false);
   const [productSearchText, setProductSearchText] = useState('');
+  const [selectedProductIndex, setSelectedProductIndex] = useState(0);
+  const [productTableFocused, setProductTableFocused] = useState(false);
   const [receiptSelectionModal, setReceiptSelectionModal] = useState(false);
   const [splitReceiptModal, setSplitReceiptModal] = useState(false);
   const [receiptToSplit, setReceiptToSplit] = useState(null);
@@ -84,6 +90,73 @@ const SalesWeighOutWizard = ({
       setTimeout(() => grossWeightRef.current?.focus(), 100);
     }
   }, [currentStep]);
+
+  // Manufacturer table keyboard navigation
+  useEffect(() => {
+    if (!manufacturerSearchModal || !manufacturerTableFocused) return;
+
+    const handleManufacturerKeyNav = (e) => {
+      if (manufacturerOptions.length === 0) return;
+
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedManufacturerIndex((prev) => 
+          prev > 0 ? prev - 1 : manufacturerOptions.length - 1
+        );
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedManufacturerIndex((prev) => 
+          prev < manufacturerOptions.length - 1 ? prev + 1 : 0
+        );
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (manufacturerOptions[selectedManufacturerIndex]) {
+          selectManufacturer(manufacturerOptions[selectedManufacturerIndex]);
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setManufacturerTableFocused(false);
+        manufacturerSearchInputRef.current?.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleManufacturerKeyNav);
+    return () => document.removeEventListener('keydown', handleManufacturerKeyNav);
+  }, [manufacturerSearchModal, manufacturerTableFocused, selectedManufacturerIndex, manufacturerOptions]);
+
+  // Product table keyboard navigation
+  useEffect(() => {
+    if (!productSearchModal || !productTableFocused) return;
+
+    const handleProductKeyNav = (e) => {
+      const filteredProducts = searchProducts(productSearchText);
+      if (filteredProducts.length === 0) return;
+
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedProductIndex((prev) => 
+          prev > 0 ? prev - 1 : filteredProducts.length - 1
+        );
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedProductIndex((prev) => 
+          prev < filteredProducts.length - 1 ? prev + 1 : 0
+        );
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (filteredProducts[selectedProductIndex]) {
+          selectProduct(filteredProducts[selectedProductIndex]);
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setProductTableFocused(false);
+        productSearchInputRef.current?.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleProductKeyNav);
+    return () => document.removeEventListener('keydown', handleProductKeyNav);
+  }, [productSearchModal, productTableFocused, selectedProductIndex, productSearchText, products]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -126,12 +199,20 @@ const SalesWeighOutWizard = ({
         const diff = Math.abs(netWeight - selectedTotal);
         
         // Stage 1: Manufacturer
-        if (currentStep === 1 && wizardData.manufacturer_id) {
-          moveToStep(2);
+        if (currentStep === 1) {
+          if (wizardData.manufacturer_id) {
+            moveToStep(2);
+          } else {
+            openManufacturerSearch();
+          }
         }
         // Stage 2: Product
-        else if (currentStep === 2 && wizardData.product_id) {
-          moveToStep(3);
+        else if (currentStep === 2) {
+          if (wizardData.product_id) {
+            moveToStep(3);
+          } else {
+            openProductSearch();
+          }
         }
         // Stage 3: Receipts
         else if (currentStep === 3 && wizardData.selected_receipts.length > 0 && diff <= 0.5) {
@@ -170,6 +251,8 @@ const SalesWeighOutWizard = ({
   const openManufacturerSearch = () => {
     setManufacturerSearchText('');
     setManufacturerOptions([]);
+    setSelectedManufacturerIndex(0);
+    setManufacturerTableFocused(false);
     setManufacturerSearchModal(true);
   };
 
@@ -193,6 +276,9 @@ const SalesWeighOutWizard = ({
   };
 
   const openProductSearch = () => {
+    setProductSearchText('');
+    setSelectedProductIndex(0);
+    setProductTableFocused(false);
     setProductSearchModal(true);
   };
 
@@ -1024,9 +1110,15 @@ const SalesWeighOutWizard = ({
         onCancel={() => setManufacturerSearchModal(false)}
         footer={null}
         width={900}
+        afterOpenChange={(open) => {
+          if (open && manufacturerSearchInputRef.current) {
+            setTimeout(() => manufacturerSearchInputRef.current?.focus(), 100);
+          }
+        }}
       >
         <Space direction="vertical" style={{ width: '100%' }} size="large">
           <Input
+            ref={manufacturerSearchInputRef}
             size="large"
             placeholder="Search by company name or contact person..."
             prefix={<SearchOutlined />}
@@ -1034,6 +1126,16 @@ const SalesWeighOutWizard = ({
             onChange={(e) => {
               setManufacturerSearchText(e.target.value);
               searchManufacturers(e.target.value);
+              setSelectedManufacturerIndex(0);
+            }}
+            onKeyDown={(e) => {
+              if ((e.key === 'Tab' || e.key === 'Enter') && manufacturerOptions.length > 0) {
+                e.preventDefault();
+                setManufacturerTableFocused(true);
+              } else if (e.key === 'ArrowDown' && manufacturerOptions.length > 0) {
+                e.preventDefault();
+                setManufacturerTableFocused(true);
+              }
             }}
             autoFocus
             allowClear
@@ -1070,16 +1172,14 @@ const SalesWeighOutWizard = ({
                 pagination={false}
                 size="small"
                 scroll={{ y: 400 }}
-                onRow={(record) => ({
+                onRow={(record, index) => ({
                   onClick: () => selectManufacturer(record),
                   onDoubleClick: () => selectManufacturer(record),
-                  onKeyDown: (e) => {
-                    if (e.key === 'Enter') {
-                      selectManufacturer(record);
-                    }
-                  },
-                  style: { cursor: 'pointer' },
-                  tabIndex: 0
+                  style: { 
+                    cursor: 'pointer',
+                    backgroundColor: manufacturerTableFocused && selectedManufacturerIndex === index ? '#e6f7ff' : undefined,
+                    border: manufacturerTableFocused && selectedManufacturerIndex === index ? '2px solid #1890ff' : undefined
+                  }
                 })}
                 columns={[
                   {
@@ -1127,14 +1227,33 @@ const SalesWeighOutWizard = ({
         onCancel={() => setProductSearchModal(false)}
         footer={null}
         width={700}
+        afterOpenChange={(open) => {
+          if (open && productSearchInputRef.current) {
+            setTimeout(() => productSearchInputRef.current?.focus(), 100);
+          }
+        }}
       >
         <Space direction="vertical" style={{ width: '100%' }} size="large">
           <Input
+            ref={productSearchInputRef}
             size="large"
             placeholder="Search by product name or code..."
             prefix={<SearchOutlined />}
             value={productSearchText}
-            onChange={(e) => setProductSearchText(e.target.value)}
+            onChange={(e) => {
+              setProductSearchText(e.target.value);
+              setSelectedProductIndex(0);
+            }}
+            onKeyDown={(e) => {
+              const filteredProducts = searchProducts(productSearchText);
+              if ((e.key === 'Tab' || e.key === 'Enter') && filteredProducts.length > 0) {
+                e.preventDefault();
+                setProductTableFocused(true);
+              } else if (e.key === 'ArrowDown' && filteredProducts.length > 0) {
+                e.preventDefault();
+                setProductTableFocused(true);
+              }
+            }}
             autoFocus
             allowClear
           />
@@ -1151,16 +1270,14 @@ const SalesWeighOutWizard = ({
             pagination={false}
             size="small"
             scroll={{ y: 400 }}
-            onRow={(record) => ({
+            onRow={(record, index) => ({
               onClick: () => selectProduct(record),
               onDoubleClick: () => selectProduct(record),
-              onKeyDown: (e) => {
-                if (e.key === 'Enter') {
-                  selectProduct(record);
-                }
-              },
-              style: { cursor: 'pointer' },
-              tabIndex: 0
+              style: { 
+                cursor: 'pointer',
+                backgroundColor: productTableFocused && selectedProductIndex === index ? '#e6f7ff' : undefined,
+                border: productTableFocused && selectedProductIndex === index ? '2px solid #1890ff' : undefined
+              }
             })}
             columns={[
               {

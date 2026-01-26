@@ -25,13 +25,17 @@ app/build/
 *.rpm
 *.snap
 *.zip
+Paddy-Collection-Center-v.1.0.0.zip.md5
+Paddy-Collection-Center-v.1.0.0.zip.sha256
 *.blockmap
 builder-effective-config.yaml
 
 # Customer packages
 customer-package/*.exe
 customer-package/*.dmg
-Paddy-Collection-Center*.zip
+Paddy-Collection-Center-v.1.0.0.zip
+Paddy-Collection-Center-v.1.0.0.zip.md5
+Paddy-Collection-Center-v.1.0.0.zip.sha256
 
 # IDE
 .vscode/

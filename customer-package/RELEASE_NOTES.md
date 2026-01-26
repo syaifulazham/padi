@@ -1,6 +1,6 @@
 # Release Notes - Version 1.0.0
 
-**Release Date:** 2026-01-17
+**Release Date:** 2026-01-27
 
 ## 🎉 New Features
 

@@ -29,6 +29,7 @@ const Sales = () => {
   const [loading, setLoading] = useState(false);
   const [containerModalOpen, setContainerModalOpen] = useState(false);
   const [recallModalOpen, setRecallModalOpen] = useState(false);
+  const [selectedContainerIndex, setSelectedContainerIndex] = useState(0);
   const [manufacturerSearchModal, setManufacturerSearchModal] = useState(false);
   const [weightInMode, setWeightInMode] = useState(false);
   const [currentContainer, setCurrentContainer] = useState(null);
@@ -101,6 +102,33 @@ const Sales = () => {
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [pendingSessions, weightInMode, activeSession]);
+
+  // Keyboard navigation for recall modal
+  useEffect(() => {
+    if (!recallModalOpen) return;
+
+    const handleRecallKeyDown = (e) => {
+      if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setSelectedContainerIndex((prev) => 
+          prev > 0 ? prev - 1 : seasonPendingSessions.length - 1
+        );
+      } else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        setSelectedContainerIndex((prev) => 
+          prev < seasonPendingSessions.length - 1 ? prev + 1 : 0
+        );
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (seasonPendingSessions[selectedContainerIndex]) {
+          recallContainer(seasonPendingSessions[selectedContainerIndex]);
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleRecallKeyDown);
+    return () => document.removeEventListener('keydown', handleRecallKeyDown);
+  }, [recallModalOpen, selectedContainerIndex, seasonPendingSessions]);
 
   const loadActiveSeason = async () => {
     try {
@@ -206,6 +234,7 @@ const Sales = () => {
       message.warning(t('salesWeighIn.messages.noPendingContainersForSeason'));
       return;
     }
+    setSelectedContainerIndex(0);
     setRecallModalOpen(true);
   };
 
@@ -831,7 +860,23 @@ const Sales = () => {
         />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
           {seasonPendingSessions.map((session, index) => (
-            <Button key={index} size="large" style={{ height: '100px', display: 'flex', flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center', padding: '16px', textAlign: 'left' }} onClick={() => recallContainer(session)}>
+            <Button 
+              key={index} 
+              size="large" 
+              type={selectedContainerIndex === index ? 'primary' : 'default'}
+              style={{ 
+                height: '100px', 
+                display: 'flex', 
+                flexDirection: 'row', 
+                justifyContent: 'flex-start', 
+                alignItems: 'center', 
+                padding: '16px', 
+                textAlign: 'left',
+                border: selectedContainerIndex === index ? '2px solid #1890ff' : undefined,
+                boxShadow: selectedContainerIndex === index ? '0 0 8px rgba(24, 144, 255, 0.5)' : undefined
+              }} 
+              onClick={() => recallContainer(session)}
+            >
               <TruckOutlined style={{ fontSize: '32px', marginRight: '16px' }} />
               <div>
                 <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{session.vehicle_number}</div>
