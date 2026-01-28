@@ -11,10 +11,10 @@ function getPaperSizeConfig(paperSize) {
     '80mm': {
       pageWidth: '80mm',
       pageHeight: 'auto',
-      fontSize: '10px',
-      companyNameSize: '14px',
-      receiptNumberSize: '16px',
-      padding: '5mm',
+      fontSize: '8px',
+      companyNameSize: '11px',
+      receiptNumberSize: '10px',
+      padding: '2mm 5mm 5mm 5mm',
       labelWidth: '120px',
       maxContentWidth: '70mm',
       usePageSize: false,  // Don't force page size - let printer decide
@@ -23,10 +23,10 @@ function getPaperSizeConfig(paperSize) {
     'a4_portrait': {
       pageWidth: '210mm',
       pageHeight: '297mm',
-      fontSize: '16px',
-      companyNameSize: '24px',
-      receiptNumberSize: '26px',
-      padding: '10mm',
+      fontSize: '12px',
+      companyNameSize: '18px',
+      receiptNumberSize: '18px',
+      padding: '5mm 10mm 10mm 10mm',
       labelWidth: '350px',
       maxContentWidth: '190mm',
       usePageSize: true,
@@ -35,10 +35,10 @@ function getPaperSizeConfig(paperSize) {
     'a5_landscape': {
       pageWidth: '210mm',
       pageHeight: '148mm',
-      fontSize: '12px',
-      companyNameSize: '18px',
-      receiptNumberSize: '20px',
-      padding: '5mm',
+      fontSize: '10px',
+      companyNameSize: '14px',
+      receiptNumberSize: '14px',
+      padding: '3mm 5mm 5mm 5mm',
       labelWidth: '150px',
       maxContentWidth: '200mm',
       usePageSize: true,
@@ -120,12 +120,12 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
     
     body {
       font-family: 'Courier New', monospace;
-      font-size: ${sizeConfig.usePageSize ? sizeConfig.fontSize : '14px'};
-      line-height: 1.4;
+      font-size: ${sizeConfig.usePageSize ? sizeConfig.fontSize : '10px'};
+      line-height: 1.3;
       width: ${sizeConfig.usePageSize ? sizeConfig.maxContentWidth : '100%'};
       max-width: 100%;
       margin: 0 auto;
-      padding: ${sizeConfig.usePageSize ? '0' : '10mm'};
+      padding: ${sizeConfig.usePageSize ? '0' : '5mm'};
       color: #000;
     }
     
@@ -166,8 +166,8 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
     
     .title {
       font-weight: bold;
-      margin: 12px 0 5px 0;
-      font-size: 11px;
+      margin: 8px 0 4px 0;
+      font-size: 9px;
     }
     
     .details-section {
@@ -219,14 +219,14 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
     }
     
     .deduction-note {
-      font-size: 8px;
+      font-size: 9px;
       font-style: italic;
       margin-left: 10px;
     }
     
     .net-weight {
       font-weight: bold;
-      font-size: 11px;
+      font-size: 9px;
       margin-top: 3px;
       padding-bottom: 5px;
     }
@@ -483,12 +483,12 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
     
     body {
       font-family: 'Courier New', monospace;
-      font-size: ${sizeConfig.usePageSize ? sizeConfig.fontSize : '14px'};
-      line-height: 1.4;
+      font-size: ${sizeConfig.usePageSize ? sizeConfig.fontSize : '10px'};
+      line-height: 1.3;
       width: ${sizeConfig.usePageSize ? sizeConfig.maxContentWidth : '100%'};
       max-width: 100%;
       margin: 0 auto;
-      padding: ${sizeConfig.usePageSize ? '0' : '10mm'};
+      padding: ${sizeConfig.usePageSize ? '0' : '5mm'};
       color: #000;
     }
     
@@ -519,8 +519,8 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
     
     .title {
       font-weight: bold;
-      margin: 12px 0 5px 0;
-      font-size: 11px;
+      margin: 8px 0 4px 0;
+      font-size: 9px;
     }
     
     .main-section {

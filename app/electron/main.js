@@ -901,9 +901,8 @@ ipcMain.handle('print:purchaseReceipt', async (event, transactionId, options = {
     }
     
     // Decide: If use_print_dialog is ON, always show dialog (user can choose printer/PDF)
-    // Otherwise, print to PDF if explicitly enabled OR if no printer configured/available
-    // BUT if forcePrint is true (e.g., for reprints), try to print to physical printer
-    const shouldUsePrintDialog = usePrintDialog && !options.forcePrint;
+    // The forcePrint flag should not bypass the dialog setting - it only affects silent print behavior
+    const shouldUsePrintDialog = usePrintDialog;  // Always respect dialog setting
     const shouldPrintToPdf = !shouldUsePrintDialog && (
       options.forcePrint 
         ? (!defaultPrinter || !printerAvailable)  // Only PDF if no printer available
