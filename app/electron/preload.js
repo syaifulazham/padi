@@ -44,7 +44,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     updatePayment: (updateData) => ipcRenderer.invoke('purchases:updatePayment', updateData),
     cancelPendingLorry: (sessionData, userId, reason) => ipcRenderer.invoke('purchases:cancelPendingLorry', sessionData, userId, reason),
     getSplitChildren: (parentTransactionId) => ipcRenderer.invoke('purchases:getSplitChildren', parentTransactionId),
-    getSeasonDateRange: (seasonId) => ipcRenderer.invoke('purchases:getSeasonDateRange', seasonId)
+    getSeasonDateRange: (seasonId) => ipcRenderer.invoke('purchases:getSeasonDateRange', seasonId),
+    changeFarmer: (transactionId, newFarmerId, userId, reason) => ipcRenderer.invoke('purchases:changeFarmer', transactionId, newFarmerId, userId, reason)
   },
 
   // Sales

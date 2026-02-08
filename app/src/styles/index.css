@@ -55,3 +55,11 @@ code {
   top: auto !important;
   bottom: 50px !important;
 }
+
+/* Highlight rows with 'Need Update' status */
+.row-need-update td {
+  background-color: #fff7e6 !important;
+}
+.row-need-update:hover td {
+  background-color: #ffe7ba !important;
+}

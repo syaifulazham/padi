@@ -863,7 +863,7 @@ const Purchases = () => {
       // Call backend to create cancelled transaction
       const result = await window.electronAPI.purchases.cancelPendingLorry(
         session,
-        1, // TODO: Get from auth
+        user?.user_id,
         'Cancelled by operator during weigh-out'
       );
       

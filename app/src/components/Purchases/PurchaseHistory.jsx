@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Table, Statistic, Row, Col, Button, Space, Tag, DatePicker, message, Tooltip, Modal } from 'antd';
-import { ReloadOutlined, PrinterOutlined, FileExcelOutlined } from '@ant-design/icons';
+import { ReloadOutlined, PrinterOutlined, FileExcelOutlined, UserSwitchOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../../i18n/I18nProvider';
 
 const { RangePicker } = DatePicker;
 
 const PurchaseHistory = () => {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [dateRange, setDateRange] = useState([dayjs().startOf('day'), dayjs().endOf('day')]);
@@ -253,12 +255,13 @@ const PurchaseHistory = () => {
       width: 120,
       render: (status, record) => (
         <Space direction="vertical" size={2}>
-          <Tag color={
-            status === 'cancelled' ? 'red' : 
-            status === 'completed' ? 'blue' : 'default'
-          }>
-            {status ? (t(`purchasesHistory.transactionStatuses.${status}`) || status.toUpperCase()) : t('purchasesHistory.statuses.unknown')}
-          </Tag>
+          {status !== 'completed' && (
+            <Tag color={
+              status === 'cancelled' ? 'red' : 'default'
+            }>
+              {status ? (t(`purchasesHistory.transactionStatuses.${status}`) || status.toUpperCase()) : t('purchasesHistory.statuses.unknown')}
+            </Tag>
+          )}
           {status !== 'cancelled' && (
             <Tag color={record.payment_status === 'paid' ? 'green' : 'orange'} style={{ fontSize: '10px' }}>
               {record.payment_status === 'paid' ? 'Updated' : record.payment_status === 'unpaid' ? 'Need Update' : ''}
@@ -270,22 +273,31 @@ const PurchaseHistory = () => {
     {
       title: t('purchasesHistory.table.actions'),
       key: 'actions',
-      width: 100,
+      width: 120,
       fixed: 'right',
       render: (_, record) => (
         record.status === 'cancelled' ? (
           <Tag color="red">{t('purchasesHistory.misc.cancelled')}</Tag>
         ) : (
-          <Tooltip title={t('purchasesHistory.actions.reprintReceiptTooltip')}>
-            <Button
-              type="primary"
-              icon={<PrinterOutlined />}
-              size="small"
-              onClick={() => handleReprint(record)}
-            >
-              {t('purchasesHistory.actions.reprint')}
-            </Button>
-          </Tooltip>
+          <Space size={4}>
+            <Tooltip title={t('purchasesHistory.actions.reprintReceiptTooltip')}>
+              <Button
+                type="primary"
+                icon={<PrinterOutlined />}
+                size="small"
+                onClick={() => handleReprint(record)}
+              >
+                {t('purchasesHistory.actions.reprint')}
+              </Button>
+            </Tooltip>
+            <Tooltip title="Change Farmer">
+              <Button
+                icon={<UserSwitchOutlined />}
+                size="small"
+                onClick={() => navigate(`/purchases/change-farmer?transactionId=${record.transaction_id}`)}
+              />
+            </Tooltip>
+          </Space>
         )
       )
     }
@@ -372,6 +384,9 @@ const PurchaseHistory = () => {
             pageSizeOptions: ['10', '20', '50', '100']
           }}
           scroll={{ x: 1500 }}
+          rowClassName={(record) => 
+            record.payment_status === 'unpaid' && record.status !== 'cancelled' ? 'row-need-update' : ''
+          }
         />
 
         {/* Receipt Preview Modal */}
@@ -383,26 +398,44 @@ const PurchaseHistory = () => {
             setPreviewHtml('');
             setSelectedReceipt(null);
           }}
-          footer={[
-            <Button 
-              key="print" 
-              type="primary" 
-              icon={<PrinterOutlined />} 
-              onClick={() => {
-                handleReprint(selectedReceipt);
-                setPreviewModalOpen(false);
-              }}
-            >
-              Print
-            </Button>,
-            <Button key="close" onClick={() => {
-              setPreviewModalOpen(false);
-              setPreviewHtml('');
-              setSelectedReceipt(null);
-            }}>
-              Close
-            </Button>
-          ]}
+          footer={
+            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+              <div>
+                {selectedReceipt?.status !== 'cancelled' && (
+                  <Button
+                    key="changeFarmer"
+                    icon={<UserSwitchOutlined />}
+                    onClick={() => {
+                      setPreviewModalOpen(false);
+                      navigate(`/purchases/change-farmer?transactionId=${selectedReceipt?.transaction_id}`);
+                    }}
+                  >
+                    Change Farmer
+                  </Button>
+                )}
+              </div>
+              <Space>
+                <Button 
+                  key="print" 
+                  type="primary" 
+                  icon={<PrinterOutlined />} 
+                  onClick={() => {
+                    handleReprint(selectedReceipt);
+                    setPreviewModalOpen(false);
+                  }}
+                >
+                  Print
+                </Button>
+                <Button key="close" onClick={() => {
+                  setPreviewModalOpen(false);
+                  setPreviewHtml('');
+                  setSelectedReceipt(null);
+                }}>
+                  Close
+                </Button>
+              </Space>
+            </div>
+          }
           width={900}
           bodyStyle={{ padding: 0, maxHeight: '80vh', overflow: 'auto' }}
         >

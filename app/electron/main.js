@@ -669,6 +669,10 @@ ipcMain.handle('purchases:getSeasonDateRange', async (event, seasonId) => {
   return await purchaseService.getSeasonDateRange(seasonId);
 });
 
+ipcMain.handle('purchases:changeFarmer', async (event, transactionId, newFarmerId, userId, reason) => {
+  return await purchaseService.changeFarmer(transactionId, newFarmerId, userId, reason);
+});
+
 // Sales
 ipcMain.handle('sales:create', async (event, data) => {
   return await salesService.create(data);

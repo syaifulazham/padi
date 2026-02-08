@@ -7,6 +7,7 @@ import Manufacturers from './components/Manufacturers/Manufacturers';
 import Purchases from './components/Purchases/Purchases';
 import PurchaseHistory from './components/Purchases/PurchaseHistory';
 import Payment from './components/Purchases/Payment';
+import ChangeFarmer from './components/Purchases/ChangeFarmer';
 import Sales from './components/Sales/Sales';
 import SalesHistory from './components/Sales/SalesHistory';
 import SalesNote from './components/Sales/SalesNote';
@@ -163,6 +164,7 @@ function App() {
             <Route path="/purchases" element={<Purchases />} />
             <Route path="/purchases/history" element={<PurchaseHistory />} />
             <Route path="/purchases/payment" element={<Payment />} />
+            <Route path="/purchases/change-farmer" element={<ChangeFarmer />} />
             <Route path="/sales" element={<Sales />} />
             <Route path="/sales/history" element={<SalesHistory />} />
             <Route path="/sales/note" element={<SalesNote />} />

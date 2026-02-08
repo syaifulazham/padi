@@ -142,8 +142,8 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
     }
     
     .company-info {
-      font-size: calc(${sizeConfig.fontSize} * 0.9);
-      line-height: 1.2;
+      font-size: calc(${sizeConfig.fontSize} * 1.1);
+      line-height: 1.3;
     }
     
     .right-header {
@@ -225,8 +225,6 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
     }
     
     .net-weight {
-      font-weight: bold;
-      font-size: 9px;
       margin-top: 3px;
       padding-bottom: 5px;
     }
@@ -252,7 +250,8 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
     }
     
     .signature-label {
-      font-size: 8px;
+      font-size: ${sizeConfig.usePageSize ? sizeConfig.fontSize : '10px'};
+      font-weight: bold;
     }
     
     .bold {
@@ -387,7 +386,7 @@ function generatePurchaseReceipt(transaction, farmer, season, companyDetails, pa
     <div class="net-weight">
       <div class="weight-row">
         <div class="weight-label">
-          <span>BERAT BERSIH</span>
+          <span class="bold">BERAT BERSIH</span>
           <span>: ${formatNumber(beratBersih, 2)} KG</span>
         </div>
       </div>

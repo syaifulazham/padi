@@ -1189,6 +1189,79 @@ async function getSeasonDateRange(seasonId) {
   }
 }
 
+/**
+ * Change farmer assignment on a purchase transaction
+ * @param {number} transactionId - The transaction to reassign
+ * @param {number} newFarmerId - The new farmer ID
+ * @param {number} userId - User performing the change
+ * @param {string} reason - Reason for the change
+ */
+async function changeFarmer(transactionId, newFarmerId, userId, reason = '') {
+  try {
+    console.log('🔄 Changing farmer for transaction:', transactionId, '→ new farmer:', newFarmerId);
+
+    // Verify transaction exists
+    const txRows = await db.query(
+      'SELECT transaction_id, farmer_id, receipt_number, status FROM purchase_transactions WHERE transaction_id = ?',
+      [transactionId]
+    );
+    if (!txRows || txRows.length === 0) {
+      return { success: false, error: 'Transaction not found' };
+    }
+    const tx = txRows[0];
+    if (tx.status === 'cancelled') {
+      return { success: false, error: 'Cannot change farmer on a cancelled transaction' };
+    }
+    const oldFarmerId = tx.farmer_id;
+
+    // Verify new farmer exists
+    const farmerRows = await db.query(
+      'SELECT farmer_id, full_name, farmer_code FROM farmers WHERE farmer_id = ?',
+      [newFarmerId]
+    );
+    if (!farmerRows || farmerRows.length === 0) {
+      return { success: false, error: 'New farmer not found' };
+    }
+
+    // Update the farmer_id on the main transaction
+    await db.query(
+      'UPDATE purchase_transactions SET farmer_id = ?, updated_at = NOW() WHERE transaction_id = ?',
+      [newFarmerId, transactionId]
+    );
+
+    // Also update all split (child) receipts that reference this transaction
+    const childRows = await db.query(
+      'SELECT transaction_id, receipt_number FROM purchase_transactions WHERE parent_transaction_id = ?',
+      [transactionId]
+    );
+    if (childRows && childRows.length > 0) {
+      await db.query(
+        'UPDATE purchase_transactions SET farmer_id = ?, updated_at = NOW() WHERE parent_transaction_id = ?',
+        [newFarmerId, transactionId]
+      );
+      console.log(`✅ Also updated ${childRows.length} split receipt(s):`, childRows.map(c => c.receipt_number));
+    }
+
+    console.log(`✅ Farmer changed on receipt ${tx.receipt_number}: farmer_id ${oldFarmerId} → ${newFarmerId} by user ${userId}. Reason: ${reason}`);
+
+    return {
+      success: true,
+      data: {
+        transaction_id: transactionId,
+        receipt_number: tx.receipt_number,
+        old_farmer_id: oldFarmerId,
+        new_farmer_id: newFarmerId,
+        new_farmer_name: farmerRows[0].full_name,
+        new_farmer_code: farmerRows[0].farmer_code,
+        affected_split_receipts: childRows ? childRows.map(c => c.receipt_number) : []
+      }
+    };
+  } catch (error) {
+    console.error('Error changing farmer:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 module.exports = {
   create,
   getAll,
@@ -1201,5 +1274,6 @@ module.exports = {
   updatePayment,
   cancelPendingLorry,
   getSplitChildren,
-  getSeasonDateRange
+  getSeasonDateRange,
+  changeFarmer
 };
