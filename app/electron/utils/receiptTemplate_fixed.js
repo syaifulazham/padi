@@ -448,6 +448,11 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
     return sum + parseFloat(r.effective_weight_kg || r.net_weight_kg || 0);
   }, 0);
   
+  // Calculate total amount
+  const totalAmaun = purchaseReceipts.reduce((sum, r) => {
+    return sum + parseFloat(r.total_amount || 0);
+  }, 0);
+
   // Check if ALL receipts have deductions configured (not just some)
   const hasDeductions = purchaseReceipts.length > 0 && purchaseReceipts.every(r => {
     const deductionConfig = r.deduction_config;
@@ -480,6 +485,9 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
       console.error('Error parsing deduction_config for receipt:', receipt.receipt_number, error);
     }
     
+    const harga = parseFloat(receipt.base_price_per_kg || 0) * 1000;
+    const amaun = parseFloat(receipt.total_amount || 0);
+
     if (hasDeductions) {
       return `
         <tr>
@@ -488,6 +496,8 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
           <td style="padding: 3px 5px; border-bottom: 1px solid #ddd; text-align: right;">${formatNumber(beratKasar, 2)}</td>
           <td style="padding: 3px 5px; border-bottom: 1px solid #ddd; text-align: right;">${formatNumber(beratBersih, 2)}</td>
           <td style="padding: 3px 5px; border-bottom: 1px solid #ddd; text-align: right;">${formatNumber(ptg, 2)}</td>
+          <td style="padding: 3px 5px; border-bottom: 1px solid #ddd; text-align: right;">${formatNumber(harga, 2)}</td>
+          <td style="padding: 3px 5px; border-bottom: 1px solid #ddd; text-align: right;">${formatNumber(amaun, 2)}</td>
         </tr>
       `;
     } else {
@@ -496,6 +506,8 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
           <td style="padding: 3px 5px; border-bottom: 1px solid #ddd; text-align: center;">${index + 1}</td>
           <td style="padding: 3px 5px; border-bottom: 1px solid #ddd;">${receipt.receipt_number}</td>
           <td style="padding: 3px 5px; border-bottom: 1px solid #ddd; text-align: right;">${formatNumber(beratKasar, 2)}</td>
+          <td style="padding: 3px 5px; border-bottom: 1px solid #ddd; text-align: right;">${formatNumber(harga, 2)}</td>
+          <td style="padding: 3px 5px; border-bottom: 1px solid #ddd; text-align: right;">${formatNumber(amaun, 2)}</td>
         </tr>
       `;
     }
@@ -520,18 +532,35 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
     
     body {
       font-family: 'Courier New', monospace;
-      font-size: ${sizeConfig.fontSize};
       line-height: 1.3;
-      width: 100%; /* Changed to 100% */
+      width: 100%;
       margin: 0;
       padding: 0;
       color: #000;
     }
     
     .container {
-      width: 100%; /* Full width container */
+      width: 100%;
       margin: 0;
       padding: 0;
+    }
+    
+    @media print {
+      body, .container {
+        font-size: ${sizeConfig.fontSize};
+      }
+      .company-info {
+        font-size: calc(${sizeConfig.fontSize} * 0.85);
+      }
+      .page-title {
+        font-size: calc(${sizeConfig.fontSize} * 1.1);
+      }
+      .info-row {
+        font-size: calc(${sizeConfig.fontSize} * 0.9);
+      }
+      .manufacturer-address {
+        font-size: calc(${sizeConfig.fontSize} * 0.9);
+      }
     }
     
     .header {
@@ -549,14 +578,12 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
     }
     
     .company-info {
-      font-size: calc(${sizeConfig.fontSize} * 0.85);
       line-height: 1.3;
     }
     
     .page-title {
       text-align: right;
       font-weight: bold;
-      font-size: calc(${sizeConfig.fontSize} * 1.1);
       margin: 10px 0;
     }
     
@@ -595,7 +622,6 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
     
     .info-row {
       margin-bottom: 3px;
-      font-size: calc(${sizeConfig.fontSize} * 0.9);
     }
     
     .receipt-info {
@@ -611,7 +637,6 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
       width: 100%;
       border-collapse: collapse;
       margin-top: 5px;
-      font-size: calc(${sizeConfig.fontSize} * 0.85);
     }
     
     .purchase-table th {
@@ -701,7 +726,7 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
       <!-- Left Column -->
       <div class="left-section">
         <div class="bold" style="margin-bottom: 5px;">PENGHANTARAN PADI KE</div>
-        <div style="font-size: calc(${sizeConfig.fontSize} * 0.9);">
+        <div class="manufacturer-address">
           Pengurus,<br>
           ${salesTransaction.manufacturer_name || 'KILANG BERAS RAKYAT SEKINCHAN'},<br>
           ${salesTransaction.manufacturer_address || 'LOT 322'},<br>
@@ -732,8 +757,8 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
           <div class="info-row"><span class="bold">TIMBANG MASUK : ${formatNumber(salesTransaction.tare_weight_kg, 2)} KG</span></div>
           <div class="info-row"><span class="bold">TIMBANG KELUAR : ${formatNumber(salesTransaction.gross_weight_kg, 2)} KG</span></div>
           <div class="info-row"><span class="bold">BERAT KASAR: ${formatNumber(salesTransaction.net_weight_kg, 2)} KG</span></div>
-          <div class="info-row" style="font-size: calc(${sizeConfig.fontSize} * 0.8);">Masa Masuk: ${formatTime(salesTransaction.sale_date)}</div>
-          <div class="info-row" style="font-size: calc(${sizeConfig.fontSize} * 0.8);">Masa Keluar: ${formatTime(salesTransaction.sale_date)}</div>
+          <div class="info-row">Masa Masuk: ${formatTime(salesTransaction.sale_date)}</div>
+          <div class="info-row">Masa Keluar: ${formatTime(salesTransaction.sale_date)}</div>
         </div>
       </div>
     </div>
@@ -744,10 +769,12 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
         <thead>
           <tr>
             <th style="width: 5%;"></th>
-            <th style="${hasDeductions ? 'width: 25%;' : 'width: 45%;'} text-align: left;">NO RESIT</th>
-            <th style="${hasDeductions ? 'width: 25%;' : 'width: 50%;'} text-align: right;">B. KASAR</th>
-            ${hasDeductions ? '<th style="width: 25%; text-align: right;">B. BERSIH</th>' : ''}
-            ${hasDeductions ? '<th style="width: 20%; text-align: right;">PTG</th>' : ''}
+            <th style="text-align: left;">NO RESIT</th>
+            <th style="text-align: right;">B. KASAR</th>
+            ${hasDeductions ? '<th style="text-align: right;">B. BERSIH</th>' : ''}
+            ${hasDeductions ? '<th style="text-align: right;">PTG</th>' : ''}
+            <th style="text-align: right;">HARGA</th>
+            <th style="text-align: right;">AMAUN</th>
           </tr>
         </thead>
         <tbody>
@@ -757,6 +784,8 @@ function generateSalesReceipt(salesTransaction, season, companyDetails, paperSiz
             <td style="text-align: right; padding: 8px; border-top: 2px solid #000;">${formatNumber(totalBeratKasar, 2)} KG</td>
             ${hasDeductions ? `<td style="text-align: right; padding: 8px; border-top: 2px solid #000;">${formatNumber(totalBeratBersih, 2)} KG</td>` : ''}
             ${hasDeductions ? '<td style="border-top: 2px solid #000;"></td>' : ''}
+            <td style="border-top: 2px solid #000;"></td>
+            <td style="text-align: right; padding: 8px; border-top: 2px solid #000;"><span class="bold">${formatNumber(totalAmaun, 2)}</span></td>
           </tr>
         </tbody>
       </table>
